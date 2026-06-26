@@ -1,0 +1,940 @@
+// Infrastructure — PG & Hostel Management SaaS
+// 1forge Studio (infrastructure.1forge.in)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum PlanTier {
+  starter
+  growth
+  pro
+}
+
+enum PlanStatus {
+  active
+  trialing
+  paused
+  canceled
+  expired
+}
+
+enum OrgRole {
+  owner   // PG/hostel owner (Admin in requirements)
+  warden  // Warden — manages day-to-day
+  guard   // Guard — gate pass, student in/out
+  staff   // Mess cook, housekeeping, maintenance
+  tenant  // Tenant / Student
+  parent  // Parent of tenant
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum RoomType {
+  single
+  double
+  triple
+  dorm
+}
+
+enum RoomStatus {
+  available
+  occupied
+  maintenance
+  unavailable
+}
+
+enum PassStatus {
+  pending
+  approved
+  rejected
+  cancelled
+  completed
+}
+
+enum VisitStatus {
+  pending
+  approved
+  rejected
+  completed
+}
+
+enum DayOfWeek {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+}
+
+enum MealType {
+  breakfast
+  lunch
+  snacks
+  dinner
+}
+
+enum FeedbackRating {
+  up
+  down
+}
+
+enum DueType {
+  rent
+  security_deposit
+  maintenance
+  electricity
+  damage
+  mess
+  laundry
+  other
+}
+
+enum DueStatus {
+  unpaid
+  partial
+  paid
+  overdue
+  waived
+}
+
+enum PaymentGateway {
+  razorpay
+  cashfree
+  phonepe
+  stripe
+  manual
+}
+
+enum PaymentMethod {
+  upi
+  card
+  cash
+  net_banking
+  other
+}
+
+enum PaymentStatus {
+  pending
+  successful
+  failed
+  refunded
+}
+
+enum ComplaintCategory {
+  maintenance
+  cleanliness
+  food
+  security
+  noise
+  other
+}
+
+enum ComplaintStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum ComplaintPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum AnnouncementTargetType {
+  all
+  floor
+  room
+  tenant
+}
+
+enum DocType {
+  aadhaar
+  pan
+  passport
+  license
+  other
+}
+
+enum StaffRoleType {
+  guard
+  warden
+  manager
+  housekeeping
+  cook
+  plumber
+  electrician
+  other
+}
+
+enum NotificationType {
+  gate_pass
+  visitor
+  complaint
+  announcement
+  payment
+  due_reminder
+  other
+}
+
+enum NotificationChannel {
+  push
+  whatsapp
+  sms
+  email
+  in_app
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  delivered
+  failed
+  read
+}
+
+enum TenantStatus {
+  onboarding
+  active
+  deactivated
+}
+
+// ─────────────────────────────────────────────
+// PLATFORM (Super Admin — separate from org users)
+// ─────────────────────────────────────────────
+
+/// 1forge platform team members — fully isolated from org users table.
+model PlatformUser {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  password_hash String    @db.VarChar(255)
+  full_name     String    @db.VarChar(255)
+  is_active     Boolean   @default(true)
+  last_login_at DateTime? @db.Timestamp(6)
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @updatedAt @db.Timestamp(6)
+
+  platform_audit_logs PlatformAuditLog[]
+
+  @@map("platform_users")
+}
+
+/// Tracks Super Admin actions on the platform (separate from org-level audit).
+model PlatformAuditLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  platform_user_id String  @db.Uuid
+  action          String   @db.VarChar(255)
+  entity_type     String   @db.VarChar(255) // e.g. "organization", "plan"
+  entity_id       String?  @db.Uuid
+  details         Json?    @db.JsonB
+  ip_address      String?  @db.VarChar(45)
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+
+  platform_user PlatformUser @relation(fields: [platform_user_id], references: [id])
+
+  @@index([platform_user_id])
+  @@map("platform_audit_logs")
+}
+
+/// Daily snapshot metrics per organization for the Super Admin dashboard.
+model PlatformMetric {
+  id                  String   @id @default(uuid()) @db.Uuid
+  org_id              String   @db.Uuid
+  metric_date         DateTime @db.Date
+  active_tenants      Int      @default(0)
+  vacant_seats        Int      @default(0)
+  revenue_collected   Decimal  @default(0) @db.Decimal(12, 2)
+  revenue_outstanding Decimal  @default(0) @db.Decimal(12, 2)
+  created_at          DateTime @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, metric_date])
+  @@map("platform_metrics")
+}
+
+// ─────────────────────────────────────────────
+// PLANS & ORGANIZATIONS
+// ─────────────────────────────────────────────
+
+model Plan {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique @db.VarChar(255)
+  tier          PlanTier
+  max_tenants   Int
+  price_monthly Decimal  @db.Decimal(10, 2)
+  features      Json     @db.JsonB // default feature flags for new orgs on this plan
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+
+  organizations Organization[]
+
+  @@map("plans")
+}
+
+/// Groups multiple properties under one owner for the multi-property switcher.
+model PropertyGroup {
+  id         String   @id @default(uuid()) @db.Uuid
+  owner_id   String   @db.Uuid
+  name       String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  owner         User           @relation(fields: [owner_id], references: [id])
+  organizations Organization[]
+
+  @@map("property_groups")
+}
+
+model Organization {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String     @db.VarChar(255)
+  slug            String     @unique @db.VarChar(255) // Canvas-style login lookup
+  owner_name      String     @db.VarChar(255)
+  address         String?    @db.Text
+  city_state      String     @db.VarChar(255)
+  latitude        Decimal?   @db.Decimal(10, 8)
+  longitude       Decimal?   @db.Decimal(11, 8)
+  contact_email   String?    @db.VarChar(255)
+  contact_phone   String?    @db.VarChar(20)
+  logo_url        String?    @db.Text
+  plan_id         String     @db.Uuid
+  plan_status     PlanStatus
+  plan_expires_at DateTime?  @db.Timestamp(6)
+  group_id        String?    @db.Uuid
+  total_capacity  Int
+  is_active       Boolean    @default(true)
+  created_at      DateTime   @default(now()) @db.Timestamp(6)
+  updated_at      DateTime   @updatedAt @db.Timestamp(6)
+
+  plan             Plan           @relation(fields: [plan_id], references: [id])
+  group            PropertyGroup? @relation(fields: [group_id], references: [id])
+  org_features     OrgFeature[]
+  user_org_roles   UserOrgRole[]
+  onboarding_invites OnboardingInvite[]
+  floors           Floor[]
+  rooms            Room[]
+  tenant_profiles  TenantProfile[]
+  parent_profiles  ParentProfile[]
+  gate_passes      GatePass[]
+  visitors         Visitor[]
+  mess_menus       MessMenu[]
+  mess_feedback    MessFeedback[]
+  dues             Due[]
+  payments         Payment[]
+  complaints       Complaint[]
+  announcements    Announcement[]
+  documents        Document[]
+  staff_contacts   StaffContact[]
+  notifications    Notification[]
+  audit_logs       AuditLog[]
+  platform_metrics PlatformMetric[]
+  due_reminder_config DueReminderConfig?
+  room_assignment_history RoomAssignmentHistory[]
+
+  @@map("organizations")
+}
+
+/// Per-org feature toggle. Super Admin / Owner can flip these.
+model OrgFeature {
+  id          String   @id @default(uuid()) @db.Uuid
+  org_id      String   @db.Uuid
+  feature_key String   @db.VarChar(255)
+  is_enabled  Boolean  @default(false)
+  updated_by  String   @db.Uuid
+  updated_at  DateTime @updatedAt @db.Timestamp(6)
+
+  organization    Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  updated_by_user User         @relation("OrgFeatureUpdatedBy", fields: [updated_by], references: [id])
+
+  @@unique([org_id, feature_key])
+  @@map("org_features")
+}
+
+// ─────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  email             String    @unique @db.VarChar(255)
+  phone             String    @unique @db.VarChar(20)
+  password_hash     String    @db.VarChar(255)
+  full_name         String    @db.VarChar(255)
+  profile_photo_url String?   @db.Text
+  is_active         Boolean   @default(true)
+  last_login_at     DateTime? @db.Timestamp(6)
+  created_at        DateTime  @default(now()) @db.Timestamp(6)
+  updated_at        DateTime  @updatedAt @db.Timestamp(6)
+
+  user_org_roles            UserOrgRole[]
+  onboarding_invites        OnboardingInvite[]
+  tenant_profiles           TenantProfile[]
+  parent_profiles_as_parent ParentProfile[]           @relation("ParentUser")
+  parent_profiles_as_tenant ParentProfile[]           @relation("ParentTenant")
+  org_features_updated      OrgFeature[]              @relation("OrgFeatureUpdatedBy")
+  gate_passes               GatePass[]                @relation("GatePassTenant")
+  gate_passes_approved      GatePass[]                @relation("GatePassApprovedBy")
+  gate_passes_checked       GatePass[]                @relation("GatePassCheckedBy")
+  visitors                  Visitor[]                 @relation("VisitorTenant")
+  visitors_approved         Visitor[]                 @relation("VisitorApprovedBy")
+  mess_menus_created        MessMenu[]                @relation("MessMenuCreatedBy")
+  mess_feedback             MessFeedback[]            @relation("MessFeedbackTenant")
+  dues                      Due[]                     @relation("DueTenant")
+  dues_created              Due[]                     @relation("DueCreatedBy")
+  payments                  Payment[]                 @relation("PaymentTenant")
+  payments_paid             Payment[]                 @relation("PaymentPaidBy")
+  complaints                Complaint[]               @relation("ComplaintTenant")
+  complaints_assigned       Complaint[]               @relation("ComplaintAssignedTo")
+  complaint_updates         ComplaintUpdate[]
+  announcements_created     Announcement[]            @relation("AnnouncementCreatedBy")
+  announcement_reads        AnnouncementRead[]
+  documents                 Document[]                @relation("DocumentTenant")
+  documents_uploaded        Document[]                @relation("DocumentUploadedBy")
+  documents_verified        Document[]                @relation("DocumentVerifiedBy")
+  staff_contacts            StaffContact[]            @relation("StaffContactUser")
+  notifications             Notification[]
+  audit_logs                AuditLog[]
+  property_groups           PropertyGroup[]
+  refresh_tokens            RefreshToken[]
+  room_assignment_history   RoomAssignmentHistory[]   @relation("RoomAssignmentTenant")
+
+  @@map("users")
+}
+
+/// Maps a user to a role within an org. One user can have roles in multiple orgs.
+model UserOrgRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  org_id     String   @db.Uuid
+  role       OrgRole
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @updatedAt @db.Timestamp(6)
+
+  user         User         @relation(fields: [user_id], references: [id])
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, org_id, role])
+  @@index([user_id, org_id])
+  @@map("user_org_roles")
+}
+
+/// Digital onboarding — warden sends invite link, tenant fills in own details.
+model OnboardingInvite {
+  id          String       @id @default(uuid()) @db.Uuid
+  org_id      String       @db.Uuid
+  invited_by  String       @db.Uuid
+  email_phone String       @db.VarChar(255)
+  role        OrgRole
+  token       String       @unique @db.VarChar(255)
+  status      InviteStatus @default(pending)
+  expires_at  DateTime     @db.Timestamp(6)
+  created_at  DateTime     @default(now()) @db.Timestamp(6)
+
+  organization    Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  invited_by_user User         @relation(fields: [invited_by], references: [id])
+
+  @@map("onboarding_invites")
+}
+
+/// JWT refresh tokens for PWA session management.
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique @db.VarChar(512)
+  device     String?  @db.VarChar(255) // e.g. "Chrome on Android"
+  ip_address String?  @db.VarChar(45)
+  expires_at DateTime @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// PROPERTY STRUCTURE
+// ─────────────────────────────────────────────
+
+model Floor {
+  id           String   @id @default(uuid()) @db.Uuid
+  org_id       String   @db.Uuid
+  floor_number Int
+  floor_name   String   @db.VarChar(255)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  rooms        Room[]
+
+  @@unique([org_id, floor_number])
+  @@map("floors")
+}
+
+model Room {
+  id                String     @id @default(uuid()) @db.Uuid
+  org_id            String     @db.Uuid
+  floor_id          String     @db.Uuid
+  room_number       String     @db.VarChar(50)
+  room_type         RoomType
+  capacity          Int
+  current_occupancy Int        @default(0)
+  status            RoomStatus @default(available)
+  monthly_rent      Decimal    @db.Decimal(10, 2)
+  is_active         Boolean    @default(true)
+  created_at        DateTime   @default(now()) @db.Timestamp(6)
+  updated_at        DateTime   @updatedAt @db.Timestamp(6)
+
+  organization    Organization            @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  floor           Floor                   @relation(fields: [floor_id], references: [id])
+  tenant_profiles TenantProfile[]
+  assignment_history RoomAssignmentHistory[]
+
+  @@unique([org_id, room_number])
+  @@map("rooms")
+}
+
+model TenantProfile {
+  id                      String       @id @default(uuid()) @db.Uuid
+  user_id                 String       @db.Uuid
+  org_id                  String       @db.Uuid
+  room_id                 String       @db.Uuid
+  admission_date          DateTime     @db.Date
+  expected_exit_date      DateTime?    @db.Date
+  emergency_contact_name  String       @db.VarChar(255)
+  emergency_contact_phone String       @db.VarChar(20)
+  college_or_company      String?      @db.VarChar(255)
+  status                  TenantStatus @default(onboarding)
+  onboarding_token        String?      @db.VarChar(255)
+  is_active               Boolean      @default(true)
+  deactivated_at          DateTime?    @db.Timestamp(6)
+  created_at              DateTime     @default(now()) @db.Timestamp(6)
+  updated_at              DateTime     @updatedAt @db.Timestamp(6)
+
+  user         User         @relation(fields: [user_id], references: [id])
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  room         Room         @relation(fields: [room_id], references: [id])
+
+  @@unique([user_id, org_id])
+  @@index([org_id, status])
+  @@map("tenant_profiles")
+}
+
+/// Preserves full history of who was assigned to which room and when.
+model RoomAssignmentHistory {
+  id          String    @id @default(uuid()) @db.Uuid
+  org_id      String    @db.Uuid
+  room_id     String    @db.Uuid
+  tenant_id   String    @db.Uuid
+  assigned_at DateTime  @default(now()) @db.Timestamp(6)
+  vacated_at  DateTime? @db.Timestamp(6)
+  reason      String?   @db.VarChar(255) // e.g. "room change", "deactivated", "graduated"
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  room         Room         @relation(fields: [room_id], references: [id])
+  tenant       User         @relation("RoomAssignmentTenant", fields: [tenant_id], references: [id])
+
+  @@index([org_id, room_id])
+  @@index([tenant_id])
+  @@map("room_assignment_history")
+}
+
+model ParentProfile {
+  id                       String   @id @default(uuid()) @db.Uuid
+  user_id                  String   @db.Uuid // the parent's user account
+  tenant_id                String   @db.Uuid // the child/ward
+  org_id                   String   @db.Uuid
+  relation                 String   @db.VarChar(255) // e.g. "father", "mother", "guardian"
+  can_see_roommate_contact Boolean  @default(false)
+  can_see_parent_contact   Boolean  @default(false)
+  created_at               DateTime @default(now()) @db.Timestamp(6)
+  updated_at               DateTime @updatedAt @db.Timestamp(6)
+
+  user         User         @relation("ParentUser", fields: [user_id], references: [id])
+  tenant       User         @relation("ParentTenant", fields: [tenant_id], references: [id])
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, tenant_id, org_id])
+  @@map("parent_profiles")
+}
+
+// ─────────────────────────────────────────────
+// GATE PASS & VISITOR MANAGEMENT
+// ─────────────────────────────────────────────
+
+model GatePass {
+  id                   String     @id @default(uuid()) @db.Uuid
+  org_id               String     @db.Uuid
+  tenant_id            String     @db.Uuid
+  purpose              String     @db.Text
+  destination          String     @db.VarChar(255)
+  expected_out_time    DateTime   @db.Timestamp(6)
+  expected_return_time DateTime   @db.Timestamp(6)
+  actual_out_time      DateTime?  @db.Timestamp(6)
+  actual_in_time       DateTime?  @db.Timestamp(6)
+  status               PassStatus @default(pending)
+  approved_by          String?    @db.Uuid
+  checked_by           String?    @db.Uuid // guard who scanned QR / marked out-in
+  qr_code              String     @unique @db.VarChar(255)
+  created_at           DateTime   @default(now()) @db.Timestamp(6)
+  updated_at           DateTime   @updatedAt @db.Timestamp(6)
+
+  organization     Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant           User         @relation("GatePassTenant", fields: [tenant_id], references: [id])
+  approved_by_user User?        @relation("GatePassApprovedBy", fields: [approved_by], references: [id])
+  checked_by_user  User?        @relation("GatePassCheckedBy", fields: [checked_by], references: [id])
+
+  @@index([org_id, status])
+  @@index([tenant_id, status])
+  @@map("gate_passes")
+}
+
+model Visitor {
+  id                  String      @id @default(uuid()) @db.Uuid
+  org_id              String      @db.Uuid
+  tenant_id           String      @db.Uuid
+  visitor_name        String      @db.VarChar(255)
+  visitor_phone       String      @db.VarChar(20)
+  visitor_relation    String      @db.VarChar(255)
+  visitor_id_proof    String?     @db.VarChar(255) // ID type shown at gate
+  purpose             String      @db.Text
+  expected_visit_time DateTime    @db.Timestamp(6)
+  actual_in_time      DateTime?   @db.Timestamp(6)
+  actual_out_time     DateTime?   @db.Timestamp(6)
+  status              VisitStatus @default(pending)
+  approved_by         String?     @db.Uuid
+  created_at          DateTime    @default(now()) @db.Timestamp(6)
+  updated_at          DateTime    @updatedAt @db.Timestamp(6)
+
+  organization     Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant           User         @relation("VisitorTenant", fields: [tenant_id], references: [id])
+  approved_by_user User?        @relation("VisitorApprovedBy", fields: [approved_by], references: [id])
+
+  @@index([org_id, status])
+  @@map("visitors")
+}
+
+// ─────────────────────────────────────────────
+// MESS MENU & FEEDBACK
+// ─────────────────────────────────────────────
+
+model MessMenu {
+  id              String   @id @default(uuid()) @db.Uuid
+  org_id          String   @db.Uuid
+  week_start_date DateTime @db.Date
+  created_by      String   @db.Uuid
+  is_published    Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @updatedAt @db.Timestamp(6)
+
+  organization    Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  created_by_user User         @relation("MessMenuCreatedBy", fields: [created_by], references: [id])
+  items           MessMenuItem[]
+
+  @@unique([org_id, week_start_date])
+  @@map("mess_menus")
+}
+
+model MessMenuItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  menu_id     String    @db.Uuid
+  day_of_week DayOfWeek
+  meal_type   MealType
+  items       String[]  @db.Text
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+
+  menu     MessMenu       @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  feedback MessFeedback[]
+
+  @@unique([menu_id, day_of_week, meal_type])
+  @@map("mess_menu_items")
+}
+
+model MessFeedback {
+  id           String         @id @default(uuid()) @db.Uuid
+  org_id       String         @db.Uuid
+  tenant_id    String         @db.Uuid
+  menu_item_id String         @db.Uuid
+  rating       FeedbackRating
+  note         String?        @db.Text
+  created_at   DateTime       @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant       User         @relation("MessFeedbackTenant", fields: [tenant_id], references: [id])
+  menu_item    MessMenuItem @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, menu_item_id])
+  @@map("mess_feedback")
+}
+
+// ─────────────────────────────────────────────
+// DUES & PAYMENTS
+// ─────────────────────────────────────────────
+
+model Due {
+  id            String    @id @default(uuid()) @db.Uuid
+  org_id        String    @db.Uuid
+  tenant_id     String    @db.Uuid
+  due_type      DueType
+  amount        Decimal   @db.Decimal(10, 2)
+  amount_paid   Decimal   @default(0) @db.Decimal(10, 2)
+  description   String?   @db.Text
+  due_date      DateTime  @db.Date
+  billing_month DateTime  @db.Date
+  status        DueStatus @default(unpaid)
+  created_by    String    @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @updatedAt @db.Timestamp(6)
+
+  organization    Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant          User         @relation("DueTenant", fields: [tenant_id], references: [id])
+  created_by_user User         @relation("DueCreatedBy", fields: [created_by], references: [id])
+  payments        Payment[]
+
+  @@index([org_id, tenant_id, status])
+  @@index([org_id, due_date])
+  @@map("dues")
+}
+
+model Payment {
+  id                 String         @id @default(uuid()) @db.Uuid
+  org_id             String         @db.Uuid
+  tenant_id          String         @db.Uuid
+  due_id             String         @db.Uuid
+  amount             Decimal        @db.Decimal(10, 2)
+  payment_method     PaymentMethod
+  gateway            PaymentGateway @default(manual)
+  gateway_order_id   String?        @db.VarChar(255) // null for cash payments
+  gateway_payment_id String?        @db.VarChar(255)
+  status             PaymentStatus  @default(pending)
+  paid_by            String         @db.Uuid
+  paid_at            DateTime?      @db.Timestamp(6) // set when status = successful
+  receipt_url        String?        @db.Text
+  created_at         DateTime       @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant       User         @relation("PaymentTenant", fields: [tenant_id], references: [id])
+  due          Due          @relation(fields: [due_id], references: [id])
+  paid_by_user User         @relation("PaymentPaidBy", fields: [paid_by], references: [id])
+
+  @@index([org_id, paid_at])
+  @@index([tenant_id])
+  @@map("payments")
+}
+
+/// Per-org config for automated due reminders (WhatsApp + push).
+model DueReminderConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  org_id         String   @unique @db.Uuid
+  reminder_days  Int[]    // e.g. [1, 5, 10] — days of month to send reminders
+  send_whatsapp  Boolean  @default(true)
+  send_push      Boolean  @default(true)
+  send_sms       Boolean  @default(false)
+  send_to_parent Boolean  @default(true)
+  is_active      Boolean  @default(true)
+  updated_at     DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("due_reminder_configs")
+}
+
+// ─────────────────────────────────────────────
+// COMPLAINTS
+// ─────────────────────────────────────────────
+
+model Complaint {
+  id          String            @id @default(uuid()) @db.Uuid
+  org_id      String            @db.Uuid
+  tenant_id   String            @db.Uuid
+  category    ComplaintCategory
+  title       String            @db.VarChar(255)
+  description String            @db.Text
+  photo_urls  String[]          @db.Text // tenant can attach photos of damage etc.
+  status      ComplaintStatus   @default(open)
+  priority    ComplaintPriority @default(medium)
+  assigned_to String?           @db.Uuid
+  resolved_at DateTime?         @db.Timestamp(6)
+  created_at  DateTime          @default(now()) @db.Timestamp(6)
+  updated_at  DateTime          @updatedAt @db.Timestamp(6)
+
+  organization     Organization     @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant           User             @relation("ComplaintTenant", fields: [tenant_id], references: [id])
+  assigned_to_user User?            @relation("ComplaintAssignedTo", fields: [assigned_to], references: [id])
+  updates          ComplaintUpdate[]
+
+  @@index([org_id, status])
+  @@index([tenant_id])
+  @@map("complaints")
+}
+
+model ComplaintUpdate {
+  id           String          @id @default(uuid()) @db.Uuid
+  complaint_id String          @db.Uuid
+  updated_by   String          @db.Uuid
+  status       ComplaintStatus
+  note         String?         @db.Text
+  created_at   DateTime        @default(now()) @db.Timestamp(6)
+
+  complaint       Complaint @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  updated_by_user User      @relation(fields: [updated_by], references: [id])
+
+  @@map("complaint_updates")
+}
+
+// ─────────────────────────────────────────────
+// ANNOUNCEMENTS
+// ─────────────────────────────────────────────
+
+model Announcement {
+  id            String                 @id @default(uuid()) @db.Uuid
+  org_id        String                 @db.Uuid
+  created_by    String                 @db.Uuid
+  title         String                 @db.VarChar(255)
+  body          String                 @db.Text
+  target_type   AnnouncementTargetType
+  target_id     String?                @db.Uuid // null when target_type = all
+  send_push     Boolean                @default(false)
+  send_whatsapp Boolean                @default(false)
+  scheduled_at  DateTime?              @db.Timestamp(6) // null = send immediately
+  created_at    DateTime               @default(now()) @db.Timestamp(6)
+
+  organization    Organization       @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  created_by_user User               @relation("AnnouncementCreatedBy", fields: [created_by], references: [id])
+  reads           AnnouncementRead[]
+
+  @@index([org_id, created_at])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id              String   @id @default(uuid()) @db.Uuid
+  announcement_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  read_at         DateTime @default(now()) @db.Timestamp(6)
+
+  announcement Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id])
+
+  @@unique([announcement_id, user_id])
+  @@map("announcement_reads")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS
+// ─────────────────────────────────────────────
+
+model Document {
+  id          String   @id @default(uuid()) @db.Uuid
+  org_id      String   @db.Uuid
+  tenant_id   String   @db.Uuid
+  doc_type    DocType
+  file_url    String   @db.Text
+  file_name   String   @db.VarChar(255)
+  uploaded_by String   @db.Uuid
+  is_verified Boolean  @default(false)
+  verified_by String?  @db.Uuid
+  verified_at DateTime? @db.Timestamp(6)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+
+  organization     Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  tenant           User         @relation("DocumentTenant", fields: [tenant_id], references: [id])
+  uploaded_by_user User         @relation("DocumentUploadedBy", fields: [uploaded_by], references: [id])
+  verified_by_user User?        @relation("DocumentVerifiedBy", fields: [verified_by], references: [id])
+
+  @@index([tenant_id])
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────
+// STAFF CONTACTS
+// ─────────────────────────────────────────────
+
+model StaffContact {
+  id           String        @id @default(uuid()) @db.Uuid
+  org_id       String        @db.Uuid
+  user_id      String?       @db.Uuid // null for external contacts (plumber, electrician)
+  name         String        @db.VarChar(255)
+  phone        String        @db.VarChar(20)
+  role_type    StaffRoleType
+  is_emergency Boolean       @default(false) // show on tenant emergency page
+  is_active    Boolean       @default(true)
+  created_at   DateTime      @default(now()) @db.Timestamp(6)
+  updated_at   DateTime      @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User?        @relation("StaffContactUser", fields: [user_id], references: [id])
+
+  @@index([org_id, role_type])
+  @@map("staff_contacts")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id             String              @id @default(uuid()) @db.Uuid
+  org_id         String              @db.Uuid
+  user_id        String              @db.Uuid
+  title          String              @db.VarChar(255)
+  body           String              @db.Text
+  type           NotificationType
+  reference_id   String?             @db.Uuid   // links to the entity (gate pass, complaint, etc.)
+  reference_type String?             @db.VarChar(255)
+  channel        NotificationChannel @default(in_app)
+  status         NotificationStatus  @default(pending)
+  read_at        DateTime?           @db.Timestamp(6)
+  created_at     DateTime            @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, status])
+  @@index([org_id, type])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG (org-level)
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  org_id      String   @db.Uuid
+  user_id     String   @db.Uuid
+  action      String   @db.VarChar(255)
+  entity_type String   @db.VarChar(255)
+  entity_id   String?  @db.Uuid
+  old_value   Json?    @db.JsonB
+  new_value   Json?    @db.JsonB
+  ip_address  String?  @db.VarChar(45)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id])
+
+  @@index([org_id, entity_type])
+  @@index([user_id])
+  @@map("audit_logs")
+}
