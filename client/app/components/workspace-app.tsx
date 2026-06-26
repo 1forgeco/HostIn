@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
 type SectionId =
@@ -33,8 +33,39 @@ type Module = {
 
 type LoginState = {
   accessToken: string;
+  orgId: string;
   userName: string;
   email: string;
+};
+
+type Occupant = {
+  tenantProfileId: string;
+  userId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  profilePhotoUrl?: string | null;
+};
+
+type RoomBoardRoom = {
+  id: string;
+  roomNumber: string;
+  floorId: string;
+  floorNumber: number;
+  floorName: string;
+  roomType: string;
+  capacity: number;
+  currentOccupancy: number;
+  status: string;
+  monthlyRent: string | number;
+  occupants: Occupant[];
+};
+
+type TenantOption = {
+  tenantProfileId: string;
+  userId: string;
+  fullName: string;
+  roomNumber?: string;
 };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
@@ -130,12 +161,12 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
         return;
       }
 
-      if (!isPlatform) {
-        const hasWorkspaceRole = Array.isArray(data.roles)
-          ? data.roles.some((item: { orgSlug: string; role: string }) => item.orgSlug === workspace && item.role === normalizedRole)
-          : false;
+      const matchedRole = Array.isArray(data.roles)
+        ? data.roles.find((item: { orgId: string; orgSlug: string; role: string }) => item.orgSlug === workspace && item.role === normalizedRole)
+        : null;
 
-        if (!hasWorkspaceRole) {
+      if (!isPlatform) {
+        if (!matchedRole) {
           setMessage(`This account does not have ${roleLabel(role)} access for ${propertyName}.`);
           return;
         }
@@ -143,6 +174,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
 
       setLogin({
         accessToken,
+        orgId: matchedRole?.orgId ?? "platform",
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
       });
@@ -163,6 +195,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${login.accessToken}`,
+          ...(login.orgId !== "platform" ? { "x-org-id": login.orgId } : {}),
         },
         body: activeModule.method === "GET" ? undefined : JSON.stringify({ orgSlug: workspace, source: "workspace-ui" }),
       });
@@ -276,41 +309,51 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             <p>{message}</p>
           </div>
 
-          <div className="productGrid">
-            <section className="panel statGridPanel">
-              <div className="statGrid">
-                {allowedModules.slice(0, 6).map((module) => (
-                  <button className="metricCard" key={module.id} onClick={() => setActiveId(module.id)} type="button">
-                    <span>{module.title}</span>
-                    <strong>{module.stat}</strong>
-                    <small>{module.meta}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
+          {activeModule.id === "rooms" && ["owner", "warden"].includes(normalizedRole) ? (
+            <RoomsBoard
+              accessToken={login.accessToken}
+              canManage={["owner", "warden"].includes(normalizedRole)}
+              orgId={login.orgId}
+              role={role}
+              workspace={workspace}
+            />
+          ) : (
+            <div className="productGrid">
+              <section className="panel statGridPanel">
+                <div className="statGrid">
+                  {allowedModules.slice(0, 6).map((module) => (
+                    <button className="metricCard" key={module.id} onClick={() => setActiveId(module.id)} type="button">
+                      <span>{module.title}</span>
+                      <strong>{module.stat}</strong>
+                      <small>{module.meta}</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-            <section className="panel largePanel">
-              <PanelTitle title={`${activeModule.title} records`} meta={`${dataRows[activeModule.id].length} items`} />
-              <RecordList rows={dataRows[activeModule.id]} />
-            </section>
+              <section className="panel largePanel">
+                <PanelTitle title={`${activeModule.title} records`} meta={`${dataRows[activeModule.id].length} items`} />
+                <RecordList rows={dataRows[activeModule.id]} />
+              </section>
 
-            <section className="panel">
-              <PanelTitle title={activeModule.action} meta="Action" />
-              <SmartForm module={activeModule} onSubmit={syncModule} />
-            </section>
+              <section className="panel">
+                <PanelTitle title={activeModule.action} meta="Action" />
+                <SmartForm module={activeModule} onSubmit={syncModule} />
+              </section>
 
-            <section className="panel">
-              <PanelTitle title="Workflow" meta="Role access" />
-              <div className="timeline">
-                {workflowFor(activeModule.id).map((item, index) => (
-                  <div key={item}>
-                    <span>{index + 1}</span>
-                    <p>{item}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+              <section className="panel">
+                <PanelTitle title="Workflow" meta="Role access" />
+                <div className="timeline">
+                  {workflowFor(activeModule.id).map((item, index) => (
+                    <div key={item}>
+                      <span>{index + 1}</span>
+                      <p>{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
         </section>
       </section>
     </main>
@@ -324,6 +367,473 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
       <span>{meta}</span>
     </div>
   );
+}
+
+function RoomsBoard({
+  accessToken,
+  canManage,
+  orgId,
+  role,
+  workspace,
+}: {
+  accessToken: string;
+  canManage: boolean;
+  orgId: string;
+  role: string;
+  workspace: string;
+}) {
+  const [rooms, setRooms] = useState<RoomBoardRoom[]>([]);
+  const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [floorFilter, setFloorFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedTenantUserId, setSelectedTenantUserId] = useState("");
+  const [isLoadingBoard, setIsLoadingBoard] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
+  const stats = useMemo(() => {
+    const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
+    const occupiedSlots = rooms.reduce((sum, room) => sum + room.currentOccupancy, 0);
+    const fullRooms = rooms.filter((room) => getRoomState(room) === "full").length;
+    const partialRooms = rooms.filter((room) => getRoomState(room) === "partial").length;
+    const emptyRooms = rooms.filter((room) => getRoomState(room) === "empty").length;
+    return { totalCapacity, occupiedSlots, fullRooms, partialRooms, emptyRooms };
+  }, [rooms]);
+
+  const floors = useMemo(() => {
+    const filtered = rooms.filter((room) => {
+      const matchesFloor = floorFilter === "all" || String(room.floorNumber) === floorFilter;
+      const matchesType = typeFilter === "all" || room.roomType === typeFilter;
+      const normalizedSearch = search.toLowerCase().trim();
+      const occupantMatch = room.occupants.some((occupant) =>
+        occupant.fullName.toLowerCase().includes(normalizedSearch)
+      );
+      const matchesSearch =
+        !normalizedSearch ||
+        room.roomNumber.toLowerCase().includes(normalizedSearch) ||
+        occupantMatch;
+      return matchesFloor && matchesType && matchesSearch;
+    });
+
+    return Array.from(
+      filtered.reduce((map, room) => {
+        const key = `${room.floorNumber}-${room.floorName}`;
+        const existing = map.get(key) ?? [];
+        existing.push(room);
+        map.set(key, existing);
+        return map;
+      }, new Map<string, RoomBoardRoom[]>())
+    )
+      .map(([key, floorRooms]) => ({
+        key,
+        floorNumber: floorRooms[0]?.floorNumber ?? 0,
+        floorName: floorRooms[0]?.floorName ?? "Floor",
+        rooms: floorRooms.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })),
+      }))
+      .sort((a, b) => b.floorNumber - a.floorNumber);
+  }, [floorFilter, rooms, search, typeFilter]);
+
+  async function loadBoard() {
+    setIsLoadingBoard(true);
+    try {
+      const [roomsResponse, tenantsResponse] = await Promise.all([
+        fetch(`${apiBase}/rooms`, {
+          headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+        }),
+        fetch(`${apiBase}/tenants`, {
+          headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+        }),
+      ]);
+
+      if (!roomsResponse.ok || !tenantsResponse.ok) {
+        setLoadFailed(true);
+        setRooms([]);
+        setTenantOptions([]);
+        console.info("Room board could not load: backend room data needs login permissions or seed data.");
+        return;
+      }
+
+      const roomsData = await roomsResponse.json();
+      const tenantsData = await tenantsResponse.json();
+      const mappedRooms = (roomsData.rooms ?? []).map(mapApiRoom);
+      const mappedTenants = (tenantsData.tenants ?? []).map((tenant: any) => ({
+        tenantProfileId: tenant.tenantProfileId,
+        userId: tenant.userId,
+        fullName: tenant.fullName,
+        roomNumber: tenant.room?.roomNumber,
+      }));
+
+      setRooms(mappedRooms);
+      setSelectedRoomId((current) => current && mappedRooms.some((room: RoomBoardRoom) => room.id === current) ? current : "");
+      setTenantOptions(mappedTenants);
+      setLoadFailed(false);
+      console.info("Room board synced with database.");
+    } catch {
+      setLoadFailed(true);
+      setRooms([]);
+      setTenantOptions([]);
+      console.info("Room board could not load: start the backend to sync live rooms.");
+    } finally {
+      setIsLoadingBoard(false);
+    }
+  }
+
+  useEffect(() => {
+    loadBoard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, orgId]);
+
+  async function assignTenant() {
+    if (!selectedRoom || !selectedTenantUserId) return;
+    console.info("Assigning tenant to room...");
+    try {
+      const response = await fetch(`${apiBase}/rooms/${selectedRoom.id}/assign-tenant`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "x-org-id": orgId,
+        },
+        body: JSON.stringify({ tenantUserId: selectedTenantUserId }),
+      });
+
+      console.info(response.ok ? "Tenant assigned. Refreshing board..." : "Could not assign tenant. Check capacity and permissions.");
+      if (response.ok) await loadBoard();
+    } catch {
+      console.info("Server is not reachable. Assignment was not saved.");
+    }
+  }
+
+  async function removeTenant(tenantProfileId: string) {
+    if (!selectedRoom) return;
+    console.info("Removing tenant from room...");
+    try {
+      const response = await fetch(`${apiBase}/rooms/${selectedRoom.id}/tenants/${tenantProfileId}/remove`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "x-org-id": orgId,
+        },
+        body: JSON.stringify({ reason: "removed from room board" }),
+      });
+
+      console.info(response.ok ? "Tenant removed. Refreshing board..." : "Could not remove tenant. Check permissions.");
+      if (response.ok) await loadBoard();
+    } catch {
+      console.info("Server is not reachable. Removal was not saved.");
+    }
+  }
+
+  return (
+    <div className="roomsExperience">
+      {isLoadingBoard ? <RoomBoardSkeleton /> : (
+        <section className="roomStats">
+          <Metric label="Total Rooms" value={rooms.length} meta={`${floors.length} floors`} />
+          <Metric label="Occupied Slots" value={stats.occupiedSlots} meta={`${stats.totalCapacity} capacity`} />
+          <Metric label="Full Rooms" value={stats.fullRooms} meta="No beds free" />
+          <Metric label="Partially Filled" value={stats.partialRooms} meta="Can assign" />
+          <Metric label="Empty Rooms" value={stats.emptyRooms} meta="Open rooms" />
+        </section>
+      )}
+
+      <section className="panel roomsPanel">
+        <div className="roomsToolbar">
+          <select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)} aria-label="Filter floor">
+            <option value="all">All floors</option>
+            {Array.from(new Set(rooms.map((room) => room.floorNumber))).sort((a, b) => b - a).map((floor) => (
+              <option key={floor} value={floor}>Floor {floor}</option>
+            ))}
+          </select>
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filter room type">
+            <option value="all">All room types</option>
+            {Array.from(new Set(rooms.map((room) => room.roomType))).map((type) => (
+              <option key={type} value={type}>{formatRoomType(type)}</option>
+            ))}
+          </select>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search room or student..." />
+          <div className="roomLegend">
+            <span><i className="full" /> Full</span>
+            <span><i className="partial" /> Partial</span>
+            <span><i className="empty" /> Empty</span>
+            <span><i className="maintenance" /> Maintenance</span>
+          </div>
+        </div>
+
+        <div className="roomsBoardLayout">
+          {isLoadingBoard ? (
+            <RoomGridSkeleton />
+          ) : rooms.length ? (
+            <div className="floorBoard">
+              {floors.map((floor) => (
+                <div className="floorRow" key={floor.key}>
+                  <div className="floorLabel">
+                    <span>{floor.floorNumber === 0 ? "Ground" : `Floor ${floor.floorNumber}`}</span>
+                    <small>{floor.rooms.length} rooms</small>
+                  </div>
+                  <div className="roomCells">
+                    {floor.rooms.map((room) => (
+                      <RoomCell
+                        isSelected={selectedRoom?.id === room.id}
+                        key={room.id}
+                        onSelect={() => setSelectedRoomId((current) => current === room.id ? "" : room.id)}
+                        room={room}
+                        role={role}
+                        workspace={workspace}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="roomEmptyState">
+              <strong>{loadFailed ? "Rooms could not be loaded" : "No rooms created yet"}</strong>
+              <p>
+                {loadFailed
+                  ? "Check backend, login permissions, and seeded workspace data."
+                  : "Create floors and rooms during setup to generate this visual board."}
+              </p>
+            </div>
+          )}
+
+          <aside className={`roomDetailsPanel ${selectedRoom ? "isVisible" : "isIdle"}`}>
+            {selectedRoom ? (
+              <>
+              <div className="roomDetailsHeader">
+                <div>
+                  <h3>Room {selectedRoom.roomNumber}</h3>
+                  <p>{selectedRoom.floorName} · {selectedRoom.currentOccupancy}/{selectedRoom.capacity} occupied</p>
+                </div>
+                <span className={`statusPill ${getRoomState(selectedRoom)}`}>{getRoomState(selectedRoom)}</span>
+              </div>
+
+              <div className="occupantList">
+                <div className="occupantTitle">
+                  <strong>Occupants</strong>
+                  <span>{selectedRoom.occupants.length}/{selectedRoom.capacity}</span>
+                </div>
+                {selectedRoom.occupants.length ? selectedRoom.occupants.map((occupant) => (
+                  <div className="occupantRow" key={occupant.tenantProfileId}>
+                    <span>{getInitials(occupant.fullName)}</span>
+                    <div>
+                      <strong>{occupant.fullName}</strong>
+                      <a href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}>View profile</a>
+                    </div>
+                    {canManage ? (
+                      <button onClick={() => removeTenant(occupant.tenantProfileId)} type="button">Remove</button>
+                    ) : null}
+                  </div>
+                )) : <p className="emptyText">No students assigned.</p>}
+              </div>
+
+              <div className="roomInfoGrid">
+                <div><span>Room type</span><strong>{formatRoomType(selectedRoom.roomType)}</strong></div>
+                <div><span>Capacity</span><strong>{selectedRoom.capacity}</strong></div>
+                <div><span>Monthly rent</span><strong>₹{selectedRoom.monthlyRent}</strong></div>
+              </div>
+
+              {canManage ? (
+                <div className="assignBox">
+                  <label>
+                    <span>Add or move student</span>
+                    <select value={selectedTenantUserId} onChange={(event) => setSelectedTenantUserId(event.target.value)}>
+                      <option value="">Select tenant</option>
+                      {tenantOptions.map((tenant) => (
+                        <option key={tenant.userId} value={tenant.userId}>
+                          {tenant.fullName}{tenant.roomNumber ? ` · ${tenant.roomNumber}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="gradientButton fullButton" disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"} onClick={assignTenant} type="button">
+                    Assign to room
+                  </button>
+                </div>
+              ) : null}
+              </>
+            ) : (
+              <div className="roomPanelPlaceholder">
+                <strong>Select a room</strong>
+                <p>Room actions will appear here without shifting the board layout.</p>
+              </div>
+            )}
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function RoomBoardSkeleton() {
+  return (
+    <section className="roomStats">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div className="roomMetric skeletonMetric" key={index}>
+          <div>
+            <span className="skeletonLine label" />
+            <strong className="skeletonLine value" />
+            <small className="skeletonLine meta" />
+          </div>
+          <i className="skeletonIcon" />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function RoomGridSkeleton() {
+  return (
+    <>
+      <div className="floorBoard skeletonBoard">
+        {Array.from({ length: 4 }).map((_, floorIndex) => (
+          <div className="floorRow" key={floorIndex}>
+            <div className="floorLabel skeletonFloorLabel">
+              <span className="skeletonLine short" />
+              <small className="skeletonLine tiny" />
+            </div>
+            <div className="roomCells">
+              {Array.from({ length: 8 }).map((_, roomIndex) => (
+                <div className="roomCell skeletonRoom" key={roomIndex}>
+                  <span className="skeletonLine roomNo" />
+                  <div className="skeletonBeds">
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                  <small className="skeletonLine tiny centered" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <aside className="roomDetailsPanel skeletonDetails">
+        <span className="skeletonLine panelTitleLine" />
+        <span className="skeletonLine panelMetaLine" />
+        <div className="skeletonOccupants">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index}>
+              <i />
+              <span className="skeletonLine occupantName" />
+            </div>
+          ))}
+        </div>
+        <div className="skeletonInfoRows">
+          <span />
+          <span />
+          <span />
+        </div>
+        <span className="skeletonButton" />
+      </aside>
+    </>
+  );
+}
+
+function Metric({ label, value, meta }: { label: string; value: number | string; meta: string }) {
+  return (
+    <div className="roomMetric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{meta}</small>
+    </div>
+  );
+}
+
+function RoomCell({
+  isSelected,
+  onSelect,
+  room,
+  role,
+  workspace,
+}: {
+  isSelected: boolean;
+  onSelect: () => void;
+  room: RoomBoardRoom;
+  role: string;
+  workspace: string;
+}) {
+  const state = getRoomState(room);
+  const names = room.occupants.map((occupant) => occupant.fullName);
+
+  return (
+    <button className={`roomCell ${state} ${isSelected ? "selected" : ""}`} onClick={onSelect} type="button">
+      <strong>{room.roomNumber}</strong>
+      <div className="bedIcons" aria-label={`${room.currentOccupancy} of ${room.capacity} occupied`}>
+        {Array.from({ length: room.capacity }).map((_, index) => {
+          const occupant = room.occupants[index];
+          return occupant ? (
+            <a
+              className="bedIcon filled"
+              href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}
+              key={occupant.userId}
+              onClick={(event) => event.stopPropagation()}
+              title={occupant.fullName}
+            >
+              {getInitials(occupant.fullName).slice(0, 1)}
+            </a>
+          ) : (
+            <span className="bedIcon" key={`empty-${index}`} />
+          );
+        })}
+      </div>
+      <small>{room.status === "maintenance" ? "Maintenance" : `${room.currentOccupancy}/${room.capacity}`}</small>
+      {names.length ? (
+        <span className="roomTooltip">
+          {names.map((name) => <em key={name}>{name}</em>)}
+          <b>View room details</b>
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function mapApiRoom(room: any): RoomBoardRoom {
+  return {
+    id: room.id,
+    roomNumber: room.room_number,
+    floorId: room.floor_id,
+    floorNumber: room.floor?.floor_number ?? 0,
+    floorName: room.floor?.floor_name ?? "Floor",
+    roomType: room.room_type,
+    capacity: room.capacity,
+    currentOccupancy: room.current_occupancy,
+    status: room.status,
+    monthlyRent: room.monthly_rent,
+    occupants: (room.tenant_profiles ?? []).map((profile: any) => ({
+      tenantProfileId: profile.id,
+      userId: profile.user_id,
+      fullName: profile.user?.full_name ?? "Student",
+      email: profile.user?.email,
+      phone: profile.user?.phone,
+      profilePhotoUrl: profile.user?.profile_photo_url,
+    })),
+  };
+}
+
+function getRoomState(room: RoomBoardRoom) {
+  if (room.status === "maintenance" || room.status === "unavailable") return "maintenance";
+  if (room.currentOccupancy >= room.capacity) return "full";
+  if (room.currentOccupancy === 0) return "empty";
+  return "partial";
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function formatRoomType(type: string) {
+  return type
+    .split("_")
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
 }
 
 function RecordList({ rows }: { rows: string[][] }) {
