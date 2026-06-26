@@ -40,13 +40,7 @@ export const handleCreateVisitor = async (req: AuthorizedRequest, res: Response)
       return res.status(400).json({ error: "The host tenant does not have an active profile in this organization" });
     }
 
-    // Set initial status
-    // If registered by tenant -> pending (requires warden approval)
-    // If registered by owner/warden/guard -> approved
-    const initialStatus: VisitStatus =
-      userRole === "owner" || userRole === "warden" || userRole === "guard"
-        ? VisitStatus.approved
-        : VisitStatus.pending;
+    const initialStatus: VisitStatus = VisitStatus.approved;
 
     // Create Visitor record
     const visitor = await prisma.visitor.create({

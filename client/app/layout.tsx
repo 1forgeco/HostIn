@@ -26,8 +26,23 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = window.localStorage.getItem("hostin-color-theme") || "hostin-coral";
+                document.documentElement.dataset.theme = theme;
+              } catch (error) {
+                document.documentElement.dataset.theme = "hostin-coral";
+              }
+            `,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

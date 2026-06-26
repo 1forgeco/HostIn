@@ -619,6 +619,294 @@ button {
   width: 13px;
 }
 
+.notificationIconButton {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--foreground);
+  display: inline-flex;
+  height: 46px;
+  justify-content: center;
+  position: relative;
+  width: 46px;
+}
+
+.notificationIconButton::before {
+  border: 2px solid currentColor;
+  border-radius: 14px 14px 10px 10px;
+  content: "";
+  height: 18px;
+  width: 16px;
+}
+
+.notificationIconButton span {
+  align-items: center;
+  background: var(--accent-strong);
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 900;
+  height: 20px;
+  justify-content: center;
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 20px;
+}
+
+.tenantExperience {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+.tenantCreateForm {
+  display: grid;
+  gap: 14px;
+}
+
+.tenantCreateForm label span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.tenantDirectoryLayout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.tenantToolbar {
+  grid-template-columns: 1fr;
+}
+
+.tenantList,
+.directorySkeleton,
+.communityFeed {
+  display: grid;
+  gap: 12px;
+}
+
+.tenantListItem,
+.actionRecord,
+.communityPost,
+.directorySkeletonRow {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.tenantListItem {
+  align-items: center;
+  color: var(--foreground);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  min-height: 74px;
+  padding: 12px;
+  text-align: left;
+}
+
+.tenantListItem.active {
+  border-color: var(--accent);
+  box-shadow: 0 12px 28px var(--accent-shadow);
+}
+
+.tenantListItem > span,
+.tenantProfileHeader > span {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  font-weight: 900;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.tenantListItem strong,
+.tenantListItem small,
+.tenantListItem em {
+  display: block;
+}
+
+.tenantListItem small,
+.tenantListItem em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.tenantDetailCard {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.tenantProfileHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--soft-line);
+  display: flex;
+  gap: 14px;
+  padding-bottom: 16px;
+}
+
+.tenantProfileHeader h3,
+.tenantProfileHeader p {
+  margin: 0;
+}
+
+.tenantProfileHeader h3 {
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.tenantProfileHeader p {
+  color: var(--muted);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.actionRecord {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  min-height: 86px;
+  padding: 16px;
+}
+
+.actionRecord strong,
+.actionRecord small {
+  display: block;
+}
+
+.actionRecord small {
+  color: var(--muted);
+  font-weight: 800;
+  margin-top: 5px;
+}
+
+.inlineActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.inlineActions button,
+.postActions button {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-border);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.feedPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.visitorToolbar {
+  grid-template-columns: minmax(220px, 1fr) 180px 160px;
+  margin-bottom: 0;
+}
+
+.visitorCreateForm {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.communityHeader {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.communityToggle {
+  align-items: center;
+  background: #f2f4f7;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  padding: 4px;
+}
+
+.communityToggle button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.communityToggle button.active {
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  color: var(--accent-strong);
+}
+
+.communityComposer {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(240px, 1fr) auto;
+}
+
+.communityPost {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.communityPost strong,
+.communityPost small {
+  display: block;
+}
+
+.communityPost small,
+.communityPost p {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.communityPost p {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.postActions {
+  display: flex;
+  gap: 10px;
+}
+
+.directorySkeletonRow {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 44px minmax(0, 1fr) 70px;
+  min-height: 72px;
+  padding: 14px;
+}
+
+.directorySkeletonRow div {
+  display: grid;
+  gap: 10px;
+}
+
 .workspaceBadge {
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft-border);
@@ -1693,6 +1981,10 @@ select:focus {
   .pricingGrid,
   .careerGrid,
   .contactGrid,
+  .tenantExperience,
+  .tenantDirectoryLayout,
+  .communityComposer,
+  .visitorCreateForm,
   .roomsBoardLayout {
     grid-template-columns: 1fr;
   }
@@ -1716,6 +2008,12 @@ select:focus {
 
   .roomsToolbar {
     grid-template-columns: 1fr;
+  }
+
+  .communityHeader,
+  .actionRecord {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .themeToggle {

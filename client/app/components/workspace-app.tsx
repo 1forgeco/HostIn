@@ -11,13 +11,11 @@ type SectionId =
   | "gate"
   | "visitors"
   | "finance"
-  | "complaints"
-  | "announcements"
+  | "community"
   | "mess"
   | "documents"
   | "staff"
   | "parents"
-  | "notifications"
   | "platform";
 
 type Module = {
@@ -63,10 +61,47 @@ type RoomBoardRoom = {
 };
 
 type TenantOption = {
-  tenantProfileId: string;
+  tenantProfileId?: string | null;
   userId: string;
   fullName: string;
   roomNumber?: string;
+};
+
+type TenantRecord = TenantOption & {
+  email: string;
+  phone: string;
+  room?: {
+    id: string;
+    roomNumber: string;
+    roomType: string;
+    monthlyRent: string | number;
+  } | null;
+  status: string;
+  assignmentStatus: string;
+  admissionDate?: string;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  collegeOrCompany?: string | null;
+};
+
+type GatePassRecord = {
+  id: string;
+  reason: string;
+  destination: string;
+  status: string;
+  expected_return_time: string;
+  tenant?: { full_name: string; phone?: string };
+};
+
+type VisitorRecord = {
+  id: string;
+  visitor_name: string;
+  visitor_phone: string;
+  visitor_relation: string;
+  purpose: string;
+  status: string;
+  expected_visit_time: string;
+  tenant?: { full_name: string };
 };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
@@ -74,17 +109,15 @@ const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 const modules: Module[] = [
   { id: "overview", title: "Overview", description: "Occupancy, requests, dues, and service queue.", stat: "84%", meta: "occupancy", roles: ["owner", "warden"], action: "Refresh", endpoint: "/metrics", method: "GET" },
   { id: "rooms", title: "Rooms", description: "Floors, room capacity, availability, and room history.", stat: "42", meta: "rooms", roles: ["owner", "warden", "guard", "security", "tenant", "parent"], action: "Create room", endpoint: "/rooms", method: "POST" },
-  { id: "tenants", title: "Tenants", description: "Residents, room assignment, parent links, and vacate flow.", stat: "118", meta: "active", roles: ["owner", "warden"], action: "Invite tenant", endpoint: "/orgs/invites", method: "POST" },
-  { id: "gate", title: "Gate Passes", description: "Outing requests, approval, and check-in/out scanning.", stat: "9", meta: "pending", roles: ["owner", "warden", "guard", "security", "tenant"], action: "Request pass", endpoint: "/gate-passes", method: "POST" },
-  { id: "visitors", title: "Visitors", description: "Visitor pre-approval and guard entry/exit logs.", stat: "6", meta: "today", roles: ["owner", "warden", "guard", "security", "tenant"], action: "Add visitor", endpoint: "/visitors", method: "POST" },
+  { id: "tenants", title: "Tenants", description: "Create tenant accounts, search residents, and view profiles.", stat: "118", meta: "active", roles: ["owner", "warden"], action: "Add tenant", endpoint: "/tenants", method: "POST" },
+  { id: "gate", title: "Gate Passes", description: "View outing requests and approve or reject pending passes.", stat: "9", meta: "pending", roles: ["owner", "warden", "guard", "security", "tenant"], action: "Review passes", endpoint: "/gate-passes", method: "GET" },
+  { id: "visitors", title: "Visitors", description: "View visitor records and filter by date, day, or visitor name.", stat: "6", meta: "today", roles: ["owner", "warden", "guard", "security", "tenant"], action: "View visitors", endpoint: "/visitors", method: "GET" },
   { id: "finance", title: "Dues & Payments", description: "Raise dues, collect payments, and set reminders.", stat: "₹2.4L", meta: "due", roles: ["owner", "warden", "tenant", "parent"], action: "Create due", endpoint: "/dues", method: "POST" },
-  { id: "complaints", title: "Complaints", description: "Report, assign, update, and close complaints.", stat: "14", meta: "open", roles: ["owner", "warden", "staff", "guard", "security", "tenant"], action: "Create complaint", endpoint: "/complaints", method: "POST" },
-  { id: "announcements", title: "Announcements", description: "Targeted notices by property, floor, room, or tenant.", stat: "3", meta: "unread", roles: ["owner", "warden", "guard", "security", "staff", "tenant"], action: "Create notice", endpoint: "/announcements", method: "POST" },
+  { id: "community", title: "Community", description: "Announcements, complaints, and lost/found discussion feed.", stat: "3", meta: "threads", roles: ["owner", "warden", "guard", "security", "staff", "tenant", "parent"], action: "Create post", endpoint: "/announcements", method: "POST" },
   { id: "mess", title: "Mess", description: "Weekly menu, publishing, feedback, and summary.", stat: "78%", meta: "rating", roles: ["owner", "warden", "staff", "tenant"], action: "Edit menu", endpoint: "/mess-menus", method: "POST" },
   { id: "documents", title: "Documents", description: "Upload and verify resident documents.", stat: "21", meta: "pending", roles: ["owner", "warden", "tenant"], action: "Upload", endpoint: "/documents", method: "POST" },
   { id: "staff", title: "Staff Contacts", description: "Emergency contacts and staff directory.", stat: "18", meta: "contacts", roles: ["owner", "warden", "guard", "security", "staff", "tenant"], action: "Add contact", endpoint: "/staff-contacts", method: "POST" },
-  { id: "parents", title: "Parent Portal", description: "Ward details, privacy, dues, and movement visibility.", stat: "64", meta: "linked", roles: ["owner", "warden", "tenant", "parent"], action: "Link parent", endpoint: "/parents/link", method: "POST" },
-  { id: "notifications", title: "Notifications", description: "Pass, payment, complaint, and announcement alerts.", stat: "12", meta: "new", roles: ["owner", "warden", "guard", "security", "staff", "tenant"], action: "Mark read", endpoint: "/notifications", method: "GET" },
+  { id: "parents", title: "Parent Portal", description: "Ward details, privacy, dues, and movement visibility.", stat: "64", meta: "linked", roles: ["parent"], action: "View ward", endpoint: "/parents/ward", method: "GET" },
   { id: "platform", title: "Platform", description: "Organizations, subscription plans, and feature toggles.", stat: "27", meta: "orgs", roles: ["platform"], action: "View orgs", endpoint: "/platform/organizations", method: "GET" },
 ];
 
@@ -95,13 +128,11 @@ const dataRows: Record<SectionId, string[][]> = {
   gate: [["Rohan Patel", "Home visit", "Pending", "Out 5 PM"], ["Maya Nair", "Coaching", "Approved", "Return 8 PM"], ["Kabir Singh", "Medical", "Completed", "Returned"]],
   visitors: [["Priya Shah", "Isha Rao", "Approved", "Waiting"], ["Delivery", "Office", "Checked in", "Gate 1"], ["Mr. Nair", "Maya Nair", "Pending", "5 PM"]],
   finance: [["Rent - June", "Aarav Mehta", "₹12,000", "Unpaid"], ["Mess", "Kabir Singh", "₹4,500", "Partial"], ["Deposit", "Isha Rao", "₹20,000", "Paid"]],
-  complaints: [["Water leakage", "A-101", "Assigned", "High"], ["Food quality", "Mess", "Open", "Medium"], ["Noise", "C-305", "Closed", "Low"]],
-  announcements: [["Water shutdown", "All residents", "Published", "92 reads"], ["Fee reminder", "Tenant", "Draft", "Finance"], ["Mess change", "All floors", "Published", "118 reads"]],
+  community: [["Water shutdown", "All residents", "Published", "92 reads"], ["Water leakage", "A-101", "Assigned", "High"], ["Lost charger", "Common room", "Open", "2 comments"]],
   mess: [["Monday lunch", "Paneer rice", "Published", "82%"], ["Tuesday dinner", "Dal tadka", "Draft", "Pending"], ["Friday snacks", "Poha", "Published", "76%"]],
   documents: [["Aadhaar", "Aarav Mehta", "Pending", "Uploaded"], ["PAN", "Isha Rao", "Verified", "Warden"], ["Passport", "Kabir Singh", "Rejected", "Blurred"]],
   staff: [["Ramesh", "Guard", "Emergency", "Night"], ["Anita", "Warden", "Primary", "Day"], ["Joseph", "Electrician", "On call", "Vendor"]],
   parents: [["Meena Mehta", "Aarav", "Linked", "Dues visible"], ["Ravi Nair", "Maya", "Linked", "Pass visible"], ["Sana Rao", "Isha", "Invited", "Pending"]],
-  notifications: [["Gate pass approved", "Maya Nair", "Unread", "Gate"], ["Payment received", "Isha Rao", "Read", "Finance"], ["Visitor waiting", "Priya Shah", "Unread", "Gate"]],
   platform: [["City Complex", "Growth", "Active", "All core modules"], ["North Campus", "Pro", "Trialing", "15 days"], ["Urban Nest", "Starter", "Paused", "Billing hold"]],
 };
 
@@ -133,7 +164,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
   const propertyName = titleFromSlug(workspace);
 
   const allowedModules = useMemo(
-    () => modules.filter((module) => module.roles.includes(normalizedRole) || module.id === "notifications"),
+    () => modules.filter((module) => module.roles.includes(normalizedRole)),
     [normalizedRole]
   );
   const activeModule = allowedModules.find((module) => module.id === activeId) ?? allowedModules[0] ?? modules[0];
@@ -269,6 +300,9 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           ))}
         </nav>
         <ColorThemeToggle themeKey={themeKey} onChange={setThemeKey} />
+        <button className="notificationIconButton" onClick={() => setMessage("Notifications opened from the top bar.")} type="button" aria-label="Notifications">
+          <span>12</span>
+        </button>
         <button className="gradientButton" onClick={syncModule} type="button">
           Sync
         </button>
@@ -320,6 +354,14 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
               role={role}
               workspace={workspace}
             />
+          ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
+            <TenantsSection accessToken={login.accessToken} orgId={login.orgId} workspace={workspace} />
+          ) : activeModule.id === "gate" ? (
+            <GatePassSection accessToken={login.accessToken} canModerate={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} />
+          ) : activeModule.id === "visitors" ? (
+            <VisitorsSection accessToken={login.accessToken} canCreate={normalizedRole === "guard"} orgId={login.orgId} />
+          ) : activeModule.id === "community" ? (
+            <CommunitySection accessToken={login.accessToken} canCreate={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={normalizedRole} />
           ) : (
             <div className="productGrid">
               <section className="panel statGridPanel">
@@ -369,6 +411,408 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
       <h3>{title}</h3>
       <span>{meta}</span>
     </div>
+  );
+}
+
+function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string; orgId: string; workspace: string }) {
+  const [tenants, setTenants] = useState<TenantRecord[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const selectedTenant = tenants.find((tenant) => tenant.userId === selectedUserId) ?? tenants[0];
+  const filteredTenants = tenants.filter((tenant) => {
+    const query = search.toLowerCase().trim();
+    if (!query) return true;
+    return tenant.fullName.toLowerCase().includes(query) || tenant.room?.roomNumber?.toLowerCase().includes(query);
+  });
+
+  async function loadTenants() {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/tenants`, {
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      });
+      const data = await response.json().catch(() => ({}));
+      const nextTenants = data.tenants ?? [];
+      setTenants(nextTenants);
+      setSelectedUserId((current) => current || nextTenants[0]?.userId || "");
+    } catch {
+      console.info("Tenants could not load.");
+      setTenants([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTenants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, orgId]);
+
+  async function createTenant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsCreating(true);
+    const form = new FormData(event.currentTarget);
+    try {
+      const response = await fetch(`${apiBase}/tenants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "x-org-id": orgId,
+        },
+        body: JSON.stringify({
+          fullName: form.get("fullName"),
+          email: form.get("email"),
+          phone: form.get("phone"),
+          password: form.get("password") || undefined,
+        }),
+      });
+      if (response.ok) {
+        event.currentTarget.reset();
+        await loadTenants();
+      }
+      console.info(response.ok ? "Tenant created." : "Tenant create failed.");
+    } catch {
+      console.info("Server is not reachable. Tenant was not created.");
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  return (
+    <div className="tenantExperience">
+      <section className="panel tenantCreatePanel">
+        <PanelTitle title="Add tenant" meta="No room assignment here" />
+        <form className="tenantCreateForm" onSubmit={createTenant}>
+          <label><span>Full name</span><input name="fullName" placeholder="Tenant full name" required /></label>
+          <label><span>Email</span><input name="email" placeholder={`tenant@${workspace}.hostin.local`} required type="email" /></label>
+          <label><span>Phone</span><input name="phone" placeholder="10 digit phone" required /></label>
+          <label><span>Temporary password</span><input name="password" placeholder={`${workspace}@123`} type="text" /></label>
+          <button className="gradientButton fullButton" disabled={isCreating} type="submit">{isCreating ? "Creating..." : "Create tenant"}</button>
+        </form>
+      </section>
+
+      <section className="panel tenantDirectoryPanel">
+        <div className="roomsToolbar tenantToolbar">
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name or room number..." />
+        </div>
+        {isLoading ? (
+          <DirectorySkeleton />
+        ) : filteredTenants.length ? (
+          <div className="tenantDirectoryLayout">
+            <div className="tenantList">
+              {filteredTenants.map((tenant) => (
+                <button
+                  className={selectedTenant?.userId === tenant.userId ? "active tenantListItem" : "tenantListItem"}
+                  key={tenant.userId}
+                  onClick={() => setSelectedUserId(tenant.userId)}
+                  type="button"
+                >
+                  <span>{getInitials(tenant.fullName)}</span>
+                  <div>
+                    <strong>{tenant.fullName}</strong>
+                    <small>{tenant.room?.roomNumber ? `Room ${tenant.room.roomNumber}` : "Unassigned"}</small>
+                  </div>
+                  <em>{tenant.assignmentStatus}</em>
+                </button>
+              ))}
+            </div>
+            <TenantDetailCard tenant={selectedTenant} />
+          </div>
+        ) : (
+          <EmptyPanel title="No tenants found" copy="Create a tenant account first, then assign rooms from the Rooms board." />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function TenantDetailCard({ tenant }: { tenant?: TenantRecord }) {
+  if (!tenant) return <EmptyPanel title="Select a tenant" copy="Tenant profile details will appear here." />;
+  return (
+    <aside className="tenantDetailCard">
+      <div className="tenantProfileHeader">
+        <span>{getInitials(tenant.fullName)}</span>
+        <div>
+          <h3>{tenant.fullName}</h3>
+          <p>{tenant.email}</p>
+        </div>
+      </div>
+      <div className="roomInfoGrid">
+        <div><span>Phone</span><strong>{tenant.phone}</strong></div>
+        <div><span>Room</span><strong>{tenant.room?.roomNumber ?? "Not assigned"}</strong></div>
+        <div><span>Status</span><strong>{tenant.status}</strong></div>
+        <div><span>Company / College</span><strong>{tenant.collegeOrCompany ?? "Not added"}</strong></div>
+        <div><span>Emergency contact</span><strong>{tenant.emergencyContactName ?? "Not added"}</strong></div>
+      </div>
+    </aside>
+  );
+}
+
+function GatePassSection({ accessToken, canModerate, orgId }: { accessToken: string; canModerate: boolean; orgId: string }) {
+  const [passes, setPasses] = useState<GatePassRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function loadPasses() {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/gate-passes`, {
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      });
+      const data = await response.json().catch(() => ({}));
+      setPasses(data.gatePasses ?? []);
+    } catch {
+      setPasses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, orgId]);
+
+  async function updatePass(id: string, status: "approved" | "rejected") {
+    const response = await fetch(`${apiBase}/gate-passes/${id}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({ status }),
+    });
+    console.info(response.ok ? `Gate pass ${status}.` : "Gate pass update failed.");
+    if (response.ok) await loadPasses();
+  }
+
+  return (
+    <section className="panel feedPanel">
+      <PanelTitle title="Gate pass requests" meta={canModerate ? "Approve / Reject" : "View only"} />
+      {isLoading ? <DirectorySkeleton /> : passes.length ? (
+        <div className="recordList">
+          {passes.map((pass) => (
+            <article className="actionRecord" key={pass.id}>
+              <div>
+                <strong>{pass.tenant?.full_name ?? "Tenant"}</strong>
+                <small>{pass.reason} · {pass.destination}</small>
+                <small>Return: {formatDateTime(pass.expected_return_time)}</small>
+              </div>
+              <div>
+                <span className={`statusPill ${pass.status}`}>{pass.status}</span>
+                {canModerate && pass.status === "pending" ? (
+                  <div className="inlineActions">
+                    <button onClick={() => updatePass(pass.id, "approved")} type="button">Approve</button>
+                    <button onClick={() => updatePass(pass.id, "rejected")} type="button">Reject</button>
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : <EmptyPanel title="No gate passes" copy="Pending and historical gate passes will appear here." />}
+    </section>
+  );
+}
+
+function VisitorsSection({ accessToken, canCreate, orgId }: { accessToken: string; canCreate: boolean; orgId: string }) {
+  const [visitors, setVisitors] = useState<VisitorRecord[]>([]);
+  const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
+  const [filter, setFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function loadVisitors() {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/visitors`, {
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      });
+      const data = await response.json().catch(() => ({}));
+      setVisitors(data.visitors ?? []);
+    } catch {
+      setVisitors([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadVisitors();
+    if (canCreate) {
+      fetch(`${apiBase}/tenants`, {
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      })
+        .then((response) => response.json())
+        .then((data) => setTenantOptions(data.tenants ?? []))
+        .catch(() => setTenantOptions([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, canCreate, orgId]);
+
+  async function createVisitor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(`${apiBase}/visitors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        tenantId: form.get("tenantId"),
+        visitorName: form.get("visitorName"),
+        visitorPhone: form.get("visitorPhone"),
+        visitorRelation: form.get("visitorRelation"),
+        purpose: form.get("purpose"),
+        expectedVisitTime: form.get("expectedVisitTime"),
+      }),
+    });
+    console.info(response.ok ? "Visitor created." : "Visitor creation failed.");
+    if (response.ok) {
+      event.currentTarget.reset();
+      await loadVisitors();
+    }
+  }
+
+  const filteredVisitors = visitors.filter((visitor) => {
+    const query = filter.toLowerCase().trim();
+    const matchesText = !query || visitor.visitor_name.toLowerCase().includes(query);
+    const matchesDate = !dateFilter || visitor.expected_visit_time?.slice(0, 10) === dateFilter;
+    return matchesText && matchesDate;
+  });
+
+  return (
+    <section className="panel feedPanel">
+      <PanelTitle title="Visitor records" meta={canCreate ? "Guard creation enabled" : "View and filter"} />
+      <div className="roomsToolbar visitorToolbar">
+        <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter by visitor name..." />
+        <input value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} type="date" />
+        <select onChange={(event) => setDateFilter(dayToDate(event.target.value))} defaultValue="">
+          <option value="">Any day</option>
+          <option value="today">Today</option>
+          <option value="tomorrow">Tomorrow</option>
+        </select>
+      </div>
+      {canCreate ? (
+        <form className="communityComposer visitorCreateForm" onSubmit={createVisitor}>
+          <select name="tenantId" required>
+            <option value="">Host tenant</option>
+            {tenantOptions.map((tenant) => (
+              <option key={tenant.userId} value={tenant.userId}>{tenant.fullName}</option>
+            ))}
+          </select>
+          <input name="visitorName" placeholder="Visitor name" required />
+          <input name="visitorPhone" placeholder="Visitor phone" required />
+          <input name="visitorRelation" placeholder="Relation" required />
+          <input name="purpose" placeholder="Purpose" required />
+          <input name="expectedVisitTime" type="datetime-local" required />
+          <button className="gradientButton" type="submit">Create visitor</button>
+        </form>
+      ) : null}
+      {isLoading ? <DirectorySkeleton /> : filteredVisitors.length ? (
+        <div className="recordList">
+          {filteredVisitors.map((visitor) => (
+            <article className="actionRecord" key={visitor.id}>
+              <div>
+                <strong>{visitor.visitor_name}</strong>
+                <small>{visitor.purpose} · Host: {visitor.tenant?.full_name ?? "Tenant"}</small>
+                <small>{formatDateTime(visitor.expected_visit_time)}</small>
+              </div>
+              <span className={`statusPill ${visitor.status}`}>{visitor.status}</span>
+            </article>
+          ))}
+        </div>
+      ) : <EmptyPanel title="No visitor records" copy="Visitor entries matching your filters will appear here." />}
+    </section>
+  );
+}
+
+function CommunitySection({ accessToken, canCreate, orgId, role }: { accessToken: string; canCreate: boolean; orgId: string; role: Role }) {
+  const [tab, setTab] = useState<"announcements" | "complaints" | "lost">("announcements");
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const visibleTabs = role === "tenant" || role === "parent" || role === "guard" ? ["announcements", "lost"] : ["announcements", "complaints", "lost"];
+
+  async function loadCommunity() {
+    setIsLoading(true);
+    try {
+      const [announcementsResponse, complaintsResponse] = await Promise.all([
+        fetch(`${apiBase}/announcements`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }),
+        fetch(`${apiBase}/complaints`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }),
+      ]);
+      const announcementData = await announcementsResponse.json().catch(() => ({}));
+      const complaintData = await complaintsResponse.json().catch(() => ({}));
+      setAnnouncements(announcementData.announcements ?? []);
+      setComplaints(complaintData.complaints ?? []);
+    } catch {
+      setAnnouncements([]);
+      setComplaints([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCommunity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, orgId]);
+
+  const feedItems = tab === "announcements" ? announcements : tab === "complaints" ? complaints : [];
+
+  return (
+    <section className="panel feedPanel">
+      <div className="communityHeader">
+        <PanelTitle title="Community" meta="Announcements · Complaints · Lost/Found" />
+        <div className="communityToggle">
+          {visibleTabs.map((item) => (
+            <button className={tab === item ? "active" : ""} key={item} onClick={() => setTab(item as any)} type="button">
+              {item === "lost" ? "Lost / Found" : titleFromSlug(item)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {canCreate ? <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} /> : null}
+      {isLoading ? <DirectorySkeleton /> : feedItems.length ? (
+        <div className="communityFeed">
+          {feedItems.map((item) => (
+            <article className="communityPost" key={item.id}>
+              <div>
+                <strong>{item.title ?? item.description ?? item.category}</strong>
+                <small>{item.publisherName ?? item.tenant?.full_name ?? "Community"} · {formatDateTime(item.createdAt ?? item.created_at)}</small>
+              </div>
+              <p>{item.body ?? item.description ?? "No description added."}</p>
+              <div className="postActions"><button type="button">React</button><button type="button">Comment</button></div>
+            </article>
+          ))}
+        </div>
+      ) : <EmptyPanel title="No posts yet" copy={tab === "lost" ? "Lost/found backend is not connected yet, so this feed starts empty." : "Community posts will appear here."} />}
+    </section>
+  );
+}
+
+function CommunityComposer({ accessToken, orgId, onPosted, tab }: { accessToken: string; orgId: string; onPosted: () => void; tab: string }) {
+  async function submitPost(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    if (tab !== "announcements") {
+      console.info("Creation for this community tab needs its backend endpoint.");
+      return;
+    }
+    const response = await fetch(`${apiBase}/announcements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({ title: form.get("title"), body: form.get("body"), targetType: "all" }),
+    });
+    if (response.ok) {
+      event.currentTarget.reset();
+      onPosted();
+    }
+  }
+  return (
+    <form className="communityComposer" onSubmit={submitPost}>
+      <input name="title" placeholder={`Create ${tab === "lost" ? "lost/found" : tab} post`} required />
+      <input name="body" placeholder="Write details..." required />
+      <button className="gradientButton" type="submit">Post</button>
+    </form>
   );
 }
 
@@ -839,6 +1283,46 @@ function formatRoomType(type: string) {
     .join(" ");
 }
 
+function formatDateTime(value?: string) {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function dayToDate(value: string) {
+  if (!value) return "";
+  const date = new Date();
+  if (value === "tomorrow") date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function EmptyPanel({ title, copy }: { title: string; copy: string }) {
+  return (
+    <div className="roomEmptyState compactEmpty">
+      <strong>{title}</strong>
+      <p>{copy}</p>
+    </div>
+  );
+}
+
+function DirectorySkeleton() {
+  return (
+    <div className="directorySkeleton">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div className="directorySkeletonRow" key={index}>
+          <i className="skeletonIcon" />
+          <div>
+            <span className="skeletonLine short" />
+            <span className="skeletonLine meta" />
+          </div>
+          <span className="skeletonLine tiny" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RecordList({ rows }: { rows: string[][] }) {
   return (
     <div className="recordList">
@@ -882,17 +1366,15 @@ function fieldsFor(id: SectionId) {
   const map: Record<SectionId, string[]> = {
     overview: ["Search", "Date"],
     rooms: ["Room number", "Floor", "Capacity", "Room type"],
-    tenants: ["Full name", "Email", "Room", "Role"],
+    tenants: ["Full name", "Email", "Phone", "Temporary password"],
     gate: ["Reason", "Destination", "Expected return", "Emergency contact"],
     visitors: ["Visitor name", "Phone", "Tenant", "Purpose"],
     finance: ["Tenant", "Due type", "Amount", "Due date"],
-    complaints: ["Category", "Priority", "Description", "Assign to"],
-    announcements: ["Title", "Message", "Target type", "Target"],
+    community: ["Title", "Message", "Type"],
     mess: ["Week start", "Meal", "Dish", "Notes"],
     documents: ["Tenant", "Document type", "Document number", "File URL"],
     staff: ["Name", "Role", "Phone", "Emergency flag"],
     parents: ["Parent email", "Tenant", "Relationship", "Privacy"],
-    notifications: ["Notification ID", "Status"],
     platform: ["Organization", "Plan", "Feature key", "Status"],
   };
 
@@ -903,17 +1385,15 @@ function workflowFor(id: SectionId) {
   const map: Record<SectionId, string[]> = {
     overview: ["Review metrics", "Open priority queue", "Assign owners"],
     rooms: ["Create floor", "Create room", "Assign tenant", "Track history"],
-    tenants: ["Invite tenant", "Assign room", "Link parent", "Collect documents"],
-    gate: ["Tenant requests", "Warden approves", "Guard scans out", "Guard scans in"],
-    visitors: ["Create visitor", "Approve visit", "Check in", "Check out"],
+    tenants: ["Create tenant account", "View profile", "Assign later from Rooms", "Collect documents"],
+    gate: ["Tenant requests", "Warden approves or rejects", "Guard scans out", "Guard scans in"],
+    visitors: ["Guard creates visitor", "Team views records", "Filter by date", "Check in/out"],
     finance: ["Raise due", "Send reminder", "Record payment", "Close balance"],
-    complaints: ["Tenant reports", "Assign staff", "Update status", "Resolve issue"],
-    announcements: ["Write notice", "Choose target", "Publish", "Track reads"],
+    community: ["Choose feed", "Post or view", "React", "Comment"],
     mess: ["Create menu", "Publish week", "Collect feedback", "Review summary"],
     documents: ["Upload document", "Review details", "Verify", "Keep audit trail"],
     staff: ["Add contact", "Set role", "Mark emergency", "Publish directory"],
     parents: ["Link parent", "Set privacy", "Show ward", "Review dues"],
-    notifications: ["List alerts", "Open detail", "Mark read", "Follow up"],
     platform: ["Create plan", "Add organization", "Toggle features", "Monitor usage"],
   };
 

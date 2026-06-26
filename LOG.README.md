@@ -258,6 +258,38 @@ This file tracks what was requested, what decisions were made, what changed, and
 - `curl -I http://localhost:3000` returned `200 OK`.
 - Next dev log showed `/city-complex/warden` rendering with `200`.
 
+### Tenant, Visitor, Gate Pass, Community Permissions
+
+**Request**
+- Owner/warden should add and view tenants from Tenants section.
+- Tenants page should not ask for tenant role and should not assign rooms.
+- Rooms page should assign only real created/invited tenants.
+- Tenants page should search by tenant name or room number and use skeleton loading.
+- Fix saved violet theme flashing orange on re-render.
+- Warden should only view/approve/reject gate passes, not request them.
+- Warden should only view/filter visitors; visitor creation should be guard-only.
+- Parent Portal should only be visible to parent role.
+- Notifications should move from sidebar to a top navbar icon.
+- Announcements and complaints should become one Community/Discussion page with a toggle for announcements, complaints, and lost/found.
+
+**Changes**
+- Added `POST /api/tenants` for owner/warden tenant account creation.
+- Updated `GET /api/tenants` to include tenant-role users without room profiles, so created tenants can later be assigned from Rooms.
+- Changed visitor creation API access to guard-only.
+- Added early theme hydration script in `client/app/layout.tsx` to prevent orange flash when violet theme is saved.
+- Reworked workspace module permissions:
+  - Parent Portal is parent-only.
+  - Notifications are removed from sidebar and represented by a topbar icon.
+  - Separate Announcements and Complaints modules are replaced by Community.
+- Added real Tenants section with create form, search, skeleton loading, list, and details panel.
+- Added Gate Pass section with live listing and owner/warden approve/reject controls.
+- Added Visitor section with live listing, visitor/date/day filters, and guard-only creation form.
+- Added Community section with toggle between Announcements, Complaints, and Lost/Found.
+
+**Verification**
+- `client npm run build` passed.
+- `server npm run build` passed.
+
 ## Ongoing Instruction
 
 - Continue updating this log whenever the user requests a feature, design change, backend change, seed/data change, or bug fix.
