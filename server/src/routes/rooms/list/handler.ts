@@ -32,8 +32,23 @@ export const handleListRooms = async (req: AuthorizedRequest, res: Response) => 
       include: {
         floor: {
           select: {
+            id: true,
             floor_number: true,
             floor_name: true,
+          },
+        },
+        tenant_profiles: {
+          where: { is_active: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                email: true,
+                phone: true,
+                profile_photo_url: true,
+              },
+            },
           },
         },
       },
