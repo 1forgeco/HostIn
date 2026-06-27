@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { prisma } from "../../../lib/prisma";
+import { env } from "../../../config/env";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret_key";
 const JWT_EXPIRES_IN = "1d"; // 1 day access token
 const REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
@@ -60,7 +60,7 @@ export const handleLogin = async (req: Request, res: Response) => {
     // Generate JWT access token
     const accessToken = jwt.sign(
       { userId: user.id, email: user.email },
-      JWT_SECRET,
+      env.JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
@@ -88,6 +88,8 @@ export const handleLogin = async (req: Request, res: Response) => {
       role: r.role,
     }));
 
+    res.cookie("hostin_refresh", refreshRawToken, { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/api/auth", maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000 });
+
     return res.status(200).json({
       message: "Login successful",
       user: {
@@ -99,7 +101,6 @@ export const handleLogin = async (req: Request, res: Response) => {
       },
       roles: userRoles,
       accessToken,
-      refreshToken: refreshRawToken,
     });
   } catch (error) {
     console.error("Login error:", error);

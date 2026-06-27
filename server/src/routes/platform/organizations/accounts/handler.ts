@@ -3,14 +3,16 @@ import bcrypt from "bcryptjs";
 import { OrgRole } from "../../../../../generated/prisma/client";
 import { prisma } from "../../../../lib/prisma";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
+import { z } from "zod";
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const accountSchema = z.object({ fullName: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().email(), phone: z.string().trim().min(7).max(20), password: z.string().min(12).max(128), role: z.nativeEnum(OrgRole), accountSlug: z.string().trim().max(120).optional() });
 
 export const handleCreateOrganizationAccount = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
-  const { fullName, email, phone, password, role, accountSlug } = req.body;
-  if (!fullName || !email || !phone || !password || !role) return res.status(400).json({ error: "fullName, email, phone, password, and role are required" });
-  if (!Object.values(OrgRole).includes(role as OrgRole)) return res.status(400).json({ error: "Invalid organization role" });
+  const parsed = accountSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid account details", details: parsed.error.flatten().fieldErrors });
+  const { fullName, email, phone, password, role, accountSlug } = parsed.data;
   const organization = await prisma.organization.findUnique({ where: { id: orgId }, select: { id: true, slug: true } });
   if (!organization) return res.status(404).json({ error: "Organization not found" });
   const baseSlug = slugify(accountSlug || fullName) || role;

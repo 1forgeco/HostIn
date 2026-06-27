@@ -56,7 +56,7 @@ async function ensureRole(userId: string, orgId: string, role: "owner" | "warden
 async function main() {
   console.log("Seeding plans...");
 
-  const starterPlan = await prisma.plan.upsert({
+  await prisma.plan.upsert({
     where: { name: "Starter Plan" },
     update: {
       tier: "starter",

@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { ColorThemeToggle, useColorTheme } from "./theme-system";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
@@ -117,41 +119,233 @@ type DueRecord = {
 
 type StaffContactRecord = { id: string; name: string; phone: string; role_type: string };
 type MessItem = { id: string; day_of_week: string; meal_type: string; items: string[] };
-type PaymentRecord = { id: string; amount: string | number; payment_method: string; paid_at: string; status: string; due: { due_type: string; amount: string | number; due_date: string } };
+type PaymentRecord = {
+  id: string;
+  amount: string | number;
+  payment_method: string;
+  paid_at: string;
+  status: string;
+  due: { due_type: string; amount: string | number; due_date: string };
+};
 type NotificationRecord = { id: string; title: string; body: string; status: string; created_at: string };
-type PlatformOrganization = { id: string; name: string; slug: string; ownerName: string; planName: string; planStatus: string; planExpiresAt?: string; isActive: boolean; totalCapacity: number; activeTenantsCount: number; occupancyRate: number; memberCount: number; roleCounts: Record<string, number>; features: { key: string; enabled: boolean }[]; monthlyPrice: string | number };
+type PlatformOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  ownerName: string;
+  planName: string;
+  planStatus: string;
+  planExpiresAt?: string;
+  isActive: boolean;
+  totalCapacity: number;
+  activeTenantsCount: number;
+  occupancyRate: number;
+  memberCount: number;
+  roleCounts: Record<string, number>;
+  features: { key: string; enabled: boolean }[];
+  monthlyPrice: string | number;
+};
 type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 
 const modules: Module[] = [
-  { id: "overview", title: "Overview", description: "Occupancy, requests, dues, and service queue.", stat: "84%", meta: "occupancy", roles: ["owner", "warden"], action: "Refresh", endpoint: "/metrics", method: "GET" },
-  { id: "rooms", title: "Rooms", description: "Floors, room capacity, availability, and room history.", stat: "42", meta: "rooms", roles: ["owner", "warden", "parent"], action: "Create room", endpoint: "/rooms", method: "POST" },
-  { id: "tenants", title: "Tenants", description: "Create tenant accounts, search residents, and view profiles.", stat: "118", meta: "active", roles: ["owner", "warden"], action: "Add tenant", endpoint: "/tenants", method: "POST" },
-  { id: "gate", title: "Gate Passes", description: "View outing requests and approve or reject pending passes.", stat: "9", meta: "pending", roles: ["owner", "warden", "guard", "security", "tenant"], action: "Review passes", endpoint: "/gate-passes", method: "GET" },
-  { id: "visitors", title: "Visitors", description: "View visitor records and filter by date, day, or visitor name.", stat: "6", meta: "today", roles: ["owner", "warden", "guard", "security"], action: "View visitors", endpoint: "/visitors", method: "GET" },
-  { id: "finance", title: "Dues & Payments", description: "Raise dues, collect payments, and set reminders.", stat: "₹2.4L", meta: "due", roles: ["owner", "warden", "tenant", "parent"], action: "Create due", endpoint: "/dues", method: "POST" },
-  { id: "community", title: "Community", description: "Announcements, complaints, and lost/found discussion feed.", stat: "3", meta: "threads", roles: ["owner", "warden", "staff", "tenant", "parent"], action: "Create post", endpoint: "/announcements", method: "POST" },
-  { id: "mess", title: "Mess", description: "Weekly menu, publishing, feedback, and summary.", stat: "78%", meta: "rating", roles: ["owner", "warden", "staff", "tenant"], action: "Edit menu", endpoint: "/mess-menus", method: "POST" },
-  { id: "documents", title: "Documents", description: "Upload and verify resident documents.", stat: "21", meta: "pending", roles: ["owner", "warden"], action: "Upload", endpoint: "/documents", method: "POST" },
-  { id: "staff", title: "Staff Contacts", description: "Emergency contacts and staff directory.", stat: "18", meta: "contacts", roles: ["owner", "warden", "guard", "security", "staff", "tenant"], action: "Add contact", endpoint: "/staff-contacts", method: "POST" },
-  { id: "parents", title: "Parent Portal", description: "Ward details, privacy, dues, and movement visibility.", stat: "64", meta: "linked", roles: ["parent"], action: "View ward", endpoint: "/parents/ward", method: "GET" },
-  { id: "platform", title: "Platform", description: "Organizations, subscription plans, and feature toggles.", stat: "27", meta: "orgs", roles: ["platform"], action: "View orgs", endpoint: "/platform/organizations", method: "GET" },
+  {
+    id: "overview",
+    title: "Overview",
+    description: "Occupancy, requests, dues, and service queue.",
+    stat: "84%",
+    meta: "occupancy",
+    roles: ["owner", "warden"],
+    action: "Refresh",
+    endpoint: "/metrics",
+    method: "GET",
+  },
+  {
+    id: "rooms",
+    title: "Rooms",
+    description: "Floors, room capacity, availability, and room history.",
+    stat: "42",
+    meta: "rooms",
+    roles: ["owner", "warden", "parent"],
+    action: "Create room",
+    endpoint: "/rooms",
+    method: "POST",
+  },
+  {
+    id: "tenants",
+    title: "Tenants",
+    description: "Create tenant accounts, search residents, and view profiles.",
+    stat: "118",
+    meta: "active",
+    roles: ["owner", "warden"],
+    action: "Add tenant",
+    endpoint: "/tenants",
+    method: "POST",
+  },
+  {
+    id: "gate",
+    title: "Gate Passes",
+    description: "View outing requests and approve or reject pending passes.",
+    stat: "9",
+    meta: "pending",
+    roles: ["owner", "warden", "guard", "security", "tenant"],
+    action: "Review passes",
+    endpoint: "/gate-passes",
+    method: "GET",
+  },
+  {
+    id: "visitors",
+    title: "Visitors",
+    description: "View visitor records and filter by date, day, or visitor name.",
+    stat: "6",
+    meta: "today",
+    roles: ["owner", "warden", "guard", "security"],
+    action: "View visitors",
+    endpoint: "/visitors",
+    method: "GET",
+  },
+  {
+    id: "finance",
+    title: "Dues & Payments",
+    description: "Raise dues, collect payments, and set reminders.",
+    stat: "₹2.4L",
+    meta: "due",
+    roles: ["owner", "warden", "tenant", "parent"],
+    action: "Create due",
+    endpoint: "/dues",
+    method: "POST",
+  },
+  {
+    id: "community",
+    title: "Community",
+    description: "Announcements, complaints, and lost/found discussion feed.",
+    stat: "3",
+    meta: "threads",
+    roles: ["owner", "warden", "staff", "tenant", "parent"],
+    action: "Create post",
+    endpoint: "/announcements",
+    method: "POST",
+  },
+  {
+    id: "mess",
+    title: "Mess",
+    description: "Weekly menu, publishing, feedback, and summary.",
+    stat: "78%",
+    meta: "rating",
+    roles: ["owner", "warden", "staff", "tenant"],
+    action: "Edit menu",
+    endpoint: "/mess-menus",
+    method: "POST",
+  },
+  {
+    id: "documents",
+    title: "Documents",
+    description: "Upload and verify resident documents.",
+    stat: "21",
+    meta: "pending",
+    roles: ["owner", "warden"],
+    action: "Upload",
+    endpoint: "/documents",
+    method: "POST",
+  },
+  {
+    id: "staff",
+    title: "Staff Contacts",
+    description: "Emergency contacts and staff directory.",
+    stat: "18",
+    meta: "contacts",
+    roles: ["owner", "warden", "guard", "security", "staff", "tenant"],
+    action: "Add contact",
+    endpoint: "/staff-contacts",
+    method: "POST",
+  },
+  {
+    id: "parents",
+    title: "Parent Portal",
+    description: "Ward details, privacy, dues, and movement visibility.",
+    stat: "64",
+    meta: "linked",
+    roles: ["parent"],
+    action: "View ward",
+    endpoint: "/parents/ward",
+    method: "GET",
+  },
+  {
+    id: "platform",
+    title: "Platform",
+    description: "Organizations, subscription plans, and feature toggles.",
+    stat: "27",
+    meta: "orgs",
+    roles: ["platform"],
+    action: "View orgs",
+    endpoint: "/platform/organizations",
+    method: "GET",
+  },
 ];
 
 const dataRows: Record<SectionId, string[][]> = {
-  overview: [["Gate pass", "Rohan Patel", "Pending", "7:30 PM return"], ["Complaint", "Water leakage", "Assigned", "Housekeeping"], ["Document", "Aadhaar", "Review", "Aarav Mehta"]],
-  rooms: [["A-101", "First floor", "2/2", "Occupied"], ["A-102", "First floor", "2/3", "Available"], ["B-204", "Second floor", "1/1", "Maintenance"], ["C-305", "Third floor", "5/6", "Available"]],
-  tenants: [["Aarav Mehta", "A-101", "₹12,000 due", "Active"], ["Isha Rao", "A-102", "₹0 due", "Active"], ["Kabir Singh", "C-305", "₹4,500 due", "Onboarding"]],
-  gate: [["Rohan Patel", "Home visit", "Pending", "Out 5 PM"], ["Maya Nair", "Coaching", "Approved", "Return 8 PM"], ["Kabir Singh", "Medical", "Completed", "Returned"]],
-  visitors: [["Priya Shah", "Isha Rao", "Approved", "Waiting"], ["Delivery", "Office", "Checked in", "Gate 1"], ["Mr. Nair", "Maya Nair", "Pending", "5 PM"]],
-  finance: [["Rent - June", "Aarav Mehta", "₹12,000", "Unpaid"], ["Mess", "Kabir Singh", "₹4,500", "Partial"], ["Deposit", "Isha Rao", "₹20,000", "Paid"]],
-  community: [["Water shutdown", "All residents", "Published", "92 reads"], ["Water leakage", "A-101", "Assigned", "High"], ["Lost charger", "Common room", "Open", "2 comments"]],
-  mess: [["Monday lunch", "Paneer rice", "Published", "82%"], ["Tuesday dinner", "Dal tadka", "Draft", "Pending"], ["Friday snacks", "Poha", "Published", "76%"]],
-  documents: [["Aadhaar", "Aarav Mehta", "Pending", "Uploaded"], ["PAN", "Isha Rao", "Verified", "Warden"], ["Passport", "Kabir Singh", "Rejected", "Blurred"]],
-  staff: [["Ramesh", "Guard", "Emergency", "Night"], ["Anita", "Warden", "Primary", "Day"], ["Joseph", "Electrician", "On call", "Vendor"]],
-  parents: [["Meena Mehta", "Aarav", "Linked", "Dues visible"], ["Ravi Nair", "Maya", "Linked", "Pass visible"], ["Sana Rao", "Isha", "Invited", "Pending"]],
-  platform: [["City Complex", "Growth", "Active", "All core modules"], ["North Campus", "Pro", "Trialing", "15 days"], ["Urban Nest", "Starter", "Paused", "Billing hold"]],
+  overview: [
+    ["Gate pass", "Rohan Patel", "Pending", "7:30 PM return"],
+    ["Complaint", "Water leakage", "Assigned", "Housekeeping"],
+    ["Document", "Aadhaar", "Review", "Aarav Mehta"],
+  ],
+  rooms: [
+    ["A-101", "First floor", "2/2", "Occupied"],
+    ["A-102", "First floor", "2/3", "Available"],
+    ["B-204", "Second floor", "1/1", "Maintenance"],
+    ["C-305", "Third floor", "5/6", "Available"],
+  ],
+  tenants: [
+    ["Aarav Mehta", "A-101", "₹12,000 due", "Active"],
+    ["Isha Rao", "A-102", "₹0 due", "Active"],
+    ["Kabir Singh", "C-305", "₹4,500 due", "Onboarding"],
+  ],
+  gate: [
+    ["Rohan Patel", "Home visit", "Pending", "Out 5 PM"],
+    ["Maya Nair", "Coaching", "Approved", "Return 8 PM"],
+    ["Kabir Singh", "Medical", "Completed", "Returned"],
+  ],
+  visitors: [
+    ["Priya Shah", "Isha Rao", "Approved", "Waiting"],
+    ["Delivery", "Office", "Checked in", "Gate 1"],
+    ["Mr. Nair", "Maya Nair", "Pending", "5 PM"],
+  ],
+  finance: [
+    ["Rent - June", "Aarav Mehta", "₹12,000", "Unpaid"],
+    ["Mess", "Kabir Singh", "₹4,500", "Partial"],
+    ["Deposit", "Isha Rao", "₹20,000", "Paid"],
+  ],
+  community: [
+    ["Water shutdown", "All residents", "Published", "92 reads"],
+    ["Water leakage", "A-101", "Assigned", "High"],
+    ["Lost charger", "Common room", "Open", "2 comments"],
+  ],
+  mess: [
+    ["Monday lunch", "Paneer rice", "Published", "82%"],
+    ["Tuesday dinner", "Dal tadka", "Draft", "Pending"],
+    ["Friday snacks", "Poha", "Published", "76%"],
+  ],
+  documents: [
+    ["Aadhaar", "Aarav Mehta", "Pending", "Uploaded"],
+    ["PAN", "Isha Rao", "Verified", "Warden"],
+    ["Passport", "Kabir Singh", "Rejected", "Blurred"],
+  ],
+  staff: [
+    ["Ramesh", "Guard", "Emergency", "Night"],
+    ["Anita", "Warden", "Primary", "Day"],
+    ["Joseph", "Electrician", "On call", "Vendor"],
+  ],
+  parents: [
+    ["Meena Mehta", "Aarav", "Linked", "Dues visible"],
+    ["Ravi Nair", "Maya", "Linked", "Pass visible"],
+    ["Sana Rao", "Isha", "Invited", "Pending"],
+  ],
+  platform: [
+    ["City Complex", "Growth", "Active", "All core modules"],
+    ["North Campus", "Pro", "Trialing", "15 days"],
+    ["Urban Nest", "Starter", "Paused", "Billing hold"],
+  ],
 };
 
 function normalizeRole(role: string): Role {
@@ -187,9 +381,20 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
       const stored = window.sessionStorage.getItem("hostin-session");
       if (!stored) return;
       const session = JSON.parse(stored);
-      if (session.workspace === workspace && normalizeRole(session.role) === normalizedRole) { setLogin({ accessToken: session.accessToken, orgId: session.orgId, userName: session.userName, email: session.email }); setMessage("Workspace opened."); }
-    } catch { window.sessionStorage.removeItem("hostin-session"); }
-    finally { setSessionChecked(true); }
+      if (session.workspace === workspace && normalizeRole(session.role) === normalizedRole) {
+        setLogin({
+          accessToken: session.accessToken,
+          orgId: session.orgId,
+          userName: session.userName,
+          email: session.email,
+        });
+        setMessage("Workspace opened.");
+      }
+    } catch {
+      window.sessionStorage.removeItem("hostin-session");
+    } finally {
+      setSessionChecked(true);
+    }
   }, [normalizedRole, workspace]);
 
   const allowedModules = useMemo(
@@ -208,6 +413,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
       const isPlatform = normalizedRole === "platform";
       const response = await fetch(`${apiBase}${isPlatform ? "/platform/auth/login" : "/auth/login"}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: form.get("username"),
@@ -224,7 +430,10 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
       }
 
       const matchedRole = Array.isArray(data.roles)
-        ? data.roles.find((item: { orgId: string; orgSlug: string; role: string }) => item.orgSlug === workspace && item.role === normalizedRole)
+        ? data.roles.find(
+            (item: { orgId: string; orgSlug: string; role: string }) =>
+              item.orgSlug === workspace && item.role === normalizedRole
+          )
         : null;
 
       if (!isPlatform) {
@@ -240,7 +449,17 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
       });
-      window.sessionStorage.setItem("hostin-session", JSON.stringify({ accessToken, orgId: matchedRole?.orgId ?? "platform", userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role), email: data.user?.email ?? form.get("username")?.toString() ?? "", workspace, role: normalizedRole }));
+      window.sessionStorage.setItem(
+        "hostin-session",
+        JSON.stringify({
+          accessToken,
+          orgId: matchedRole?.orgId ?? "platform",
+          userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
+          email: data.user?.email ?? form.get("username")?.toString() ?? "",
+          workspace,
+          role: normalizedRole,
+        })
+      );
       setMessage("Workspace opened.");
     } catch {
       setMessage("Backend is offline. Start the server to login and view this workspace.");
@@ -260,29 +479,49 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           Authorization: `Bearer ${login.accessToken}`,
           ...(login.orgId !== "platform" ? { "x-org-id": login.orgId } : {}),
         },
-        body: activeModule.method === "GET" ? undefined : JSON.stringify({ orgSlug: workspace, source: "workspace-ui" }),
+        body:
+          activeModule.method === "GET" ? undefined : JSON.stringify({ orgSlug: workspace, source: "workspace-ui" }),
       });
-      setMessage(response.ok ? `${activeModule.title} synced.` : `${activeModule.title} needs valid fields or permissions.`);
+      setMessage(
+        response.ok ? `${activeModule.title} synced.` : `${activeModule.title} needs valid fields or permissions.`
+      );
     } catch {
       setMessage("Server is not reachable right now.");
     }
   }
 
-  if (!sessionChecked) return <main className="sessionLoading"><div className="brand"><span>host</span>in<span>.</span></div><div className="skeletonLine sessionLoadingLine" /></main>;
+  async function logout() {
+    try { await fetch(`${apiBase}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* Local session is still cleared below. */ }
+    window.sessionStorage.removeItem("hostin-session");
+    setLogin(null);
+    window.location.assign("/login");
+  }
+
+  if (!sessionChecked)
+    return (
+      <main className="sessionLoading">
+        <div className="brand">
+          <span>host</span>in<span>.</span>
+        </div>
+        <div className="skeletonLine sessionLoadingLine" />
+      </main>
+    );
 
   if (!login) {
     return (
       <main>
         <header className="topbar">
-          <a className="brand" href="/">
+          <Link className="brand" href="/">
             <span>host</span>in<span>.</span>
-          </a>
+          </Link>
           <nav className="topnav" aria-label="Workspace">
-            <a href="/">Home</a>
+            <Link href="/">Home</Link>
             <a href={`/${workspace}/owner`}>Owner</a>
             <a href={`/${workspace}/tenant`}>Tenant</a>
           </nav>
-          <a className="outlineButton" href="/">Switch workspace</a>
+          <Link className="outlineButton" href="/">
+            Switch workspace
+          </Link>
         </header>
 
         <section className="portalLogin">
@@ -298,7 +537,9 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           <form className="panel loginPortalCard" onSubmit={handleLogin}>
             <div className="panelTitle">
               <h2>Sign in</h2>
-              <span>/{workspace}/{role}</span>
+              <span>
+                /{workspace}/{role}
+              </span>
             </div>
             <label>
               <span>Email or phone</span>
@@ -331,8 +572,13 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             </button>
           ))}
         </nav>
-        <ColorThemeToggle customColor={customColor} onCustomColor={setCustomColor} themeKey={themeKey} onChange={setThemeKey} />
-        <NotificationMenu accessToken={login.accessToken} orgId={login.orgId} />
+        <ColorThemeToggle
+          customColor={customColor}
+          onCustomColor={setCustomColor}
+          themeKey={themeKey}
+          onChange={setThemeKey}
+        />
+        {normalizedRole !== "platform" ? <NotificationMenu accessToken={login.accessToken} orgId={login.orgId} /> : null}
         <button className="gradientButton" onClick={syncModule} type="button">
           Sync
         </button>
@@ -358,20 +604,42 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
               </button>
             ))}
           </div>
-          <button className="outlineButton fullButton" onClick={() => { window.sessionStorage.removeItem("hostin-session"); setLogin(null); window.location.assign("/login"); }} type="button">Logout</button>
+          <button
+            className="outlineButton fullButton"
+            onClick={logout}
+            type="button"
+          >
+            Logout
+          </button>
         </aside>
 
         <section className="content">
           <div className="pageHeader">
             <div>
-              <p className="crumb">{propertyName} / {roleLabel(role)}</p>
+              <p className="crumb">
+                {propertyName} / {roleLabel(role)}
+              </p>
               <h2>{activeModule.title}</h2>
-              <p>{normalizedRole === "tenant" && activeModule.id === "gate" ? "Request an outing pass and review your permanent pass history." : normalizedRole === "tenant" && activeModule.id === "finance" ? "Review your dues, pay securely, and keep your payment history." : activeModule.description}</p>
+              <p>
+                {normalizedRole === "tenant" && activeModule.id === "gate"
+                  ? "Request an outing pass and review your permanent pass history."
+                  : normalizedRole === "tenant" && activeModule.id === "finance"
+                    ? "Review your dues, pay securely, and keep your payment history."
+                    : activeModule.description}
+              </p>
             </div>
             {activeModule.id === "tenants" ? (
-              <button className="gradientButton" onClick={() => window.dispatchEvent(new Event("hostin:add-tenant"))} type="button">Add tenant</button>
+              <button
+                className="gradientButton"
+                onClick={() => window.dispatchEvent(new Event("hostin:add-tenant"))}
+                type="button"
+              >
+                Add tenant
+              </button>
             ) : !["finance", "mess", "staff", "visitors", "gate", "community", "platform"].includes(activeModule.id) ? (
-              <button className="gradientButton" onClick={syncModule} type="button">{activeModule.action}</button>
+              <button className="gradientButton" onClick={syncModule} type="button">
+                {activeModule.action}
+              </button>
             ) : null}
           </div>
 
@@ -391,15 +659,37 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
             <TenantsSection accessToken={login.accessToken} orgId={login.orgId} workspace={workspace} />
           ) : activeModule.id === "gate" ? (
-            <GatePassSection accessToken={login.accessToken} canModerate={["owner", "warden", "guard"].includes(normalizedRole)} isTenant={normalizedRole === "tenant"} orgId={login.orgId} />
+            <GatePassSection
+              accessToken={login.accessToken}
+              canModerate={["owner", "warden", "guard"].includes(normalizedRole)}
+              isTenant={normalizedRole === "tenant"}
+              orgId={login.orgId}
+            />
           ) : activeModule.id === "visitors" ? (
-            <VisitorsSection accessToken={login.accessToken} canCreate={normalizedRole === "guard"} orgId={login.orgId} />
+            <VisitorsSection
+              accessToken={login.accessToken}
+              canCreate={normalizedRole === "guard"}
+              orgId={login.orgId}
+            />
           ) : activeModule.id === "community" ? (
-            <CommunitySection accessToken={login.accessToken} canCreate={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={normalizedRole} />
+            <CommunitySection
+              accessToken={login.accessToken}
+              canCreate={["owner", "warden"].includes(normalizedRole)}
+              orgId={login.orgId}
+              role={normalizedRole}
+            />
           ) : activeModule.id === "finance" ? (
-            <FinanceSection accessToken={login.accessToken} isTenant={normalizedRole === "tenant"} orgId={login.orgId} />
+            <FinanceSection
+              accessToken={login.accessToken}
+              isTenant={normalizedRole === "tenant"}
+              orgId={login.orgId}
+            />
           ) : activeModule.id === "mess" ? (
-            <MessSection accessToken={login.accessToken} canManage={["owner", "warden", "staff"].includes(normalizedRole)} orgId={login.orgId} />
+            <MessSection
+              accessToken={login.accessToken}
+              canManage={["owner", "warden", "staff"].includes(normalizedRole)}
+              orgId={login.orgId}
+            />
           ) : activeModule.id === "staff" ? (
             <StaffContactsSection accessToken={login.accessToken} orgId={login.orgId} />
           ) : activeModule.id === "platform" ? (
@@ -419,7 +709,10 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
               </section>
 
               <section className="panel largePanel">
-                <PanelTitle title={`${activeModule.title} records`} meta={`${dataRows[activeModule.id].length} items`} />
+                <PanelTitle
+                  title={`${activeModule.title} records`}
+                  meta={`${dataRows[activeModule.id].length} items`}
+                />
                 <RecordList rows={dataRows[activeModule.id]} />
               </section>
 
@@ -467,31 +760,191 @@ function PlatformSection({ accessToken }: { accessToken: string }) {
   async function loadPlatform() {
     setIsLoading(true);
     try {
-      const [orgResponse, planResponse] = await Promise.all([fetch(`${apiBase}/platform/organizations`, { headers }), fetch(`${apiBase}/platform/plans`, { headers })]);
+      const [orgResponse, planResponse] = await Promise.all([
+        fetch(`${apiBase}/platform/organizations`, { headers }),
+        fetch(`${apiBase}/platform/plans`, { headers }),
+      ]);
       const [orgData, planData] = await Promise.all([orgResponse.json(), planResponse.json()]);
       setOrganizations(orgData.organizations ?? []);
       setPlans(planData.plans ?? []);
       setSelectedId((current) => current || orgData.organizations?.[0]?.id || "");
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   }
-  useEffect(() => { loadPlatform(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [accessToken]);
+  useEffect(() => {
+    loadPlatform(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [accessToken]);
 
   async function updateOrganization(values: Record<string, unknown>) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(values) });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
     if (response.ok) await loadPlatform();
   }
   async function toggleFeature(featureKey: string, isEnabled: boolean) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/features`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ featureKey, isEnabled }) });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/features`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ featureKey, isEnabled }),
+    });
     if (response.ok) await loadPlatform();
   }
   const roleLabels = ["owner", "warden", "guard", "staff", "tenant", "parent"];
-  const featureKeys = Array.from(new Set(["rooms", "dues", "gate_pass", "visitor_log", "community", "mess_menu", "documents", "parent_portal", ...(selected?.features.map((feature) => feature.key) ?? [])]));
+  const featureKeys = Array.from(
+    new Set([
+      "rooms",
+      "dues",
+      "gate_pass",
+      "visitor_log",
+      "community",
+      "mess_menu",
+      "documents",
+      "parent_portal",
+      ...(selected?.features.map((feature) => feature.key) ?? []),
+    ])
+  );
 
-  if (isLoading) return <section className="panel"><DirectorySkeleton /></section>;
-  if (!selected) return <section className="panel"><EmptyPanel title="No clients yet" copy="Onboarded organizations will appear here." /></section>;
-  return <div className="platformExperience"><aside className="panel platformClientList"><PanelTitle title="Clients" meta={`${organizations.length} total`} /><input aria-label="Search clients" placeholder="Search clients..." />{organizations.map((organization) => <button className={organization.id === selected.id ? "active platformClient" : "platformClient"} key={organization.id} onClick={() => setSelectedId(organization.id)} type="button"><div><strong>{organization.name}</strong><small>/{organization.slug}</small></div><span className={`statusPill ${organization.planStatus}`}>{organization.planStatus}</span></button>)}</aside><section className="platformDetail"><section className="panel platformSummary"><div><p className="sectionEyebrow">Client workspace</p><h3>{selected.name}</h3><span>{selected.ownerName} · {selected.planName}</span></div><button className={selected.isActive ? "dangerButton" : "gradientButton"} onClick={() => updateOrganization({ isActive: !selected.isActive })} type="button">{selected.isActive ? "Suspend workspace" : "Restore workspace"}</button></section><section className="platformMetrics">{roleLabels.map((roleName) => <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active accounts" />)}<Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity} tenants`} /></section><section className="panel platformControls"><PanelTitle title="Subscription & billing" meta={`₹${Number(selected.monthlyPrice).toLocaleString("en-IN")}/month`} /><div className="platformControlGrid"><label><span>Plan</span><select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ₹{Number(plan.price_monthly).toLocaleString("en-IN")}/mo</option>)}</select></label><label><span>Subscription status</span><select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>{["active", "trialing", "paused", "canceled", "expired"].map((status) => <option key={status} value={status}>{titleFromSlug(status)}</option>)}</select></label><label><span>Expires on</span><input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""} /></label><label><span>Capacity</span><input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity} /></label></div></section><section className="panel platformFeatures"><PanelTitle title="Feature access" meta="Changes apply immediately" /><div className="featureToggleGrid">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <label key={key}><span>{titleFromSlug(key)}</span><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox" /></label>; })}</div></section></section></div>;
+  if (isLoading)
+    return (
+      <section className="panel">
+        <DirectorySkeleton />
+      </section>
+    );
+  if (!selected)
+    return (
+      <section className="panel">
+        <EmptyPanel title="No clients yet" copy="Onboarded organizations will appear here." />
+      </section>
+    );
+  return (
+    <div className="platformExperience">
+      <aside className="panel platformClientList">
+        <PanelTitle title="Clients" meta={`${organizations.length} total`} />
+        <input aria-label="Search clients" placeholder="Search clients..." />
+        {organizations.map((organization) => (
+          <button
+            className={organization.id === selected.id ? "active platformClient" : "platformClient"}
+            key={organization.id}
+            onClick={() => setSelectedId(organization.id)}
+            type="button"
+          >
+            <div>
+              <strong>{organization.name}</strong>
+              <small>/{organization.slug}</small>
+            </div>
+            <span className={`statusPill ${organization.planStatus}`}>{organization.planStatus}</span>
+          </button>
+        ))}
+      </aside>
+      <section className="platformDetail">
+        <section className="panel platformSummary">
+          <div>
+            <p className="sectionEyebrow">Client workspace</p>
+            <h3>{selected.name}</h3>
+            <span>
+              {selected.ownerName} · {selected.planName}
+            </span>
+          </div>
+          <button
+            className={selected.isActive ? "dangerButton" : "gradientButton"}
+            onClick={() => updateOrganization({ isActive: !selected.isActive })}
+            type="button"
+          >
+            {selected.isActive ? "Suspend workspace" : "Restore workspace"}
+          </button>
+        </section>
+        <section className="platformMetrics">
+          {roleLabels.map((roleName) => (
+            <Metric
+              key={roleName}
+              label={titleFromSlug(roleName)}
+              value={selected.roleCounts[roleName] ?? 0}
+              meta="active accounts"
+            />
+          ))}
+          <Metric
+            label="Occupancy"
+            value={`${selected.occupancyRate}%`}
+            meta={`${selected.activeTenantsCount}/${selected.totalCapacity} tenants`}
+          />
+        </section>
+        <section className="panel platformControls">
+          <PanelTitle
+            title="Subscription & billing"
+            meta={`₹${Number(selected.monthlyPrice).toLocaleString("en-IN")}/month`}
+          />
+          <div className="platformControlGrid">
+            <label>
+              <span>Plan</span>
+              <select
+                value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""}
+                onChange={(event) => updateOrganization({ planId: event.target.value })}
+              >
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} · ₹{Number(plan.price_monthly).toLocaleString("en-IN")}/mo
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Subscription status</span>
+              <select
+                value={selected.planStatus}
+                onChange={(event) => updateOrganization({ planStatus: event.target.value })}
+              >
+                {["active", "trialing", "paused", "canceled", "expired"].map((status) => (
+                  <option key={status} value={status}>
+                    {titleFromSlug(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Expires on</span>
+              <input
+                onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })}
+                type="date"
+                value={selected.planExpiresAt?.slice(0, 10) ?? ""}
+              />
+            </label>
+            <label>
+              <span>Capacity</span>
+              <input
+                min="0"
+                onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })}
+                type="number"
+                defaultValue={selected.totalCapacity}
+              />
+            </label>
+          </div>
+        </section>
+        <section className="panel platformFeatures">
+          <PanelTitle title="Feature access" meta="Changes apply immediately" />
+          <div className="featureToggleGrid">
+            {featureKeys.map((key) => {
+              const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false;
+              return (
+                <label key={key}>
+                  <span>{titleFromSlug(key)}</span>
+                  <input
+                    checked={enabled}
+                    onChange={(event) => toggleFeature(key, event.target.checked)}
+                    type="checkbox"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      </section>
+    </div>
+  );
 }
 
 function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: string }) {
@@ -503,23 +956,72 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
   async function loadNotifications() {
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBase}/notifications`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+      const response = await fetch(`${apiBase}/notifications`, {
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      });
       const data = await response.json().catch(() => ({}));
       setNotifications(data.notifications ?? []);
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   }
-  useEffect(() => { loadNotifications(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [accessToken, orgId]);
+  useEffect(() => {
+    loadNotifications(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [accessToken, orgId]);
   useEffect(() => {
     if (!open) return;
-    const close = (event: MouseEvent) => { if (!(event.target as Element).closest(".notificationMenu")) setOpen(false); };
+    const close = (event: MouseEvent) => {
+      if (!(event.target as Element).closest(".notificationMenu")) setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
   async function markRead(id: string) {
-    await fetch(`${apiBase}/notifications/${id}/read`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+    await fetch(`${apiBase}/notifications/${id}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+    });
     await loadNotifications();
   }
-  return <div className={`notificationMenu ${open ? "isOpen" : ""}`}><button aria-expanded={open} aria-label="Notifications" className="notificationIconButton" onClick={() => setOpen((current) => !current)} type="button">{unread ? <span>{unread}</span> : null}</button>{open ? <div className="notificationPopover"><div className="notificationPopoverHeader"><strong>Notifications</strong><small>{unread} unread</small></div>{isLoading ? <DirectorySkeleton /> : notifications.length ? notifications.map((item) => <button className={item.status === "read" ? "notificationItem" : "notificationItem unread"} key={item.id} onClick={() => markRead(item.id)} type="button"><strong>{item.title}</strong><p>{item.body}</p><small>{formatDateTime(item.created_at)}</small></button>) : <EmptyPanel title="All caught up" copy="New updates will appear here." />}</div> : null}</div>;
+  return (
+    <div className={`notificationMenu ${open ? "isOpen" : ""}`}>
+      <button
+        aria-expanded={open}
+        aria-label="Notifications"
+        className="notificationIconButton"
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        {unread ? <span>{unread}</span> : null}
+      </button>
+      {open ? (
+        <div className="notificationPopover">
+          <div className="notificationPopoverHeader">
+            <strong>Notifications</strong>
+            <small>{unread} unread</small>
+          </div>
+          {isLoading ? (
+            <DirectorySkeleton />
+          ) : notifications.length ? (
+            notifications.map((item) => (
+              <button
+                className={item.status === "read" ? "notificationItem" : "notificationItem unread"}
+                key={item.id}
+                onClick={() => markRead(item.id)}
+                type="button"
+              >
+                <strong>{item.title}</strong>
+                <p>{item.body}</p>
+                <small>{formatDateTime(item.created_at)}</small>
+              </button>
+            ))
+          ) : (
+            <EmptyPanel title="All caught up" copy="New updates will appear here." />
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string; orgId: string; workspace: string }) {
@@ -546,7 +1048,9 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
       const data = await response.json().catch(() => ({}));
       const nextTenants = data.tenants ?? [];
       setTenants(nextTenants);
-      setSelectedUserId((current) => nextTenants.some((tenant: TenantRecord) => tenant.userId === current) ? current : "");
+      setSelectedUserId((current) =>
+        nextTenants.some((tenant: TenantRecord) => tenant.userId === current) ? current : ""
+      );
     } catch {
       console.info("Tenants could not load.");
       setTenants([]);
@@ -614,7 +1118,11 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
     <div className="tenantExperience">
       <section className="panel tenantDirectoryPanel">
         <div className="roomsToolbar tenantToolbar">
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name or room number..." />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search tenant name or room number..."
+          />
         </div>
         {isLoading ? (
           <DirectorySkeleton />
@@ -625,7 +1133,7 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
                 <button
                   className={selectedTenant?.userId === tenant.userId ? "active tenantListItem" : "tenantListItem"}
                   key={tenant.userId}
-                  onClick={() => setSelectedUserId((current) => current === tenant.userId ? "" : tenant.userId)}
+                  onClick={() => setSelectedUserId((current) => (current === tenant.userId ? "" : tenant.userId))}
                   type="button"
                 >
                   <span>{getInitials(tenant.fullName)}</span>
@@ -642,22 +1150,50 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
             </div>
           </div>
         ) : (
-          <EmptyPanel title="No tenants found" copy="Create a tenant account first, then assign rooms from the Rooms board." />
+          <EmptyPanel
+            title="No tenants found"
+            copy="Create a tenant account first, then assign rooms from the Rooms board."
+          />
         )}
       </section>
       {showCreate ? (
         <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)} role="presentation">
-          <section aria-labelledby="add-tenant-title" aria-modal="true" className="panel tenantCreateModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+          <section
+            aria-labelledby="add-tenant-title"
+            aria-modal="true"
+            className="panel tenantCreateModal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
             <div className="modalHeader">
-              <div><h3 id="add-tenant-title">Add tenant</h3><p>Create the account now and assign a room later.</p></div>
-              <button aria-label="Close add tenant" onClick={() => setShowCreate(false)} type="button">×</button>
+              <div>
+                <h3 id="add-tenant-title">Add tenant</h3>
+                <p>Create the account now and assign a room later.</p>
+              </div>
+              <button aria-label="Close add tenant" onClick={() => setShowCreate(false)} type="button">
+                ×
+              </button>
             </div>
             <form className="tenantCreateForm" onSubmit={createTenant}>
-              <label><span>Full name</span><input name="fullName" placeholder="Tenant full name" required /></label>
-              <label><span>Email</span><input name="email" placeholder={`tenant@${workspace}.hostin.local`} required type="email" /></label>
-              <label><span>Phone</span><input name="phone" placeholder="10 digit phone" required /></label>
-              <label><span>Temporary password</span><input name="password" placeholder={`${workspace}@123`} type="text" /></label>
-              <button className="gradientButton fullButton" disabled={isCreating} type="submit">{isCreating ? "Creating..." : "Create tenant"}</button>
+              <label>
+                <span>Full name</span>
+                <input name="fullName" placeholder="Tenant full name" required />
+              </label>
+              <label>
+                <span>Email</span>
+                <input name="email" placeholder={`tenant@${workspace}.hostin.local`} required type="email" />
+              </label>
+              <label>
+                <span>Phone</span>
+                <input name="phone" placeholder="10 digit phone" required />
+              </label>
+              <label>
+                <span>Temporary password</span>
+                <input name="password" placeholder={`${workspace}@123`} type="text" />
+              </label>
+              <button className="gradientButton fullButton" disabled={isCreating} type="submit">
+                {isCreating ? "Creating..." : "Create tenant"}
+              </button>
             </form>
           </section>
         </div>
@@ -678,17 +1214,42 @@ function TenantDetailCard({ tenant }: { tenant?: TenantRecord }) {
         </div>
       </div>
       <div className="roomInfoGrid">
-        <div><span>Phone</span><strong>{tenant.phone}</strong></div>
-        <div><span>Room</span><strong>{tenant.room?.roomNumber ?? "Not assigned"}</strong></div>
-        <div><span>Status</span><strong>{tenant.status}</strong></div>
-        <div><span>Company / College</span><strong>{tenant.collegeOrCompany ?? "Not added"}</strong></div>
-        <div><span>Emergency contact</span><strong>{tenant.emergencyContactName ?? "Not added"}</strong></div>
+        <div>
+          <span>Phone</span>
+          <strong>{tenant.phone}</strong>
+        </div>
+        <div>
+          <span>Room</span>
+          <strong>{tenant.room?.roomNumber ?? "Not assigned"}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{tenant.status}</strong>
+        </div>
+        <div>
+          <span>Company / College</span>
+          <strong>{tenant.collegeOrCompany ?? "Not added"}</strong>
+        </div>
+        <div>
+          <span>Emergency contact</span>
+          <strong>{tenant.emergencyContactName ?? "Not added"}</strong>
+        </div>
       </div>
     </aside>
   );
 }
 
-function GatePassSection({ accessToken, canModerate, isTenant, orgId }: { accessToken: string; canModerate: boolean; isTenant: boolean; orgId: string }) {
+function GatePassSection({
+  accessToken,
+  canModerate,
+  isTenant,
+  orgId,
+}: {
+  accessToken: string;
+  canModerate: boolean;
+  isTenant: boolean;
+  orgId: string;
+}) {
   const [passes, setPasses] = useState<GatePassRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -725,54 +1286,152 @@ function GatePassSection({ accessToken, canModerate, isTenant, orgId }: { access
   async function requestPass(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const response = await fetch(`${apiBase}/gate-passes`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId }, body: JSON.stringify({ purpose: form.get("purpose"), destination: form.get("destination"), expectedOutTime: form.get("expectedOutTime"), expectedReturnTime: form.get("expectedReturnTime") }) });
-    if (response.ok) { event.currentTarget.reset(); await loadPasses(); }
+    const response = await fetch(`${apiBase}/gate-passes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        purpose: form.get("purpose"),
+        destination: form.get("destination"),
+        expectedOutTime: form.get("expectedOutTime"),
+        expectedReturnTime: form.get("expectedReturnTime"),
+      }),
+    });
+    if (response.ok) {
+      event.currentTarget.reset();
+      await loadPasses();
+    }
   }
 
   async function cancelPass(id: string) {
-    const response = await fetch(`${apiBase}/gate-passes/${id}/cancel`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+    const response = await fetch(`${apiBase}/gate-passes/${id}/cancel`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+    });
     if (response.ok) await loadPasses();
   }
 
   const pendingPasses = passes.filter((pass) => pass.status === "pending");
   const historyPasses = passes.filter((pass) => pass.status !== "pending");
 
-  if (isTenant) return <div className="gateTenantExperience"><section className="panel"><PanelTitle title="Request gate pass" meta="Send for approval" /><form className="gatePassForm" onSubmit={requestPass}><input name="purpose" placeholder="Purpose" required /><input name="destination" placeholder="Destination" required /><label><span>Leaving</span><input name="expectedOutTime" type="datetime-local" required /></label><label><span>Expected return</span><input name="expectedReturnTime" type="datetime-local" required /></label><button className="gradientButton" type="submit">Request gate pass</button></form></section><section className="panel feedPanel"><PanelTitle title="Pending requests" meta={`${pendingPasses.length} awaiting review`} />{isLoading ? <DirectorySkeleton /> : pendingPasses.length ? <div className="recordList">{pendingPasses.map((pass) => <GatePassRow key={pass.id} pass={pass}><button className="cancelTextButton" onClick={() => cancelPass(pass.id)} type="button">Cancel request</button></GatePassRow>)}</div> : <EmptyPanel title="No pending requests" copy="Your new requests will appear here until reviewed." />}<PanelTitle title="Gate pass history" meta="Permanent record" />{historyPasses.length ? <div className="recordList">{historyPasses.map((pass) => <GatePassRow key={pass.id} pass={pass} />)}</div> : <EmptyPanel title="No history yet" copy="Approved, rejected, cancelled, and completed passes will remain here." />}</section></div>;
+  if (isTenant)
+    return (
+      <div className="gateTenantExperience">
+        <section className="panel">
+          <PanelTitle title="Request gate pass" meta="Send for approval" />
+          <form className="gatePassForm" onSubmit={requestPass}>
+            <input name="purpose" placeholder="Purpose" required />
+            <input name="destination" placeholder="Destination" required />
+            <label>
+              <span>Leaving</span>
+              <input name="expectedOutTime" type="datetime-local" required />
+            </label>
+            <label>
+              <span>Expected return</span>
+              <input name="expectedReturnTime" type="datetime-local" required />
+            </label>
+            <button className="gradientButton" type="submit">
+              Request gate pass
+            </button>
+          </form>
+        </section>
+        <section className="panel feedPanel">
+          <PanelTitle title="Pending requests" meta={`${pendingPasses.length} awaiting review`} />
+          {isLoading ? (
+            <DirectorySkeleton />
+          ) : pendingPasses.length ? (
+            <div className="recordList">
+              {pendingPasses.map((pass) => (
+                <GatePassRow key={pass.id} pass={pass}>
+                  <button className="cancelTextButton" onClick={() => cancelPass(pass.id)} type="button">
+                    Cancel request
+                  </button>
+                </GatePassRow>
+              ))}
+            </div>
+          ) : (
+            <EmptyPanel title="No pending requests" copy="Your new requests will appear here until reviewed." />
+          )}
+          <PanelTitle title="Gate pass history" meta="Permanent record" />
+          {historyPasses.length ? (
+            <div className="recordList">
+              {historyPasses.map((pass) => (
+                <GatePassRow key={pass.id} pass={pass} />
+              ))}
+            </div>
+          ) : (
+            <EmptyPanel
+              title="No history yet"
+              copy="Approved, rejected, cancelled, and completed passes will remain here."
+            />
+          )}
+        </section>
+      </div>
+    );
 
   return (
     <section className="panel feedPanel">
       <PanelTitle title="Gate pass requests" meta={canModerate ? "Approve / Reject" : "View only"} />
-      {isLoading ? <DirectorySkeleton /> : passes.length ? (
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : passes.length ? (
         <div className="recordList">
           {passes.map((pass) => (
             <article className="actionRecord" key={pass.id}>
               <div>
                 <strong>{pass.tenant?.full_name ?? "Tenant"}</strong>
-                <small>{pass.purpose ?? pass.reason} · {pass.destination}</small>
+                <small>
+                  {pass.purpose ?? pass.reason} · {pass.destination}
+                </small>
                 <small>Return: {formatDateTime(pass.expected_return_time)}</small>
               </div>
               <div>
                 <span className={`statusPill ${pass.status}`}>{pass.status}</span>
                 {canModerate && pass.status === "pending" ? (
                   <div className="inlineActions">
-                    <button onClick={() => updatePass(pass.id, "approved")} type="button">Approve</button>
-                    <button onClick={() => updatePass(pass.id, "rejected")} type="button">Reject</button>
+                    <button onClick={() => updatePass(pass.id, "approved")} type="button">
+                      Approve
+                    </button>
+                    <button onClick={() => updatePass(pass.id, "rejected")} type="button">
+                      Reject
+                    </button>
                   </div>
                 ) : null}
               </div>
             </article>
           ))}
         </div>
-      ) : <EmptyPanel title="No gate passes" copy="Pending and historical gate passes will appear here." />}
+      ) : (
+        <EmptyPanel title="No gate passes" copy="Pending and historical gate passes will appear here." />
+      )}
     </section>
   );
 }
 
 function GatePassRow({ children, pass }: { children?: ReactNode; pass: GatePassRecord }) {
-  return <article className="actionRecord"><div><strong>{pass.purpose ?? pass.reason}</strong><small>{pass.destination}</small><small>Return: {formatDateTime(pass.expected_return_time)}</small></div><div><span className={`statusPill ${pass.status}`}>{pass.status}</span>{children}</div></article>;
+  return (
+    <article className="actionRecord">
+      <div>
+        <strong>{pass.purpose ?? pass.reason}</strong>
+        <small>{pass.destination}</small>
+        <small>Return: {formatDateTime(pass.expected_return_time)}</small>
+      </div>
+      <div>
+        <span className={`statusPill ${pass.status}`}>{pass.status}</span>
+        {children}
+      </div>
+    </article>
+  );
 }
 
-function VisitorsSection({ accessToken, canCreate, orgId }: { accessToken: string; canCreate: boolean; orgId: string }) {
+function VisitorsSection({
+  accessToken,
+  canCreate,
+  orgId,
+}: {
+  accessToken: string;
+  canCreate: boolean;
+  orgId: string;
+}) {
   const [visitors, setVisitors] = useState<VisitorRecord[]>([]);
   const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
   const [filter, setFilter] = useState("");
@@ -847,9 +1506,20 @@ function VisitorsSection({ accessToken, canCreate, orgId }: { accessToken: strin
 
   return (
     <section className="panel feedPanel">
-      <div className="sectionActionHeader"><h3>Visitor records</h3>{canCreate ? <button className="gradientButton" onClick={() => setShowCreate(true)} type="button">Add visitor</button> : null}</div>
+      <div className="sectionActionHeader">
+        <h3>Visitor records</h3>
+        {canCreate ? (
+          <button className="gradientButton" onClick={() => setShowCreate(true)} type="button">
+            Add visitor
+          </button>
+        ) : null}
+      </div>
       <div className="roomsToolbar visitorToolbar">
-        <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter by visitor name..." />
+        <input
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Filter by visitor name..."
+        />
         <input value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} type="date" />
         <select onChange={(event) => setDateFilter(dayToDate(event.target.value))} defaultValue="">
           <option value="">Any day</option>
@@ -857,45 +1527,106 @@ function VisitorsSection({ accessToken, canCreate, orgId }: { accessToken: strin
           <option value="tomorrow">Tomorrow</option>
         </select>
       </div>
-      {showCreate ? <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)}><section aria-modal="true" className="panel visitorCreateModal" onMouseDown={(event) => event.stopPropagation()} role="dialog"><div className="modalHeader"><div><h3>Add visitor</h3><p>Register a visitor against their host tenant.</p></div><button aria-label="Close visitor form" onClick={() => setShowCreate(false)} type="button">×</button></div><form className="visitorModalForm" onSubmit={createVisitor}>
-          <label className="formSpan"><span>Host tenant</span><select name="tenantId" required>
-            <option value="">Select host tenant</option>
-            {tenantOptions.map((tenant) => (
-              <option key={tenant.userId} value={tenant.userId}>{tenant.fullName}</option>
-            ))}
-          </select></label>
-          <label><span>Visitor name</span><input name="visitorName" placeholder="Enter full name" required /></label>
-          <label><span>Phone number</span><input name="visitorPhone" placeholder="Enter phone number" required /></label>
-          <label><span>Relation</span><input name="visitorRelation" placeholder="Friend, parent, delivery..." required /></label>
-          <label><span>Expected visit</span><input name="expectedVisitTime" type="datetime-local" required /></label>
-          <label className="formSpan"><span>Purpose</span><input name="purpose" placeholder="Reason for visit" required /></label>
-          <button className="gradientButton fullButton" type="submit">Create visitor</button>
-        </form></section></div> : null}
-      {isLoading ? <DirectorySkeleton /> : filteredVisitors.length ? (
+      {showCreate ? (
+        <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)}>
+          <section
+            aria-modal="true"
+            className="panel visitorCreateModal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="modalHeader">
+              <div>
+                <h3>Add visitor</h3>
+                <p>Register a visitor against their host tenant.</p>
+              </div>
+              <button aria-label="Close visitor form" onClick={() => setShowCreate(false)} type="button">
+                ×
+              </button>
+            </div>
+            <form className="visitorModalForm" onSubmit={createVisitor}>
+              <label className="formSpan">
+                <span>Host tenant</span>
+                <select name="tenantId" required>
+                  <option value="">Select host tenant</option>
+                  {tenantOptions.map((tenant) => (
+                    <option key={tenant.userId} value={tenant.userId}>
+                      {tenant.fullName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Visitor name</span>
+                <input name="visitorName" placeholder="Enter full name" required />
+              </label>
+              <label>
+                <span>Phone number</span>
+                <input name="visitorPhone" placeholder="Enter phone number" required />
+              </label>
+              <label>
+                <span>Relation</span>
+                <input name="visitorRelation" placeholder="Friend, parent, delivery..." required />
+              </label>
+              <label>
+                <span>Expected visit</span>
+                <input name="expectedVisitTime" type="datetime-local" required />
+              </label>
+              <label className="formSpan">
+                <span>Purpose</span>
+                <input name="purpose" placeholder="Reason for visit" required />
+              </label>
+              <button className="gradientButton fullButton" type="submit">
+                Create visitor
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : filteredVisitors.length ? (
         <div className="recordList">
           {filteredVisitors.map((visitor) => (
             <article className="actionRecord" key={visitor.id}>
               <div>
                 <strong>{visitor.visitor_name}</strong>
-                <small>{visitor.purpose} · Host: {visitor.tenant?.full_name ?? "Tenant"}</small>
+                <small>
+                  {visitor.purpose} · Host: {visitor.tenant?.full_name ?? "Tenant"}
+                </small>
                 <small>{formatDateTime(visitor.expected_visit_time)}</small>
               </div>
             </article>
           ))}
         </div>
-      ) : <EmptyPanel title="No visitor records" copy="Visitor entries matching your filters will appear here." />}
+      ) : (
+        <EmptyPanel title="No visitor records" copy="Visitor entries matching your filters will appear here." />
+      )}
     </section>
   );
 }
 
-function CommunitySection({ accessToken, canCreate, orgId, role }: { accessToken: string; canCreate: boolean; orgId: string; role: Role }) {
+function CommunitySection({
+  accessToken,
+  canCreate,
+  orgId,
+  role,
+}: {
+  accessToken: string;
+  canCreate: boolean;
+  orgId: string;
+  role: Role;
+}) {
   const [tab, setTab] = useState<"announcements" | "complaints" | "lost">("announcements");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [lostPosts, setLostPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState("");
-  const visibleTabs = role === "tenant" || role === "parent" || role === "guard" ? ["announcements", "lost"] : ["announcements", "complaints", "lost"];
+  const visibleTabs =
+    role === "tenant" || role === "parent" || role === "guard"
+      ? ["announcements", "lost"]
+      : ["announcements", "complaints", "lost"];
 
   async function loadCommunity() {
     setIsLoading(true);
@@ -903,7 +1634,9 @@ function CommunitySection({ accessToken, canCreate, orgId, role }: { accessToken
       const [announcementsResponse, complaintsResponse, lostResponse] = await Promise.all([
         fetch(`${apiBase}/announcements`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }),
         fetch(`${apiBase}/complaints`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }),
-        fetch(`${apiBase}/community/lost-found`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }),
+        fetch(`${apiBase}/community/lost-found`, {
+          headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+        }),
       ]);
       const announcementData = await announcementsResponse.json().catch(() => ({}));
       const complaintData = await complaintsResponse.json().catch(() => ({}));
@@ -933,38 +1666,71 @@ function CommunitySection({ accessToken, canCreate, orgId, role }: { accessToken
         <PanelTitle title="Community" meta="Announcements · Complaints · Lost/Found" />
         <div className="communityToggle">
           {visibleTabs.map((item) => (
-            <button className={tab === item ? "active" : ""} key={item} onClick={() => setTab(item as any)} type="button">
+            <button
+              className={tab === item ? "active" : ""}
+              key={item}
+              onClick={() => setTab(item as any)}
+              type="button"
+            >
               {item === "lost" ? "Lost / Found" : titleFromSlug(item)}
             </button>
           ))}
         </div>
       </div>
-      {canCreate || (role === "tenant" && tab === "lost") ? <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} /> : null}
-      {isLoading ? <DirectorySkeleton /> : feedItems.length ? (
+      {canCreate || (role === "tenant" && tab === "lost") ? (
+        <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} />
+      ) : null}
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : feedItems.length ? (
         <div className="communityFeed">
           {feedItems.map((item) => (
             <article className="communityPost" key={item.id}>
               <div>
                 <strong>{item.title ?? item.description ?? item.category}</strong>
-                <small>{item.publisherName ?? item.tenant?.full_name ?? "Community"} · {formatDateTime(item.createdAt ?? item.created_at)}</small>
+                <small>
+                  {item.publisherName ?? item.tenant?.full_name ?? "Community"} ·{" "}
+                  {formatDateTime(item.createdAt ?? item.created_at)}
+                </small>
               </div>
               <p>{item.body ?? item.description ?? "No description added."}</p>
-              {item.imageUrls?.length ? <div className="postImages">{item.imageUrls.map((url: string, index: number) => <img alt={`Lost or found attachment ${index + 1}`} key={`${item.id}-${index}`} src={url} />)}</div> : null}
-              {role !== "tenant" || tab === "announcements" ? <div className="postActions">
-                <button onClick={() => interact(item.id, tab, "reaction", "like")} type="button">Like <span>{item.reactionCount ?? 0}</span></button>
-                <button onClick={() => setCommentsFor((current) => current === item.id ? "" : item.id)} type="button">Comment <span>{item.commentCount ?? 0}</span></button>
-              </div> : null}
+              {item.imageUrls?.length ? (
+                <div className="postImages">
+                  {item.imageUrls.map((url: string, index: number) => (
+                    <Image alt={`Lost or found attachment ${index + 1}`} height={320} key={`${item.id}-${index}`} src={url} unoptimized width={512} />
+                  ))}
+                </div>
+              ) : null}
+              {role !== "tenant" || tab === "announcements" ? (
+                <div className="postActions">
+                  <button onClick={() => interact(item.id, tab, "reaction", "like")} type="button">
+                    Like <span>{item.reactionCount ?? 0}</span>
+                  </button>
+                  <button
+                    onClick={() => setCommentsFor((current) => (current === item.id ? "" : item.id))}
+                    type="button"
+                  >
+                    Comment <span>{item.commentCount ?? 0}</span>
+                  </button>
+                </div>
+              ) : null}
               {(role !== "tenant" || tab === "announcements") && commentsFor === item.id ? (
                 <form className="commentComposer" onSubmit={(event) => submitComment(event, item.id, tab)}>
                   <input name="comment" placeholder="Write a comment..." required />
                   <button type="submit">Post</button>
-                  {(item.comments ?? []).map((comment: any) => <p key={comment.id}><strong>{comment.authorName}</strong> {comment.body}</p>)}
+                  {(item.comments ?? []).map((comment: any) => (
+                    <p key={comment.id}>
+                      <strong>{comment.authorName}</strong> {comment.body}
+                    </p>
+                  ))}
                 </form>
               ) : null}
             </article>
           ))}
         </div>
-      ) : <EmptyPanel title="No posts yet" copy="Community posts will appear here." />}
+      ) : (
+        <EmptyPanel title="No posts yet" copy="Community posts will appear here." />
+      )}
     </section>
   );
 
@@ -985,15 +1751,32 @@ function CommunitySection({ accessToken, canCreate, orgId, role }: { accessToken
   }
 }
 
-function CommunityComposer({ accessToken, orgId, onPosted, tab }: { accessToken: string; orgId: string; onPosted: () => void; tab: string }) {
+function CommunityComposer({
+  accessToken,
+  orgId,
+  onPosted,
+  tab,
+}: {
+  accessToken: string;
+  orgId: string;
+  onPosted: () => void;
+  tab: string;
+}) {
   async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     if (tab === "lost") {
       const files = Array.from((form.get("images") as File)?.size ? [form.get("images") as File] : []);
       const imageUrls = await Promise.all(files.map(fileToDataUrl));
-      const response = await fetch(`${apiBase}/community/lost-found`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId }, body: JSON.stringify({ caption: form.get("body"), imageUrls }) });
-      if (response.ok) { event.currentTarget.reset(); onPosted(); }
+      const response = await fetch(`${apiBase}/community/lost-found`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+        body: JSON.stringify({ caption: form.get("body"), imageUrls }),
+      });
+      if (response.ok) {
+        event.currentTarget.reset();
+        onPosted();
+      }
       return;
     }
     if (tab !== "announcements") {
@@ -1014,13 +1797,27 @@ function CommunityComposer({ accessToken, orgId, onPosted, tab }: { accessToken:
     <form className="communityComposer" onSubmit={submitPost}>
       {tab !== "lost" ? <input name="title" placeholder={`Create ${tab} post`} required /> : null}
       <input name="body" placeholder="Write details..." required />
-      {tab === "lost" ? <label className="imageUploadButton">Add image<input accept="image/*" name="images" type="file" /></label> : null}
-      <button className="gradientButton" type="submit">Post</button>
+      {tab === "lost" ? (
+        <label className="imageUploadButton">
+          Add image
+          <input accept="image/*" name="images" type="file" />
+        </label>
+      ) : null}
+      <button className="gradientButton" type="submit">
+        Post
+      </button>
     </form>
   );
 }
 
-function fileToDataUrl(file: File) { return new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); }); }
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string; isTenant: boolean; orgId: string }) {
   const [dues, setDues] = useState<DueRecord[]>([]);
@@ -1034,18 +1831,30 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
   useEffect(() => {
     setIsLoading(true);
     Promise.all([
-      fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json()),
-      fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json()),
+      fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
+        (response) => response.json()
+      ),
+      fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
+        (response) => response.json()
+      ),
     ])
-      .then(([dueData, paymentData]) => { setDues(dueData.dues ?? []); setPayments(paymentData.payments ?? []); })
+      .then(([dueData, paymentData]) => {
+        setDues(dueData.dues ?? []);
+        setPayments(paymentData.payments ?? []);
+      })
       .catch(() => setDues([]))
       .finally(() => setIsLoading(false));
   }, [accessToken, orgId]);
 
-  const visible = dues.filter((due) => {
-    const paid = due.status === "paid";
-    return (status === "all" || (status === "paid" ? paid : !paid)) && due.tenant.full_name.toLowerCase().includes(search.toLowerCase());
-  }).sort((a, b) => (Number(a.amount) - Number(b.amount)) * (sort === "asc" ? 1 : -1));
+  const visible = dues
+    .filter((due) => {
+      const paid = due.status === "paid";
+      return (
+        (status === "all" || (status === "paid" ? paid : !paid)) &&
+        due.tenant.full_name.toLowerCase().includes(search.toLowerCase())
+      );
+    })
+    .sort((a, b) => (Number(a.amount) - Number(b.amount)) * (sort === "asc" ? 1 : -1));
   const paidDues = dues.filter((due) => due.status === "paid");
   const dueDues = dues.filter((due) => due.status !== "paid");
 
@@ -1054,11 +1863,140 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
     if (!checkoutDue) return;
     const form = new FormData(event.currentTarget);
     const remaining = Number(checkoutDue.amount) - Number(checkoutDue.amount_paid);
-    const response = await fetch(`${apiBase}/payments`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId }, body: JSON.stringify({ dueId: checkoutDue.id, amount: remaining, paymentMethod: form.get("paymentMethod"), gateway: "manual" }) });
-    if (response.ok) { setCheckoutDue(null); const [dueData, paymentData] = await Promise.all([fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json()), fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json())]); setDues(dueData.dues ?? []); setPayments(paymentData.payments ?? []); }
+    const response = await fetch(`${apiBase}/payments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        dueId: checkoutDue.id,
+        amount: remaining,
+        paymentMethod: form.get("paymentMethod"),
+        gateway: "manual",
+      }),
+    });
+    if (response.ok) {
+      setCheckoutDue(null);
+      const [dueData, paymentData] = await Promise.all([
+        fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
+          (item) => item.json()
+        ),
+        fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
+          (item) => item.json()
+        ),
+      ]);
+      setDues(dueData.dues ?? []);
+      setPayments(paymentData.payments ?? []);
+    }
   }
 
-  if (isTenant) return <section className="tenantBilling"><section className="panel feedPanel"><PanelTitle title="My dues" meta={`${dueDues.length} outstanding`} />{isLoading ? <DirectorySkeleton /> : dueDues.length ? <div className="billGrid">{dueDues.map((due) => { const remaining = Number(due.amount) - Number(due.amount_paid); return <article className="billCard" key={due.id}><div className="billHeader"><div><small>{titleFromSlug(due.due_type)}</small><strong>₹{remaining.toLocaleString("en-IN")}</strong></div><span className={`statusPill ${due.status}`}>{due.status}</span></div><dl><div><dt>Base amount</dt><dd>₹{Number(due.amount).toLocaleString("en-IN")}</dd></div><div><dt>Already paid</dt><dd>- ₹{Number(due.amount_paid).toLocaleString("en-IN")}</dd></div><div><dt>Due date</dt><dd>{new Date(due.due_date).toLocaleDateString("en-IN")}</dd></div><div className="billTotal"><dt>Amount payable</dt><dd>₹{remaining.toLocaleString("en-IN")}</dd></div></dl><button className="gradientButton fullButton" onClick={() => setCheckoutDue(due)} type="button">Pay now</button></article>; })}</div> : <EmptyPanel title="Nothing due" copy="You have no outstanding payments." />}</section><section className="panel feedPanel"><PanelTitle title="Payment history" meta={`${payments.length} payments`} />{payments.length ? <div className="recordList">{payments.map((payment) => <article className="actionRecord" key={payment.id}><div><strong>{titleFromSlug(payment.due.due_type)}</strong><small>{formatDateTime(payment.paid_at)} · {titleFromSlug(payment.payment_method)}</small></div><div className="dueAmount"><strong>₹{Number(payment.amount).toLocaleString("en-IN")}</strong><span className={`statusPill ${payment.status}`}>{payment.status}</span></div></article>)}</div> : <EmptyPanel title="No payments yet" copy="Completed payments and their breakdown will remain here." />}</section>{checkoutDue ? <div className="modalBackdrop" onMouseDown={() => setCheckoutDue(null)}><form className="panel checkoutModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={payDue}><div className="modalHeader"><div><h3>Payment checkout</h3><p>{titleFromSlug(checkoutDue.due_type)}</p></div><button aria-label="Close checkout" onClick={() => setCheckoutDue(null)} type="button">×</button></div><div className="checkoutTotal"><span>Total payable</span><strong>₹{(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid)).toLocaleString("en-IN")}</strong></div><label><span>Payment method</span><select name="paymentMethod" required><option value="upi">UPI</option><option value="card">Card</option><option value="net_banking">Net banking</option></select></label><button className="gradientButton fullButton" type="submit">Pay securely</button><small className="checkoutNote">Payment gateway integration will replace manual confirmation in production.</small></form></div> : null}</section>;
+  if (isTenant)
+    return (
+      <section className="tenantBilling">
+        <section className="panel feedPanel">
+          <PanelTitle title="My dues" meta={`${dueDues.length} outstanding`} />
+          {isLoading ? (
+            <DirectorySkeleton />
+          ) : dueDues.length ? (
+            <div className="billGrid">
+              {dueDues.map((due) => {
+                const remaining = Number(due.amount) - Number(due.amount_paid);
+                return (
+                  <article className="billCard" key={due.id}>
+                    <div className="billHeader">
+                      <div>
+                        <small>{titleFromSlug(due.due_type)}</small>
+                        <strong>₹{remaining.toLocaleString("en-IN")}</strong>
+                      </div>
+                      <span className={`statusPill ${due.status}`}>{due.status}</span>
+                    </div>
+                    <dl>
+                      <div>
+                        <dt>Base amount</dt>
+                        <dd>₹{Number(due.amount).toLocaleString("en-IN")}</dd>
+                      </div>
+                      <div>
+                        <dt>Already paid</dt>
+                        <dd>- ₹{Number(due.amount_paid).toLocaleString("en-IN")}</dd>
+                      </div>
+                      <div>
+                        <dt>Due date</dt>
+                        <dd>{new Date(due.due_date).toLocaleDateString("en-IN")}</dd>
+                      </div>
+                      <div className="billTotal">
+                        <dt>Amount payable</dt>
+                        <dd>₹{remaining.toLocaleString("en-IN")}</dd>
+                      </div>
+                    </dl>
+                    <button className="gradientButton fullButton" onClick={() => setCheckoutDue(due)} type="button">
+                      Pay now
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyPanel title="Nothing due" copy="You have no outstanding payments." />
+          )}
+        </section>
+        <section className="panel feedPanel">
+          <PanelTitle title="Payment history" meta={`${payments.length} payments`} />
+          {payments.length ? (
+            <div className="recordList">
+              {payments.map((payment) => (
+                <article className="actionRecord" key={payment.id}>
+                  <div>
+                    <strong>{titleFromSlug(payment.due.due_type)}</strong>
+                    <small>
+                      {formatDateTime(payment.paid_at)} · {titleFromSlug(payment.payment_method)}
+                    </small>
+                  </div>
+                  <div className="dueAmount">
+                    <strong>₹{Number(payment.amount).toLocaleString("en-IN")}</strong>
+                    <span className={`statusPill ${payment.status}`}>{payment.status}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyPanel title="No payments yet" copy="Completed payments and their breakdown will remain here." />
+          )}
+        </section>
+        {checkoutDue ? (
+          <div className="modalBackdrop" onMouseDown={() => setCheckoutDue(null)}>
+            <form className="panel checkoutModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={payDue}>
+              <div className="modalHeader">
+                <div>
+                  <h3>Payment checkout</h3>
+                  <p>{titleFromSlug(checkoutDue.due_type)}</p>
+                </div>
+                <button aria-label="Close checkout" onClick={() => setCheckoutDue(null)} type="button">
+                  ×
+                </button>
+              </div>
+              <div className="checkoutTotal">
+                <span>Total payable</span>
+                <strong>
+                  ₹{(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid)).toLocaleString("en-IN")}
+                </strong>
+              </div>
+              <label>
+                <span>Payment method</span>
+                <select name="paymentMethod" required>
+                  <option value="upi">UPI</option>
+                  <option value="card">Card</option>
+                  <option value="net_banking">Net banking</option>
+                </select>
+              </label>
+              <button className="gradientButton fullButton" type="submit">
+                Pay securely
+              </button>
+              <small className="checkoutNote">
+                Payment gateway integration will replace manual confirmation in production.
+              </small>
+            </form>
+          </div>
+        ) : null}
+      </section>
+    );
 
   return (
     <section className="financeExperience">
@@ -1068,13 +2006,46 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
       </div>
       <section className="panel feedPanel">
         <div className="roomsToolbar financeToolbar">
-          <input onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name..." value={search} />
-          <select onChange={(event) => setStatus(event.target.value)} value={status}><option value="all">All payments</option><option value="paid">Paid</option><option value="due">Not paid</option></select>
-          <select onChange={(event) => setSort(event.target.value)} value={sort}><option value="desc">Price: high to low</option><option value="asc">Price: low to high</option></select>
+          <input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search tenant name..."
+            value={search}
+          />
+          <select onChange={(event) => setStatus(event.target.value)} value={status}>
+            <option value="all">All payments</option>
+            <option value="paid">Paid</option>
+            <option value="due">Not paid</option>
+          </select>
+          <select onChange={(event) => setSort(event.target.value)} value={sort}>
+            <option value="desc">Price: high to low</option>
+            <option value="asc">Price: low to high</option>
+          </select>
         </div>
-        {isLoading ? <DirectorySkeleton /> : visible.length ? <div className="recordList">{visible.map((due) => (
-          <article className="actionRecord" key={due.id}><div><strong>{due.tenant.full_name}</strong><small>{titleFromSlug(due.due_type)} · Due {new Date(due.due_date).toLocaleDateString("en-IN")}</small></div><div className="dueAmount"><strong>₹{Number(due.amount).toLocaleString("en-IN")}</strong><span className={`statusPill ${due.status}`}>{due.status}</span></div></article>
-        ))}</div> : <EmptyPanel title="No dues found" copy="Monthly rent dues appear automatically after a tenant is assigned a room." />}
+        {isLoading ? (
+          <DirectorySkeleton />
+        ) : visible.length ? (
+          <div className="recordList">
+            {visible.map((due) => (
+              <article className="actionRecord" key={due.id}>
+                <div>
+                  <strong>{due.tenant.full_name}</strong>
+                  <small>
+                    {titleFromSlug(due.due_type)} · Due {new Date(due.due_date).toLocaleDateString("en-IN")}
+                  </small>
+                </div>
+                <div className="dueAmount">
+                  <strong>₹{Number(due.amount).toLocaleString("en-IN")}</strong>
+                  <span className={`statusPill ${due.status}`}>{due.status}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyPanel
+            title="No dues found"
+            copy="Monthly rent dues appear automatically after a tenant is assigned a room."
+          />
+        )}
       </section>
     </section>
   );
@@ -1089,35 +2060,151 @@ function MessSection({ accessToken, canManage, orgId }: { accessToken: string; c
 
   async function loadMenu() {
     setIsLoading(true);
-    const response = await fetch(`${apiBase}/mess-menus?date=${weekStart}`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+    const response = await fetch(`${apiBase}/mess-menus?date=${weekStart}`, {
+      headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+    });
     const data = await response.json().catch(() => ({}));
     setItems(data.menu?.items ?? []);
     setIsLoading(false);
   }
-  useEffect(() => { loadMenu(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [weekStart, accessToken, orgId]);
+  useEffect(() => {
+    loadMenu(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [weekStart, accessToken, orgId]);
 
-  function valueFor(day: string, meal: string) { return items.find((item) => item.day_of_week === day && item.meal_type === meal)?.items.join(", ") ?? ""; }
+  function valueFor(day: string, meal: string) {
+    return items.find((item) => item.day_of_week === day && item.meal_type === meal)?.items.join(", ") ?? "";
+  }
   async function saveCell(day: string, meal: string, value: string) {
     const next = items.filter((item) => !(item.day_of_week === day && item.meal_type === meal));
-    const payload = [...next, { day_of_week: day, meal_type: meal, items: value.split(",").map((part) => part.trim()).filter(Boolean) }];
-    const response = await fetch(`${apiBase}/mess-menus`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId }, body: JSON.stringify({ weekStartDate: weekStart, items: payload.map((item) => ({ dayOfWeek: item.day_of_week, mealType: item.meal_type, items: item.items })) }) });
+    const payload = [
+      ...next,
+      {
+        day_of_week: day,
+        meal_type: meal,
+        items: value
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean),
+      },
+    ];
+    const response = await fetch(`${apiBase}/mess-menus`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        weekStartDate: weekStart,
+        items: payload.map((item) => ({ dayOfWeek: item.day_of_week, mealType: item.meal_type, items: item.items })),
+      }),
+    });
     if (response.ok) await loadMenu();
   }
 
-  return <section className="panel feedPanel"><div className="menuHeader"><PanelTitle title="Weekly meal plan" meta="Breakfast · Lunch · Snacks · Dinner" /><label>Week of<input onChange={(event) => setWeekStart(event.target.value)} type="date" value={weekStart} /></label></div>{isLoading ? <DirectorySkeleton /> : <div className="messTableWrap"><table className="messTable"><thead><tr><th>Date</th><th>Day</th>{mealTypes.map((meal) => <th key={meal}>{titleFromSlug(meal)}</th>)}</tr></thead><tbody>{days.map((day, dayIndex) => <tr key={day}><td>{dateForWeekDay(weekStart, dayIndex)}</td><th>{titleFromSlug(day)}</th>{mealTypes.map((meal) => <td key={meal}>{canManage ? <textarea aria-label={`${day} ${meal}`} defaultValue={valueFor(day, meal)} key={`${weekStart}-${day}-${meal}-${valueFor(day, meal)}`} onBlur={(event) => saveCell(day, meal, event.target.value)} placeholder="Add meal" /> : <span>{valueFor(day, meal) || "Not planned"}</span>}</td>)}</tr>)}</tbody></table></div>}</section>;
+  return (
+    <section className="panel feedPanel">
+      <div className="menuHeader">
+        <PanelTitle title="Weekly meal plan" meta="Breakfast · Lunch · Snacks · Dinner" />
+        <label>
+          Week of
+          <input onChange={(event) => setWeekStart(event.target.value)} type="date" value={weekStart} />
+        </label>
+      </div>
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : (
+        <div className="messTableWrap">
+          <table className="messTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Day</th>
+                {mealTypes.map((meal) => (
+                  <th key={meal}>{titleFromSlug(meal)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((day, dayIndex) => (
+                <tr key={day}>
+                  <td>{dateForWeekDay(weekStart, dayIndex)}</td>
+                  <th>{titleFromSlug(day)}</th>
+                  {mealTypes.map((meal) => (
+                    <td key={meal}>
+                      {canManage ? (
+                        <textarea
+                          aria-label={`${day} ${meal}`}
+                          defaultValue={valueFor(day, meal)}
+                          key={`${weekStart}-${day}-${meal}-${valueFor(day, meal)}`}
+                          onBlur={(event) => saveCell(day, meal, event.target.value)}
+                          placeholder="Add meal"
+                        />
+                      ) : (
+                        <span>{valueFor(day, meal) || "Not planned"}</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function StaffContactsSection({ accessToken, orgId }: { accessToken: string; orgId: string }) {
   const [contacts, setContacts] = useState<StaffContactRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  useEffect(() => { fetch(`${apiBase}/staff-contacts`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json()).then((data) => setContacts(data.staffContacts ?? [])).catch(() => setContacts([])).finally(() => setIsLoading(false)); }, [accessToken, orgId]);
-  return <section className="panel feedPanel"><PanelTitle title="Contact directory" meta={`${contacts.length} contacts`} />{isLoading ? <DirectorySkeleton /> : contacts.length ? <div className="contactGrid">{contacts.map((contact) => <article className="contactCard" key={contact.id}><span>{getInitials(contact.name)}</span><div><strong>{contact.name}</strong><small>{titleFromSlug(contact.role_type)}</small></div><a href={`tel:${contact.phone}`}>{contact.phone}</a></article>)}</div> : <EmptyPanel title="No contacts" copy="Staff names and phone numbers will appear here." />}</section>;
+  useEffect(() => {
+    fetch(`${apiBase}/staff-contacts`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } })
+      .then((response) => response.json())
+      .then((data) => setContacts(data.staffContacts ?? []))
+      .catch(() => setContacts([]))
+      .finally(() => setIsLoading(false));
+  }, [accessToken, orgId]);
+  return (
+    <section className="panel feedPanel">
+      <PanelTitle title="Contact directory" meta={`${contacts.length} contacts`} />
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : contacts.length ? (
+        <div className="contactGrid">
+          {contacts.map((contact) => (
+            <article className="contactCard" key={contact.id}>
+              <span>{getInitials(contact.name)}</span>
+              <div>
+                <strong>{contact.name}</strong>
+                <small>{titleFromSlug(contact.role_type)}</small>
+              </div>
+              <a href={`tel:${contact.phone}`}>{contact.phone}</a>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyPanel title="No contacts" copy="Staff names and phone numbers will appear here." />
+      )}
+    </section>
+  );
 }
 
-function sumDues(dues: DueRecord[]) { return dues.reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0).toLocaleString("en-IN"); }
-function countDueTenants(dues: DueRecord[]) { return new Set(dues.map((due) => due.tenant.full_name)).size; }
-function getMondayInput() { const date = new Date(); const day = date.getDay(); date.setDate(date.getDate() - (day === 0 ? 6 : day - 1)); return date.toISOString().slice(0, 10); }
-function dateForWeekDay(weekStart: string, offset: number) { const date = new Date(`${weekStart}T00:00:00`); date.setDate(date.getDate() + offset); return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }); }
+function sumDues(dues: DueRecord[]) {
+  return dues
+    .reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0)
+    .toLocaleString("en-IN");
+}
+function countDueTenants(dues: DueRecord[]) {
+  return new Set(dues.map((due) => due.tenant.full_name)).size;
+}
+function getMondayInput() {
+  const date = new Date();
+  const day = date.getDay();
+  date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  return date.toISOString().slice(0, 10);
+}
+function dateForWeekDay(weekStart: string, offset: number) {
+  const date = new Date(`${weekStart}T00:00:00`);
+  date.setDate(date.getDate() + offset);
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
 
 function RoomsBoard({
   accessToken,
@@ -1161,9 +2248,7 @@ function RoomsBoard({
         occupant.fullName.toLowerCase().includes(normalizedSearch)
       );
       const matchesSearch =
-        !normalizedSearch ||
-        room.roomNumber.toLowerCase().includes(normalizedSearch) ||
-        occupantMatch;
+        !normalizedSearch || room.roomNumber.toLowerCase().includes(normalizedSearch) || occupantMatch;
       return matchesFloor && matchesType && matchesSearch;
     });
 
@@ -1216,7 +2301,9 @@ function RoomsBoard({
       }));
 
       setRooms(mappedRooms);
-      setSelectedRoomId((current) => current && mappedRooms.some((room: RoomBoardRoom) => room.id === current) ? current : "");
+      setSelectedRoomId((current) =>
+        current && mappedRooms.some((room: RoomBoardRoom) => room.id === current) ? current : ""
+      );
       setTenantOptions(mappedTenants);
       setLoadFailed(false);
       console.info("Room board synced with database.");
@@ -1249,7 +2336,11 @@ function RoomsBoard({
         body: JSON.stringify({ tenantUserId: selectedTenantUserId }),
       });
 
-      console.info(response.ok ? "Tenant assigned. Refreshing board..." : "Could not assign tenant. Check capacity and permissions.");
+      console.info(
+        response.ok
+          ? "Tenant assigned. Refreshing board..."
+          : "Could not assign tenant. Check capacity and permissions."
+      );
       if (response.ok) await loadBoard();
     } catch {
       console.info("Server is not reachable. Assignment was not saved.");
@@ -1279,7 +2370,9 @@ function RoomsBoard({
 
   return (
     <div className="roomsExperience">
-      {isLoadingBoard ? <RoomBoardSkeleton /> : (
+      {isLoadingBoard ? (
+        <RoomBoardSkeleton />
+      ) : (
         <section className="roomStats">
           <Metric label="Total Rooms" value={rooms.length} meta={`${floors.length} floors`} />
           <Metric label="Occupied Slots" value={stats.occupiedSlots} meta={`${stats.totalCapacity} capacity`} />
@@ -1291,24 +2384,50 @@ function RoomsBoard({
 
       <section className="panel roomsPanel">
         <div className="roomsToolbar">
-          <select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)} aria-label="Filter floor">
+          <select
+            value={floorFilter}
+            onChange={(event) => setFloorFilter(event.target.value)}
+            aria-label="Filter floor"
+          >
             <option value="all">All floors</option>
-            {Array.from(new Set(rooms.map((room) => room.floorNumber))).sort((a, b) => b - a).map((floor) => (
-              <option key={floor} value={floor}>Floor {floor}</option>
-            ))}
+            {Array.from(new Set(rooms.map((room) => room.floorNumber)))
+              .sort((a, b) => b - a)
+              .map((floor) => (
+                <option key={floor} value={floor}>
+                  Floor {floor}
+                </option>
+              ))}
           </select>
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filter room type">
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            aria-label="Filter room type"
+          >
             <option value="all">All room types</option>
             {Array.from(new Set(rooms.map((room) => room.roomType))).map((type) => (
-              <option key={type} value={type}>{formatRoomType(type)}</option>
+              <option key={type} value={type}>
+                {formatRoomType(type)}
+              </option>
             ))}
           </select>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search room or student..." />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search room or student..."
+          />
           <div className="roomLegend">
-            <span><i className="full" /> Full</span>
-            <span><i className="partial" /> Partial</span>
-            <span><i className="empty" /> Empty</span>
-            <span><i className="maintenance" /> Maintenance</span>
+            <span>
+              <i className="full" /> Full
+            </span>
+            <span>
+              <i className="partial" /> Partial
+            </span>
+            <span>
+              <i className="empty" /> Empty
+            </span>
+            <span>
+              <i className="maintenance" /> Maintenance
+            </span>
           </div>
         </div>
 
@@ -1328,7 +2447,7 @@ function RoomsBoard({
                       <RoomCell
                         isSelected={selectedRoom?.id === room.id}
                         key={room.id}
-                        onSelect={() => setSelectedRoomId((current) => current === room.id ? "" : room.id)}
+                        onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))}
                         room={room}
                         role={role}
                         workspace={workspace}
@@ -1352,57 +2471,85 @@ function RoomsBoard({
           <aside className={`roomDetailsPanel ${selectedRoom ? "isVisible" : "isIdle"}`}>
             {selectedRoom ? (
               <>
-              <div className="roomDetailsHeader">
-                <div>
-                  <h3>Room {selectedRoom.roomNumber}</h3>
-                  <p>{selectedRoom.floorName} · {selectedRoom.currentOccupancy}/{selectedRoom.capacity} occupied</p>
-                </div>
-                <span className={`statusPill ${getRoomState(selectedRoom)}`}>{getRoomState(selectedRoom)}</span>
-              </div>
-
-              <div className="occupantList">
-                <div className="occupantTitle">
-                  <strong>Occupants</strong>
-                  <span>{selectedRoom.occupants.length}/{selectedRoom.capacity}</span>
-                </div>
-                {selectedRoom.occupants.length ? selectedRoom.occupants.map((occupant) => (
-                  <div className="occupantRow" key={occupant.tenantProfileId}>
-                    <span>{getInitials(occupant.fullName)}</span>
-                    <div>
-                      <strong>{occupant.fullName}</strong>
-                      <a href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}>View profile</a>
-                    </div>
-                    {canManage ? (
-                      <button onClick={() => removeTenant(occupant.tenantProfileId)} type="button">Remove</button>
-                    ) : null}
+                <div className="roomDetailsHeader">
+                  <div>
+                    <h3>Room {selectedRoom.roomNumber}</h3>
+                    <p>
+                      {selectedRoom.floorName} · {selectedRoom.currentOccupancy}/{selectedRoom.capacity} occupied
+                    </p>
                   </div>
-                )) : <p className="emptyText">No students assigned.</p>}
-              </div>
-
-              <div className="roomInfoGrid">
-                <div><span>Room type</span><strong>{formatRoomType(selectedRoom.roomType)}</strong></div>
-                <div><span>Capacity</span><strong>{selectedRoom.capacity}</strong></div>
-                <div><span>Monthly rent</span><strong>₹{selectedRoom.monthlyRent}</strong></div>
-              </div>
-
-              {canManage ? (
-                <div className="assignBox">
-                  <label>
-                    <span>Add or move student</span>
-                    <select value={selectedTenantUserId} onChange={(event) => setSelectedTenantUserId(event.target.value)}>
-                      <option value="">Select tenant</option>
-                      {tenantOptions.map((tenant) => (
-                        <option key={tenant.userId} value={tenant.userId}>
-                          {tenant.fullName}{tenant.roomNumber ? ` · ${tenant.roomNumber}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="gradientButton fullButton" disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"} onClick={assignTenant} type="button">
-                    Assign to room
-                  </button>
+                  <span className={`statusPill ${getRoomState(selectedRoom)}`}>{getRoomState(selectedRoom)}</span>
                 </div>
-              ) : null}
+
+                <div className="occupantList">
+                  <div className="occupantTitle">
+                    <strong>Occupants</strong>
+                    <span>
+                      {selectedRoom.occupants.length}/{selectedRoom.capacity}
+                    </span>
+                  </div>
+                  {selectedRoom.occupants.length ? (
+                    selectedRoom.occupants.map((occupant) => (
+                      <div className="occupantRow" key={occupant.tenantProfileId}>
+                        <span>{getInitials(occupant.fullName)}</span>
+                        <div>
+                          <strong>{occupant.fullName}</strong>
+                          <a href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}>View profile</a>
+                        </div>
+                        {canManage ? (
+                          <button onClick={() => removeTenant(occupant.tenantProfileId)} type="button">
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="emptyText">No students assigned.</p>
+                  )}
+                </div>
+
+                <div className="roomInfoGrid">
+                  <div>
+                    <span>Room type</span>
+                    <strong>{formatRoomType(selectedRoom.roomType)}</strong>
+                  </div>
+                  <div>
+                    <span>Capacity</span>
+                    <strong>{selectedRoom.capacity}</strong>
+                  </div>
+                  <div>
+                    <span>Monthly rent</span>
+                    <strong>₹{selectedRoom.monthlyRent}</strong>
+                  </div>
+                </div>
+
+                {canManage ? (
+                  <div className="assignBox">
+                    <label>
+                      <span>Add or move student</span>
+                      <select
+                        value={selectedTenantUserId}
+                        onChange={(event) => setSelectedTenantUserId(event.target.value)}
+                      >
+                        <option value="">Select tenant</option>
+                        {tenantOptions.map((tenant) => (
+                          <option key={tenant.userId} value={tenant.userId}>
+                            {tenant.fullName}
+                            {tenant.roomNumber ? ` · ${tenant.roomNumber}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="gradientButton fullButton"
+                      disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"}
+                      onClick={assignTenant}
+                      type="button"
+                    >
+                      Assign to room
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="roomPanelPlaceholder">
@@ -1532,7 +2679,9 @@ function RoomCell({
       <small>{room.status === "maintenance" ? "Maintenance" : `${room.currentOccupancy}/${room.capacity}`}</small>
       {names.length ? (
         <span className="roomTooltip">
-          {names.map((name) => <em key={name}>{name}</em>)}
+          {names.map((name) => (
+            <em key={name}>{name}</em>
+          ))}
           <b>View room details</b>
         </span>
       ) : null}
@@ -1660,7 +2809,9 @@ function SmartForm({ module, onSubmit }: { module: Module; onSubmit: () => void 
           <input placeholder={field} />
         </label>
       ))}
-      <button className="gradientButton fullButton" type="submit">{module.action}</button>
+      <button className="gradientButton fullButton" type="submit">
+        {module.action}
+      </button>
     </form>
   );
 }

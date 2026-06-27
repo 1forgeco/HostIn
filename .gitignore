@@ -1,0 +1,61 @@
+# Operating system and editor metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Secrets and machine-specific environment files
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.crt
+
+# Dependencies and package-manager caches
+node_modules/
+.pnp/
+.yarn/cache/
+.npm/
+.pnpm-store/
+
+# Application and compiler output
+.next/
+out/
+build/
+dist/
+generated/
+*.tsbuildinfo
+next-env.d.ts
+.turbo/
+.cache/
+
+# Tests and browser artifacts
+coverage/
+playwright-report/
+blob-report/
+test-results/
+junit.xml
+
+# Logs, process files, and temporary output
+*.log
+*.log.*
+*.pid
+*.pid.lock
+*.tmp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local databases and Docker-only overrides
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+compose.override.yml
+docker-compose.override.yml

@@ -1,12 +1,18 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
+import pino from "pino";
+import pinoHttp from "pino-http";
+import cookieParser from "cookie-parser";
 import { checkFeatureAccess } from "./middleware/featureAccess";
+import { allowedOrigins, env } from "./config/env";
+import { prisma } from "./lib/prisma";
 
 // Routes
-import signupRoutes from "./routes/auth/signup";
 import loginRoutes from "./routes/auth/login";
 import resolveLoginRoutes from "./routes/auth/resolve-login";
+import sessionRoutes from "./routes/auth/session";
 import meRoutes from "./routes/auth/me";
 import inviteRoutes from "./routes/orgs/invites/create";
 import createFloorRoutes from "./routes/floors/create";
@@ -78,22 +84,30 @@ import accountOrgRoutes from "./routes/platform/organizations/accounts";
 
 
 
-const app = express();
-const PORT = process.env.PORT || 5001;
+export const app = express();
+const logger = pino({ level: env.LOG_LEVEL, redact: ["req.headers.authorization", "req.body.password", "req.body.refreshToken"] });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Too many login attempts. Try again later." } });
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: "draft-8", legacyHeaders: false });
 
 // Middlewares
-app.use(cors());
+app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+app.disable("x-powered-by");
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("Origin is not allowed by CORS")); }, credentials: true }));
 app.use(express.json({ limit: "8mb" }));
-
-// Request logging middleware (for development)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
+app.use(cookieParser());
+app.use(pinoHttp({ logger }));
+app.use("/api", apiLimiter);
+app.use("/api/auth", authLimiter);
+app.use("/api/platform/auth", authLimiter);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", time: new Date() });
+});
+app.get("/ready", async (req, res) => {
+  try { await prisma.$queryRaw`SELECT 1`; return res.status(200).json({ status: "ready", time: new Date() }); }
+  catch { return res.status(503).json({ status: "not_ready" }); }
 });
 
 app.use("/api/rooms", checkFeatureAccess("rooms"));
@@ -109,9 +123,9 @@ app.use("/api/mess-feedback", checkFeatureAccess("mess_menu"));
 app.use("/api/documents", checkFeatureAccess("documents"));
 
 // Register API Routes
-app.use("/api/auth/signup", signupRoutes);
 app.use("/api/auth/login", loginRoutes);
 app.use("/api/auth/resolve-login", resolveLoginRoutes);
+app.use("/api/auth", sessionRoutes);
 app.use("/api/auth/me", meRoutes);
 app.use("/api/orgs/invites", inviteRoutes);
 app.use("/api/orgs/:orgId", listMembersRoutes);
@@ -184,12 +198,10 @@ app.use("/api/platform/organizations", accountOrgRoutes);
 
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  req.log?.error({ err }, "Unhandled request error");
   res.status(500).json({ error: "Something went wrong on the server" });
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+if (env.NODE_ENV !== "test") app.listen(env.PORT, () => logger.info({ port: env.PORT }, "HostIn API started"));

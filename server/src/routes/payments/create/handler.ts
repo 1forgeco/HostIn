@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
-import { PaymentMethod, PaymentGateway, PaymentStatus, DueStatus } from "../../../../generated/prisma/client";
+import { PaymentMethod, PaymentGateway, DueStatus } from "../../../../generated/prisma/client";
 
 export const handleRecordPayment = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;

@@ -429,3 +429,70 @@ This file tracks what was requested, what decisions were made, what changed, and
 - Client Next.js build passed with `/login` and profile-specific routes.
 - Verified tenant auto-routing to `/city-complex/tenant/aarav-mehta` and platform auto-routing to `/1forge/platform` in the browser.
 - Demo seed refresh was attempted but Neon became temporarily unreachable after migration; first login safely backfills missing account slugs.
+# 2026-06-27 - Pre-push Protection, Testing, and Docker Setup
+
+## Requested
+
+- Add production-minded application protection and checks before repository pushes.
+- Add quick Docker-based first-time setup for client, server, and PostgreSQL.
+- Integrate automated validation, tests, CI, security scanning, and contributor tooling.
+
+## Implemented
+
+- Added root npm orchestration, Make targets, environment template, Docker ignore rules, and contributor documentation.
+- Added development and production Docker stages for Next.js and Express plus Compose services for PostgreSQL, API, and client.
+- Added automatic local migrations, opt-in seeding, persistent volumes, readiness-gated dependencies, and service health checks.
+- Added strict Zod environment validation and removed insecure JWT fallbacks.
+- Added Helmet, strict CORS, general/API login rate limits, Pino structured logs with secret redaction, and liveness/readiness endpoints.
+- Disabled public signup routing because account issuance belongs to the 1Forge platform workflow.
+- Added Zod validation for unified login and platform account issuance.
+- Added HTTP-only refresh cookies, refresh-token rotation, and server-side logout invalidation.
+- Added server ESLint, client lint baseline, typecheck scripts, Vitest, Supertest, Testing Library, and Playwright.
+- Added API protection and database authorization tests, theme control tests, and desktop/mobile unified-login E2E tests.
+- Added Husky, lint-staged, Commitlint, Prettier configuration, GitHub Actions with PostgreSQL, Docker build validation, CodeQL, Dependabot, and Playwright failure artifacts.
+- Added starter OpenAPI documentation and production/development guidance.
+- Fixed legacy lint findings and isolated test sources from clean production server builds.
+- Added Next development-origin configuration required for deterministic Playwright hydration.
+- Prevented platform users from calling organization notification APIs.
+- Added package-scoped staged-file lint commands so Git hooks use each app's compatible ESLint version and configuration.
+
+## Verification
+
+- `npm run check` passes: lint, typecheck, unit/API tests, and production builds.
+- Database-backed authorization suite passes all five tests.
+- Playwright passes four tests across desktop Chromium and Pixel 7 profiles.
+- Client and server staged-file lint commands pass from the repository root.
+- Prisma schema validation passes.
+- Root and server dependency audits report zero vulnerabilities.
+- Client audit reports two moderate transitive PostCSS advisories; the automated force-fix incorrectly proposes Next 9 and was intentionally not applied.
+- `docker compose config` passes.
+- Docker image execution could not be tested locally because Docker Desktop is not running; CI builds both production images.
+
+# 2026-06-27 - Make Workflow and Repository Hygiene
+
+## Requested
+
+- Briefly document what every Make command does and when contributors should use it.
+- Fix the Docker build and migration errors found while exercising the Make workflow.
+- Keep local secrets, generated output, test artifacts, and machine files out of GitHub.
+
+## Implemented
+
+- Added a self-documenting `make help` target and short comments above every Make target.
+- Made `make setup` preserve an existing `.env` instead of overwriting local configuration.
+- Made migration and seed commands work even when the API container is not already running.
+- Moved the default host PostgreSQL binding to port `5433` to avoid common conflicts with a locally installed database.
+- Made database reset restart the stack in the background.
+- Synchronized the server lockfile so Docker's reproducible `npm ci` installation can complete.
+- Added a non-secret build-time database placeholder required for offline Prisma client generation.
+- Expanded root ignore rules for environment secrets, keys, dependencies, build output, test reports, logs, local databases, editor metadata, caches, and Docker overrides.
+- Removed previously tracked macOS and Prisma validation artifacts.
+
+## Verification
+
+- `make help` lists every command with its intended use.
+- `make build` successfully builds both server and client Docker images.
+- `make migrate` starts PostgreSQL without a running API container and applies all five migrations.
+- `make setup` starts healthy PostgreSQL, server, and client containers.
+- Docker-hosted API health and frontend login endpoints both return HTTP 200.
+- Ignore-rule samples and `git diff --check` pass.

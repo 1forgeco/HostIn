@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useColorTheme } from "./components/theme-system";
 
 const roles = [
@@ -48,7 +49,9 @@ export default function LandingPage() {
           <a href="#careers">Careers</a>
           <a href="#contact">Contact</a>
         </nav>
-        <a className="gradientButton" href="/login">Get Started</a>
+        <Link className="gradientButton" href="/login">
+          Get Started
+        </Link>
       </header>
 
       <section className="productHero landingHero">
@@ -56,8 +59,8 @@ export default function LandingPage() {
           <p className="pill">Multi-tenant PG & hostel SaaS</p>
           <h1>Every property gets its own private app.</h1>
           <p>
-            Create a workspace slug, generate role-based portals, issue login accounts,
-            and manage subscriptions from one platform panel.
+            Create a workspace slug, generate role-based portals, issue login accounts, and manage subscriptions from
+            one platform panel.
           </p>
         </div>
         <div className="heroConsole">
@@ -81,8 +84,8 @@ export default function LandingPage() {
           <p className="sectionEyebrow">About HostIn</p>
           <h2>One operating system for PGs, hostels, and shared living properties.</h2>
           <p>
-            HostIn gives every customer a private workspace with role-based portals for owners,
-            wardens, security teams, tenants, parents, staff, and platform admins.
+            HostIn gives every customer a private workspace with role-based portals for owners, wardens, security teams,
+            tenants, parents, staff, and platform admins.
           </p>
         </div>
         <div className="serviceCards">
@@ -109,7 +112,12 @@ export default function LandingPage() {
         <div className="pricingGrid">
           {[
             ["Starter", "For single PGs testing digital operations", "15-day trial", "Rooms, tenants, dues, notices"],
-            ["Growth", "For active hostels with staff workflows", "Most useful", "Gate, visitors, complaints, documents"],
+            [
+              "Growth",
+              "For active hostels with staff workflows",
+              "Most useful",
+              "Gate, visitors, complaints, documents",
+            ],
             ["Portfolio", "For owners managing multiple properties", "Custom", "Multi-property controls and support"],
           ].map(([title, copy, badge, features]) => (
             <article className="pricingCard" key={title}>
@@ -128,11 +136,13 @@ export default function LandingPage() {
             <p className="sectionEyebrow">Consultation</p>
             <h2>Map your property setup before launch.</h2>
             <p>
-              We collect floors, rooms, capacities, staff roles, subscription needs, and module access,
-              then generate the workspace and first login accounts.
+              We collect floors, rooms, capacities, staff roles, subscription needs, and module access, then generate
+              the workspace and first login accounts.
             </p>
           </div>
-          <a className="gradientButton" href="#contact">Start setup</a>
+          <a className="gradientButton" href="#contact">
+            Start setup
+          </a>
         </div>
       </section>
 
@@ -143,13 +153,15 @@ export default function LandingPage() {
           <p>We keep roles lean and product-focused: engineering, implementation, support, and customer onboarding.</p>
         </div>
         <div className="careerGrid">
-          {["Full-stack product engineer", "Implementation specialist", "Customer support associate"].map((roleName) => (
-            <article className="careerCard" key={roleName}>
-              <h3>{roleName}</h3>
-              <p>Help properties move from manual work to clean daily workflows.</p>
-              <a href="#contact">Contact team</a>
-            </article>
-          ))}
+          {["Full-stack product engineer", "Implementation specialist", "Customer support associate"].map(
+            (roleName) => (
+              <article className="careerCard" key={roleName}>
+                <h3>{roleName}</h3>
+                <p>Help properties move from manual work to clean daily workflows.</p>
+                <a href="#contact">Contact team</a>
+              </article>
+            )
+          )}
         </div>
       </section>
 
@@ -185,12 +197,26 @@ export default function LandingPage() {
             <span>Platform</span>
           </div>
           <div className="billingRows">
-            <div><span>Workspace</span><strong>{titleCase(slug)}</strong></div>
-            <div><span>Plan</span><strong>Growth trial</strong></div>
-            <div><span>Trial</span><strong>15 days</strong></div>
-            <div><span>Status</span><strong>Active</strong></div>
+            <div>
+              <span>Workspace</span>
+              <strong>{titleCase(slug)}</strong>
+            </div>
+            <div>
+              <span>Plan</span>
+              <strong>Growth trial</strong>
+            </div>
+            <div>
+              <span>Trial</span>
+              <strong>15 days</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>Active</strong>
+            </div>
           </div>
-          <a className="outlineButton fullButton" href="/login">Open platform panel</a>
+          <Link className="outlineButton fullButton" href="/login">
+            Open platform panel
+          </Link>
         </aside>
       </section>
 
@@ -210,7 +236,9 @@ export default function LandingPage() {
                     <h3>{email}</h3>
                     <span>Temporary password: {slug}@123</span>
                   </div>
-                  <a className="gradientButton" href="/login">Common login</a>
+                  <Link className="gradientButton" href="/login">
+                    Common login
+                  </Link>
                   <small>Routes automatically after sign-in</small>
                 </article>
               );
@@ -224,14 +252,18 @@ export default function LandingPage() {
           <div>
             <p className="sectionEyebrow">Contact</p>
             <h2>Bring your PG or hostel online with one clean workspace.</h2>
-            <p>Use the setup panel above to preview role emails and slugs, then connect the workspace to live onboarding.</p>
+            <p>
+              Use the setup panel above to preview role emails and slugs, then connect the workspace to live onboarding.
+            </p>
           </div>
           <div className="contactCard">
             <span>Email</span>
             <strong>hello@hostin.local</strong>
             <span>Demo workspace</span>
             <strong>/{slug}/owner</strong>
-            <a className="gradientButton fullButton" href="/login">Get Started</a>
+            <Link className="gradientButton fullButton" href="/login">
+              Get Started
+            </Link>
           </div>
         </div>
       </section>

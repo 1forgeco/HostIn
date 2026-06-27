@@ -56,7 +56,7 @@ export const handleLinkParent = async (req: AuthorizedRequest, res: Response) =>
       }
 
       // 3. Ensure the parent has the "parent" role in the organization
-      let parentOrgRole = await tx.userOrgRole.findUnique({
+      const parentOrgRole = await tx.userOrgRole.findUnique({
         where: {
           user_id_org_id_role: {
             user_id: parentUser.id,
@@ -67,7 +67,7 @@ export const handleLinkParent = async (req: AuthorizedRequest, res: Response) =>
       });
 
       if (!parentOrgRole) {
-        parentOrgRole = await tx.userOrgRole.create({
+        await tx.userOrgRole.create({
           data: {
             user_id: parentUser.id,
             org_id: orgId,
@@ -77,7 +77,7 @@ export const handleLinkParent = async (req: AuthorizedRequest, res: Response) =>
         });
       } else if (!parentOrgRole.is_active) {
         // Re-activate if it was deactivated
-        parentOrgRole = await tx.userOrgRole.update({
+        await tx.userOrgRole.update({
           where: { id: parentOrgRole.id },
           data: { is_active: true },
         });

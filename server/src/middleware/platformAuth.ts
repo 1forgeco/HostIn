@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
+import { env } from "../config/env";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret_key";
 
 export interface PlatformAuthenticatedRequest extends Request {
   platformUser?: {
@@ -22,7 +22,7 @@ export const authenticatePlatformJWT = async (
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
 
-    jwt.verify(token, JWT_SECRET, async (err, decoded: any) => {
+    jwt.verify(token, env.JWT_SECRET, async (err, decoded: any) => {
       if (err) {
         return res.status(403).json({ error: "Invalid or expired token" });
       }

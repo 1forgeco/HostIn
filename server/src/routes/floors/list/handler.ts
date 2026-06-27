@@ -29,7 +29,7 @@ export const handleListFloors = async (req: AuthorizedRequest, res: Response) =>
     const enrichedFloors = floors.map((floor) => {
       let totalCapacity = 0;
       let currentOccupancy = 0;
-      let totalRooms = floor.rooms.length;
+      const totalRooms = floor.rooms.length;
 
       floor.rooms.forEach((room) => {
         totalCapacity += room.capacity;
