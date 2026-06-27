@@ -1,10 +1,12 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { checkFeatureAccess } from "./middleware/featureAccess";
 
 // Routes
 import signupRoutes from "./routes/auth/signup";
 import loginRoutes from "./routes/auth/login";
+import resolveLoginRoutes from "./routes/auth/resolve-login";
 import meRoutes from "./routes/auth/me";
 import inviteRoutes from "./routes/orgs/invites/create";
 import createFloorRoutes from "./routes/floors/create";
@@ -69,6 +71,7 @@ import listPlanRoutes from "./routes/platform/plans/list";
 import listOrgRoutes from "./routes/platform/organizations/list";
 import updateOrgRoutes from "./routes/platform/organizations/update";
 import featuresOrgRoutes from "./routes/platform/organizations/features";
+import accountOrgRoutes from "./routes/platform/organizations/accounts";
 
 
 
@@ -93,9 +96,22 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", time: new Date() });
 });
 
+app.use("/api/rooms", checkFeatureAccess("rooms"));
+app.use("/api/dues", checkFeatureAccess("dues"));
+app.use("/api/payments", checkFeatureAccess("dues"));
+app.use("/api/gate-passes", checkFeatureAccess("gate_pass"));
+app.use("/api/visitors", checkFeatureAccess("visitor_log"));
+app.use("/api/announcements", checkFeatureAccess("community"));
+app.use("/api/complaints", checkFeatureAccess("community"));
+app.use("/api/community", checkFeatureAccess("community"));
+app.use("/api/mess-menus", checkFeatureAccess("mess_menu"));
+app.use("/api/mess-feedback", checkFeatureAccess("mess_menu"));
+app.use("/api/documents", checkFeatureAccess("documents"));
+
 // Register API Routes
 app.use("/api/auth/signup", signupRoutes);
 app.use("/api/auth/login", loginRoutes);
+app.use("/api/auth/resolve-login", resolveLoginRoutes);
 app.use("/api/auth/me", meRoutes);
 app.use("/api/orgs/invites", inviteRoutes);
 app.use("/api/orgs/:orgId", listMembersRoutes);
@@ -160,6 +176,7 @@ app.use("/api/platform/plans", listPlanRoutes);
 app.use("/api/platform/organizations", listOrgRoutes);
 app.use("/api/platform/organizations", updateOrgRoutes);
 app.use("/api/platform/organizations", featuresOrgRoutes);
+app.use("/api/platform/organizations", accountOrgRoutes);
 
 
 

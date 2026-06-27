@@ -119,6 +119,8 @@ type StaffContactRecord = { id: string; name: string; phone: string; role_type: 
 type MessItem = { id: string; day_of_week: string; meal_type: string; items: string[] };
 type PaymentRecord = { id: string; amount: string | number; payment_method: string; paid_at: string; status: string; due: { due_type: string; amount: string | number; due_date: string } };
 type NotificationRecord = { id: string; title: string; body: string; status: string; created_at: string };
+type PlatformOrganization = { id: string; name: string; slug: string; ownerName: string; planName: string; planStatus: string; planExpiresAt?: string; isActive: boolean; totalCapacity: number; activeTenantsCount: number; occupancyRate: number; memberCount: number; roleCounts: Record<string, number>; features: { key: string; enabled: boolean }[]; monthlyPrice: string | number };
+type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 
@@ -174,10 +176,21 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
   const normalizedRole = normalizeRole(role);
   const { customColor, setCustomColor, themeKey, setThemeKey } = useColorTheme();
   const [login, setLogin] = useState<LoginState | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [activeId, setActiveId] = useState<SectionId>(normalizedRole === "platform" ? "platform" : "overview");
   const [message, setMessage] = useState("Login to open this private workspace.");
   const [busy, setBusy] = useState(false);
   const propertyName = titleFromSlug(workspace);
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem("hostin-session");
+      if (!stored) return;
+      const session = JSON.parse(stored);
+      if (session.workspace === workspace && normalizeRole(session.role) === normalizedRole) { setLogin({ accessToken: session.accessToken, orgId: session.orgId, userName: session.userName, email: session.email }); setMessage("Workspace opened."); }
+    } catch { window.sessionStorage.removeItem("hostin-session"); }
+    finally { setSessionChecked(true); }
+  }, [normalizedRole, workspace]);
 
   const allowedModules = useMemo(
     () => modules.filter((module) => module.roles.includes(normalizedRole)),
@@ -227,6 +240,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
       });
+      window.sessionStorage.setItem("hostin-session", JSON.stringify({ accessToken, orgId: matchedRole?.orgId ?? "platform", userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role), email: data.user?.email ?? form.get("username")?.toString() ?? "", workspace, role: normalizedRole }));
       setMessage("Workspace opened.");
     } catch {
       setMessage("Backend is offline. Start the server to login and view this workspace.");
@@ -253,6 +267,8 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
       setMessage("Server is not reachable right now.");
     }
   }
+
+  if (!sessionChecked) return <main className="sessionLoading"><div className="brand"><span>host</span>in<span>.</span></div><div className="skeletonLine sessionLoadingLine" /></main>;
 
   if (!login) {
     return (
@@ -342,7 +358,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
               </button>
             ))}
           </div>
-          <button className="outlineButton fullButton" onClick={() => setLogin(null)} type="button">Logout</button>
+          <button className="outlineButton fullButton" onClick={() => { window.sessionStorage.removeItem("hostin-session"); setLogin(null); window.location.assign("/login"); }} type="button">Logout</button>
         </aside>
 
         <section className="content">
@@ -354,7 +370,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             </div>
             {activeModule.id === "tenants" ? (
               <button className="gradientButton" onClick={() => window.dispatchEvent(new Event("hostin:add-tenant"))} type="button">Add tenant</button>
-            ) : !["finance", "mess", "staff", "visitors", "gate", "community"].includes(activeModule.id) ? (
+            ) : !["finance", "mess", "staff", "visitors", "gate", "community", "platform"].includes(activeModule.id) ? (
               <button className="gradientButton" onClick={syncModule} type="button">{activeModule.action}</button>
             ) : null}
           </div>
@@ -386,6 +402,8 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             <MessSection accessToken={login.accessToken} canManage={["owner", "warden", "staff"].includes(normalizedRole)} orgId={login.orgId} />
           ) : activeModule.id === "staff" ? (
             <StaffContactsSection accessToken={login.accessToken} orgId={login.orgId} />
+          ) : activeModule.id === "platform" ? (
+            <PlatformSection accessToken={login.accessToken} />
           ) : (
             <div className="productGrid">
               <section className="panel statGridPanel">
@@ -436,6 +454,44 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
       <span>{meta}</span>
     </div>
   );
+}
+
+function PlatformSection({ accessToken }: { accessToken: string }) {
+  const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
+  const [plans, setPlans] = useState<PlatformPlan[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const selected = organizations.find((organization) => organization.id === selectedId) ?? organizations[0];
+  const headers = { Authorization: `Bearer ${accessToken}` };
+
+  async function loadPlatform() {
+    setIsLoading(true);
+    try {
+      const [orgResponse, planResponse] = await Promise.all([fetch(`${apiBase}/platform/organizations`, { headers }), fetch(`${apiBase}/platform/plans`, { headers })]);
+      const [orgData, planData] = await Promise.all([orgResponse.json(), planResponse.json()]);
+      setOrganizations(orgData.organizations ?? []);
+      setPlans(planData.plans ?? []);
+      setSelectedId((current) => current || orgData.organizations?.[0]?.id || "");
+    } finally { setIsLoading(false); }
+  }
+  useEffect(() => { loadPlatform(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [accessToken]);
+
+  async function updateOrganization(values: Record<string, unknown>) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(values) });
+    if (response.ok) await loadPlatform();
+  }
+  async function toggleFeature(featureKey: string, isEnabled: boolean) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/features`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ featureKey, isEnabled }) });
+    if (response.ok) await loadPlatform();
+  }
+  const roleLabels = ["owner", "warden", "guard", "staff", "tenant", "parent"];
+  const featureKeys = Array.from(new Set(["rooms", "dues", "gate_pass", "visitor_log", "community", "mess_menu", "documents", "parent_portal", ...(selected?.features.map((feature) => feature.key) ?? [])]));
+
+  if (isLoading) return <section className="panel"><DirectorySkeleton /></section>;
+  if (!selected) return <section className="panel"><EmptyPanel title="No clients yet" copy="Onboarded organizations will appear here." /></section>;
+  return <div className="platformExperience"><aside className="panel platformClientList"><PanelTitle title="Clients" meta={`${organizations.length} total`} /><input aria-label="Search clients" placeholder="Search clients..." />{organizations.map((organization) => <button className={organization.id === selected.id ? "active platformClient" : "platformClient"} key={organization.id} onClick={() => setSelectedId(organization.id)} type="button"><div><strong>{organization.name}</strong><small>/{organization.slug}</small></div><span className={`statusPill ${organization.planStatus}`}>{organization.planStatus}</span></button>)}</aside><section className="platformDetail"><section className="panel platformSummary"><div><p className="sectionEyebrow">Client workspace</p><h3>{selected.name}</h3><span>{selected.ownerName} · {selected.planName}</span></div><button className={selected.isActive ? "dangerButton" : "gradientButton"} onClick={() => updateOrganization({ isActive: !selected.isActive })} type="button">{selected.isActive ? "Suspend workspace" : "Restore workspace"}</button></section><section className="platformMetrics">{roleLabels.map((roleName) => <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active accounts" />)}<Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity} tenants`} /></section><section className="panel platformControls"><PanelTitle title="Subscription & billing" meta={`₹${Number(selected.monthlyPrice).toLocaleString("en-IN")}/month`} /><div className="platformControlGrid"><label><span>Plan</span><select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ₹{Number(plan.price_monthly).toLocaleString("en-IN")}/mo</option>)}</select></label><label><span>Subscription status</span><select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>{["active", "trialing", "paused", "canceled", "expired"].map((status) => <option key={status} value={status}>{titleFromSlug(status)}</option>)}</select></label><label><span>Expires on</span><input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""} /></label><label><span>Capacity</span><input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity} /></label></div></section><section className="panel platformFeatures"><PanelTitle title="Feature access" meta="Changes apply immediately" /><div className="featureToggleGrid">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <label key={key}><span>{titleFromSlug(key)}</span><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox" /></label>; })}</div></section></section></div>;
 }
 
 function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: string }) {

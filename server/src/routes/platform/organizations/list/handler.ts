@@ -15,8 +15,11 @@ export const handleListOrganizations = async (req: PlatformAuthenticatedRequest,
                 status: "active",
               },
             },
+            user_org_roles: { where: { is_active: true } },
           },
         },
+        user_org_roles: { where: { is_active: true }, select: { role: true } },
+        org_features: { orderBy: { feature_key: "asc" } },
       },
       orderBy: {
         created_at: "desc",
@@ -26,6 +29,10 @@ export const handleListOrganizations = async (req: PlatformAuthenticatedRequest,
     // Format output to include occupancy stats
     const formattedOrgs = organizations.map((org) => {
       const activeTenantsCount = org._count?.tenant_profiles || 0;
+      const roleCounts = org.user_org_roles.reduce<Record<string, number>>((counts, membership) => ({ ...counts, [membership.role]: (counts[membership.role] || 0) + 1 }), {});
+      const aliases: Record<string, string> = { gate_passes: "gate_pass", visitors: "visitor_log", mess: "mess_menu", payments: "dues", complaints: "community", parents: "parent_portal" };
+      const normalizedFeatures = new Map<string, boolean>();
+      org.org_features.forEach((feature) => normalizedFeatures.set(aliases[feature.feature_key] ?? feature.feature_key, feature.is_enabled));
       return {
         id: org.id,
         name: org.name,
@@ -39,6 +46,10 @@ export const handleListOrganizations = async (req: PlatformAuthenticatedRequest,
         isActive: org.is_active,
         totalCapacity: org.total_capacity,
         activeTenantsCount,
+        roleCounts,
+        memberCount: org._count.user_org_roles,
+        features: Array.from(normalizedFeatures, ([key, enabled]) => ({ key, enabled })),
+        monthlyPrice: org.plan.price_monthly,
         occupancyRate: org.total_capacity > 0 ? Math.round((activeTenantsCount / org.total_capacity) * 100) : 0,
         createdAt: org.created_at,
       };

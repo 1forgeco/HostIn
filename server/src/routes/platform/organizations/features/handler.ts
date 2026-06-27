@@ -55,6 +55,8 @@ export const handleToggleOrgFeatures = async (req: PlatformAuthenticatedRequest,
       },
     });
 
+    await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "toggle_feature", entity_type: "organization", entity_id: orgId, details: { featureKey, isEnabled: !!isEnabled } } });
+
     return res.status(200).json({
       message: "Organization feature toggled successfully",
       orgFeature,

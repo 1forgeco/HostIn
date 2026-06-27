@@ -34,11 +34,16 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
           org_id: orgId,
           is_active: true,
         },
+        include: { organization: { select: { is_active: true, plan_status: true, plan_expires_at: true } } },
       });
 
       if (!userOrgRole) {
         return res.status(403).json({ error: "Access denied. You do not belong to this organization." });
       }
+
+      const subscriptionBlocked = !userOrgRole.organization.is_active || ["paused", "canceled", "expired"].includes(userOrgRole.organization.plan_status);
+      const subscriptionExpired = userOrgRole.organization.plan_expires_at && userOrgRole.organization.plan_expires_at < new Date();
+      if (subscriptionBlocked || subscriptionExpired) return res.status(402).json({ error: "Workspace subscription is inactive", code: "SUBSCRIPTION_INACTIVE" });
 
       // Check if user's role is allowed
       if (!allowedRoles.includes(userOrgRole.role)) {

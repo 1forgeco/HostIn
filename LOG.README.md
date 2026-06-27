@@ -396,3 +396,36 @@ This file tracks what was requested, what decisions were made, what changed, and
 - Stabilized the custom picker UI by hiding the browser-rendered native swatch and using a controlled circular swatch inside the segmented control.
 - Removed the duplicate custom-colour dot by fully clipping the native input while retaining the single controlled picker swatch.
 - Removed the stale View and filter badge from Visitor records.
+# 2026-06-27 - Unified Login and 1Forge Platform Operations
+
+## Requested
+
+- Replace role-portal selection with one email/password entry point.
+- Route every issued account directly to its property, role, and personal profile.
+- Keep account creation under the 1Forge team rather than public self-service.
+- Add a separate authenticated 1Forge portal for clients, subscriptions, billing, role totals, and feature control.
+- Enforce subscription suspension across customer APIs.
+
+## Implemented
+
+- Added `account_slug` and `is_primary` membership fields with a deployed database migration.
+- Added unified `POST /api/auth/resolve-login` for both property accounts and isolated platform accounts.
+- Added deterministic destinations such as `/{workspace}/{role}/{accountSlug}` and `/1forge/platform`.
+- Added `/login`, session handoff, authenticated route hydration, logout cleanup, and profile-specific workspace routing.
+- Updated landing-page Get Started and platform links to use the common login entry.
+- Added central inactive/paused/cancelled/expired subscription enforcement in organization authorization middleware.
+- Added a platform-only account issuance endpoint for role email, password, and profile-slug creation.
+- Expanded platform organization data with account counts, role breakdowns, features, occupancy, and monthly plan pricing.
+- Added the first 1Forge dashboard for client selection, suspension/restoration, plan/status/expiry/capacity management, role counts, and feature toggles.
+- Added platform audit logs for account creation, subscription updates, and feature changes.
+- Added backend feature enforcement using plan defaults and per-client overrides across module APIs.
+- Normalized legacy feature aliases so the 1Forge dashboard presents one authoritative switch per capability.
+- Updated tenant account creation and demo seed definitions to issue account slugs.
+
+## Verification
+
+- Account-routing migration applied successfully to the configured Neon database.
+- Prisma client generation and server TypeScript build passed.
+- Client Next.js build passed with `/login` and profile-specific routes.
+- Verified tenant auto-routing to `/city-complex/tenant/aarav-mehta` and platform auto-routing to `/1forge/platform` in the browser.
+- Demo seed refresh was attempted but Neon became temporarily unreachable after migration; first login safely backfills missing account slugs.

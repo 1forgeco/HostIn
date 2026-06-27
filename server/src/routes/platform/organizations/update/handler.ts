@@ -67,6 +67,8 @@ export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest
       },
     });
 
+    await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "update_subscription", entity_type: "organization", entity_id: orgId, details: updateData } });
+
     return res.status(200).json({
       message: "Organization subscription updated successfully",
       organization: updatedOrg,

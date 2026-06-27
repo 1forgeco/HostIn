@@ -48,7 +48,7 @@ export default function LandingPage() {
           <a href="#careers">Careers</a>
           <a href="#contact">Contact</a>
         </nav>
-        <a className="gradientButton" href="#create">Get Started</a>
+        <a className="gradientButton" href="/login">Get Started</a>
       </header>
 
       <section className="productHero landingHero">
@@ -132,7 +132,7 @@ export default function LandingPage() {
               then generate the workspace and first login accounts.
             </p>
           </div>
-          <a className="gradientButton" href="#create">Start setup</a>
+          <a className="gradientButton" href="#contact">Start setup</a>
         </div>
       </section>
 
@@ -190,7 +190,7 @@ export default function LandingPage() {
             <div><span>Trial</span><strong>15 days</strong></div>
             <div><span>Status</span><strong>Active</strong></div>
           </div>
-          <a className="outlineButton fullButton" href="/platform/admin">Open platform panel</a>
+          <a className="outlineButton fullButton" href="/login">Open platform panel</a>
         </aside>
       </section>
 
@@ -203,7 +203,6 @@ export default function LandingPage() {
           <div className="accountGrid">
             {roles.map((role) => {
               const email = `${role.email}@${slug}.hostin.local`;
-              const href = `/${slug}/${role.key}`;
               return (
                 <article className="accountCard" key={role.key}>
                   <div>
@@ -211,8 +210,8 @@ export default function LandingPage() {
                     <h3>{email}</h3>
                     <span>Temporary password: {slug}@123</span>
                   </div>
-                  <a className="gradientButton" href={`/${slug}/${role.key}`}>Open portal</a>
-                  <small>{href}</small>
+                  <a className="gradientButton" href="/login">Common login</a>
+                  <small>Routes automatically after sign-in</small>
                 </article>
               );
             })}
@@ -232,7 +231,7 @@ export default function LandingPage() {
             <strong>hello@hostin.local</strong>
             <span>Demo workspace</span>
             <strong>/{slug}/owner</strong>
-            <a className="gradientButton fullButton" href="#create">Get Started</a>
+            <a className="gradientButton fullButton" href="/login">Get Started</a>
           </div>
         </div>
       </section>

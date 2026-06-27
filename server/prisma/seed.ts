@@ -32,7 +32,7 @@ async function upsertUser(input: {
   });
 }
 
-async function ensureRole(userId: string, orgId: string, role: "owner" | "warden" | "guard" | "staff" | "tenant" | "parent") {
+async function ensureRole(userId: string, orgId: string, role: "owner" | "warden" | "guard" | "staff" | "tenant" | "parent", accountSlug: string) {
   return prisma.userOrgRole.upsert({
     where: {
       user_id_org_id_role: {
@@ -41,11 +41,13 @@ async function ensureRole(userId: string, orgId: string, role: "owner" | "warden
         role,
       },
     },
-    update: { is_active: true },
+    update: { is_active: true, account_slug: accountSlug, is_primary: true },
     create: {
       user_id: userId,
       org_id: orgId,
       role,
+      account_slug: accountSlug,
+      is_primary: true,
       is_active: true,
     },
   });
@@ -260,13 +262,13 @@ async function main() {
   });
 
   await Promise.all([
-    ensureRole(owner.id, org.id, "owner"),
-    ensureRole(warden.id, org.id, "warden"),
-    ensureRole(guard.id, org.id, "guard"),
-    ensureRole(staff.id, org.id, "staff"),
-    ensureRole(tenant.id, org.id, "tenant"),
-    ensureRole(secondTenant.id, org.id, "tenant"),
-    ensureRole(parent.id, org.id, "parent"),
+    ensureRole(owner.id, org.id, "owner", "city-complex-owner"),
+    ensureRole(warden.id, org.id, "warden", "anita-warden"),
+    ensureRole(guard.id, org.id, "guard", "ramesh-security"),
+    ensureRole(staff.id, org.id, "staff", "joseph-staff"),
+    ensureRole(tenant.id, org.id, "tenant", "aarav-mehta"),
+    ensureRole(secondTenant.id, org.id, "tenant", "isha-rao"),
+    ensureRole(parent.id, org.id, "parent", "meena-mehta"),
   ]);
 
   console.log("Seeding feature toggles...");

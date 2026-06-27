@@ -529,6 +529,52 @@ button {
   padding: 64px 6vw;
 }
 
+.commonLoginPage {
+  background: linear-gradient(135deg, var(--accent-soft), #ffffff 54%, var(--background));
+  min-height: 100vh;
+  padding: 34px 6vw;
+}
+
+.sessionLoading { align-items: center; display: flex; flex-direction: column; gap: 28px; justify-content: center; min-height: 100vh; }
+.sessionLoadingLine { height: 12px; width: 180px; }
+
+.commonLoginPage > section {
+  align-items: center;
+  display: grid;
+  gap: 64px;
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 520px);
+  min-height: calc(100vh - 110px);
+}
+
+.commonLoginIntro { max-width: 700px; }
+.commonLoginIntro h1 { font-size: clamp(58px, 8vw, 112px); line-height: .95; margin: 24px 0; }
+.commonLoginIntro > p:last-child { color: var(--muted); font-size: 20px; line-height: 1.6; max-width: 640px; }
+.commonLoginCard { display: grid; gap: 18px; padding: 34px; }
+.commonLoginCard h2 { font-size: 32px; margin: 4px 0 0; }
+.commonLoginCard label span { color: var(--muted); display: block; font-size: 13px; font-weight: 900; margin-bottom: 8px; }
+.commonLoginCard small { color: var(--muted); line-height: 1.5; text-align: center; }
+
+.platformExperience { display: grid; gap: 20px; grid-template-columns: 320px minmax(0, 1fr); }
+.platformClientList { align-self: start; display: grid; gap: 10px; position: sticky; top: 104px; }
+.platformClient { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; display: flex; justify-content: space-between; padding: 13px; text-align: left; }
+.platformClient.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-focus); }
+.platformClient strong, .platformClient small { display: block; }
+.platformClient small { color: var(--muted); margin-top: 4px; }
+.platformDetail { display: grid; gap: 18px; min-width: 0; }
+.platformSummary { align-items: center; display: flex; justify-content: space-between; }
+.platformSummary h3 { font-size: 30px; margin: 5px 0; }
+.platformSummary span { color: var(--muted); font-weight: 800; }
+.dangerButton { background: #fff1f3; border: 1px solid #fda4af; border-radius: 999px; color: #c01048; font-weight: 900; min-height: 46px; padding: 0 18px; }
+.platformMetrics { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.platformControlGrid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.platformControlGrid label span { color: var(--muted); display: block; font-size: 13px; font-weight: 900; margin-bottom: 7px; }
+.featureToggleGrid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.featureToggleGrid label { align-items: center; border: 1px solid var(--line); border-radius: 10px; display: flex; font-weight: 900; justify-content: space-between; padding: 12px; }
+.featureToggleGrid input { accent-color: var(--accent); min-height: 20px; width: 20px; }
+
+.statusPill.active, .statusPill.trialing { background: #ecfdf3; color: #067647; }
+.statusPill.paused, .statusPill.expired, .statusPill.canceled { background: #fff1f3; color: #c01048; }
+
 .portalLogin > div:first-child {
   background: linear-gradient(135deg, var(--hero-start) 0%, var(--hero-mid) 48%, var(--hero-end) 100%);
   border-radius: 28px;
@@ -2153,6 +2199,8 @@ select:focus {
   .visitorCreateForm,
   .billGrid,
   .gatePassForm,
+  .commonLoginPage > section,
+  .platformExperience,
   .roomsBoardLayout {
     grid-template-columns: 1fr;
   }
@@ -2195,6 +2243,9 @@ select:focus {
   .roomDetailsPanel {
     position: static;
   }
+
+  .platformClientList { position: static; }
+  .platformMetrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -2292,6 +2343,13 @@ select:focus {
   .roomCells {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .commonLoginPage { padding: 24px 20px; }
+  .commonLoginPage > section { gap: 32px; }
+  .commonLoginIntro h1 { font-size: 52px; }
+  .commonLoginCard { padding: 24px; }
+  .platformControlGrid, .featureToggleGrid, .platformMetrics { grid-template-columns: 1fr; }
+  .platformSummary { align-items: stretch; flex-direction: column; gap: 18px; }
 
   .visitorCreateModal {
     padding: 24px !important;

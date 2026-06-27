@@ -432,18 +432,21 @@ model User {
 
 /// Maps a user to a role within an org. One user can have roles in multiple orgs.
 model UserOrgRole {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
-  org_id     String   @db.Uuid
-  role       OrgRole
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @updatedAt @db.Timestamp(6)
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  org_id       String   @db.Uuid
+  role         OrgRole
+  account_slug String?  @db.VarChar(255)
+  is_primary   Boolean  @default(false)
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  updated_at   DateTime @updatedAt @db.Timestamp(6)
 
   user         User         @relation(fields: [user_id], references: [id])
   organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, org_id, role])
+  @@unique([org_id, account_slug])
   @@index([user_id, org_id])
   @@map("user_org_roles")
 }
