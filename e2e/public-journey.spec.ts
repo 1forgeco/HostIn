@@ -34,3 +34,16 @@ test("app theme preferences never replace the fixed landing identity", async ({ 
     .evaluate((element) => getComputedStyle(element).getPropertyValue("--accent").trim());
   expect(landingAccent).toBe("#0f766e");
 });
+
+test("public aliases resolve and unknown routes show the branded recovery page", async ({ page }) => {
+  await page.goto("/pricing");
+  await expect(page).toHaveURL(/\/plans$/);
+  await expect(page.getByRole("heading", { name: "A plan shaped around your property." })).toBeVisible();
+
+  await page.goto("/a-page-that-does-not-exist");
+  await expect(page.getByRole("heading", { name: "Oops. This room doesn't exist." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View plans" })).toHaveAttribute("href", "/plans");
+
+  await page.goto("/city-complex/not-a-real-role");
+  await expect(page.getByRole("heading", { name: "Oops. This room doesn't exist." })).toBeVisible();
+});
