@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Infrastructure - 1forge",
-  description: "Hostel PG management system",
+  title: "Hostin — Run your PG like a real business",
+  description: "A fully managed hostel and PG operating system by 1Forge for rooms, tenants, rent, gate passes, complaints, mess, staff, and parents.",
 };
 
 export default function RootLayout({
