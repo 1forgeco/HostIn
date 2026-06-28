@@ -26,6 +26,37 @@ describe("API protection", () => {
 });
 
 describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authorization", () => {
+  it("reports ready only after the deployment database is reachable", async () => {
+    const response = await request(app).get("/ready");
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("ready");
+  });
+
+  it.each([
+    ["owner", "owner@city-complex.hostin.local", "/city-complex/owner/city-complex-owner"],
+    ["warden", "warden@city-complex.hostin.local", "/city-complex/warden/anita-warden"],
+    ["guard", "security@city-complex.hostin.local", "/city-complex/guard/ramesh-security"],
+    ["staff", "staff@city-complex.hostin.local", "/city-complex/staff/joseph-staff"],
+    ["tenant", "tenant@city-complex.hostin.local", "/city-complex/tenant/aarav-mehta"],
+    ["parent", "parent@city-complex.hostin.local", "/city-complex/parent/meena-mehta"],
+  ])("routes the seeded %s role and authorizes its workspace", async (role, email, destination) => {
+    const login = await request(app)
+      .post("/api/auth/resolve-login")
+      .send({ email, password: "city-complex@123" });
+
+    expect(login.status).toBe(200);
+    expect(login.body.destination).toBe(destination);
+    expect(login.body.session.role).toBe(role);
+    expect(login.body.session.orgId).toBeTruthy();
+
+    const rooms = await request(app)
+      .get("/api/rooms")
+      .set("Authorization", `Bearer ${login.body.accessToken}`)
+      .set("x-org-id", login.body.session.orgId);
+    expect(rooms.status).toBe(200);
+    expect(Array.isArray(rooms.body.rooms)).toBe(true);
+  });
+
   it("routes a tenant account without role selection and isolates platform APIs", async () => {
     const login = await request(app).post("/api/auth/resolve-login").send({ email: "tenant@city-complex.hostin.local", password: "city-complex@123" });
     expect(login.status).toBe(200);

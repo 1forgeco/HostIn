@@ -6,7 +6,7 @@ help:
 		'make setup     First-time setup: create .env and start the Docker stack' \
 		'make dev       Start the Docker stack in the foreground for development' \
 		'make build     Build all Docker images without starting containers' \
-		'make check     Run lint, type checks, unit/API tests, and production builds' \
+		'make check     Run the same full deployment gate used before every push' \
 		'make test      Run the server and client unit/API test suites' \
 		'make e2e       Run browser tests against temporary local app servers' \
 		'make migrate   Apply pending Prisma migrations using Docker' \
@@ -28,9 +28,9 @@ dev:
 build:
 	docker compose build
 
-# Before pushing: run all static checks, tests, and production builds.
+# Before pushing: run static, unit, database, build, and browser deployment checks.
 check:
-	npm run check
+	npm run verify:push
 
 # During development: run fast server and client tests without browser tests.
 test:

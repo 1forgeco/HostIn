@@ -32,14 +32,36 @@ npm run dev
 ## Required checks
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm run test:e2e
+npm run verify:push
 ```
 
-`npm run check` runs the push-blocking checks. Husky runs staged linting before commits, Commitlint validates commit messages, and the full check suite runs before pushes.
+This is not optional project etiquette: `.husky/pre-push` runs it automatically for every developer. It blocks the push when any of these fail:
+
+- server and client linting with zero warnings;
+- Prisma client generation from the committed schema on a clean checkout;
+- server and client TypeScript checks;
+- isolated API and React component tests;
+- server and client production builds;
+- pending database migrations applied to the configured development database;
+- database-backed login, role routing, workspace authorization, and readiness tests;
+- Chromium desktop and mobile browser journeys.
+
+The database checks use `server/.env`. Before the first push, point `DATABASE_URL` at a disposable local development/test database. The verification command applies migrations and upserts the City Complex demo fixture; never point it at production.
+
+For a faster inner loop while coding, use `npm test`. `npm run check` runs everything except database-backed and browser tests. Do not use either as a substitute for `npm run verify:push` before sharing a branch.
+
+## Continuous integration and branch protection
+
+`.github/workflows/quality-gate.yml` repeats the verification in a clean environment on every pull request and every push to `main`. It uses PostgreSQL 16, runs the browser suite against production server/client builds, and builds both production Docker images.
+
+Repository administrators must mark these checks as required in branch protection:
+
+- `Server, client, database, and browser tests`
+- `Production container builds`
+
+Disable direct pushes to `main` and require branches to be up to date before merging. Local hooks can be bypassed; required CI checks are the enforcement boundary.
+
+When a test fails, fix the code or the test fixture. Do not delete assertions, add unconditional skips, lower coverage by moving logic out of tests, or use `--no-verify` to ship a known failure.
 
 ## Database safety
 
