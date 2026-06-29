@@ -50,6 +50,12 @@ The database checks use `server/.env`. Before the first push, point `DATABASE_UR
 
 For a faster inner loop while coding, use `npm test`. `npm run check` runs everything except database-backed and browser tests. Do not use either as a substitute for `npm run verify:push` before sharing a branch.
 
+## Client onboarding and access control
+
+The 1Forge control center creates every client through a resumable nine-step draft. Saving a step only updates `client_onboarding`; activation is the transaction boundary that creates the property structure, people directory, login accounts, multi-role memberships, role dashboards, feature policies, and audit record. Temporary passwords are returned once and accounts must change them at first login.
+
+Runtime access is evaluated in this order: account status, workspace/subscription status, role-dashboard status, client feature, role-feature permission, then an optional time-bounded user override. Use `make test-integration` after changing any schema, login, organization, role, feature, or override behavior.
+
 ## Continuous integration and branch protection
 
 `.github/workflows/quality-gate.yml` repeats the verification in a clean environment on every pull request and every push to `main`. It uses PostgreSQL 16, runs the browser suite against production server/client builds, and builds both production Docker images.

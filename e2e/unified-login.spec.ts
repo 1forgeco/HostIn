@@ -1,4 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function openClientControlSection(page: Page, label: string, value: string) {
+  const mobileSelector = page.getByLabel("Client control section", { exact: true });
+  if (await mobileSelector.isVisible()) {
+    await mobileSelector.selectOption(value);
+    return;
+  }
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
 
 test("tenant account routes directly to its private profile", async ({ page }) => {
   await page.goto("/login");
@@ -21,6 +30,14 @@ test("1Forge account can use the complete control-center journey", async ({ page
   await expect(page.getByText("Pending payments", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Subscription & billing" })).toHaveCount(0);
 
+  await page.getByRole("link", { name: "+ Add client", exact: true }).click();
+  await expect(page).toHaveURL(/\/1forge\/platform\/new$/);
+  await expect(page.getByRole("heading", { name: "Client Details" })).toBeVisible();
+  await expect(page.getByText("Step 1 of 9", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("PG / Hostel name")).toBeVisible();
+  await page.getByRole("link", { name: "Back to clients", exact: false }).click();
+  await expect(page).toHaveURL(/\/1forge\/platform$/);
+
   const clientCard = page.locator('a[href="/1forge/platform/city-complex"]');
   const search = page.getByRole("textbox", { name: "Search clients" });
   await expect(clientCard).toBeVisible();
@@ -37,18 +54,34 @@ test("1Forge account can use the complete control-center journey", async ({ page
   await expect(page.getByRole("button", { name: "Suspend", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Client details" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Apps & Roles", exact: true }).click();
+  await openClientControlSection(page, "Setup", "setup");
+  await expect(page.getByRole("heading", { name: "Setup checklist" })).toBeVisible();
+
+  await openClientControlSection(page, "People", "people");
+  await expect(page.getByRole("heading", { name: "People directory" })).toBeVisible();
+
+  await openClientControlSection(page, "Accounts", "accounts");
+  await expect(page.getByRole("heading", { name: "Accounts & credentials" })).toBeVisible();
+
+  await openClientControlSection(page, "Rooms", "rooms");
+  await expect(page.getByRole("heading", { name: "Property structure" })).toBeVisible();
+
+  await openClientControlSection(page, "Apps & Roles", "apps & roles");
   await expect(page.getByRole("heading", { name: "Owner App" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Tenant App" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Features", exact: true }).click();
+  await openClientControlSection(page, "Features", "features");
   await expect(page.getByRole("heading", { name: "Feature access" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Role feature permissions" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Theme & Branding", exact: true }).click();
+  await openClientControlSection(page, "Access Overrides", "access overrides");
+  await expect(page.getByRole("heading", { name: "Add access override" })).toBeVisible();
+
+  await openClientControlSection(page, "Theme & Branding", "theme & branding");
   await expect(page.getByRole("heading", { name: "Client theme" })).toBeVisible();
   await expect(page.getByText("Applies across all role apps", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Billing", exact: true }).click();
+  await openClientControlSection(page, "Billing", "billing");
   await expect(page.getByRole("heading", { name: "Subscription & billing" })).toBeVisible();
 
   await page.getByRole("link", { name: "Analytics", exact: true }).click();

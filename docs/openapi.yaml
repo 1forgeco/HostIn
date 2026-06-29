@@ -34,3 +34,61 @@ paths:
         "400": { description: Invalid request }
         "401": { description: Invalid credentials }
         "403": { description: Account or subscription is inactive }
+  /api/auth/change-password:
+    post:
+      summary: Replace an authenticated account's temporary password
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Password changed and first-login requirement cleared }
+        "401": { description: Authentication required }
+  /api/platform/onboarding:
+    post:
+      summary: Create a resumable client workspace draft
+      security: [{ platformBearerAuth: [] }]
+      responses:
+        "201": { description: Draft organization and onboarding state created }
+  /api/platform/onboarding/{id}:
+    get:
+      summary: Load a resumable client onboarding draft
+      security: [{ platformBearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Onboarding state and organization }
+  /api/platform/onboarding/{id}/steps/{step}:
+    put:
+      summary: Save one onboarding step
+      security: [{ platformBearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: path, name: step, required: true, schema: { type: integer, minimum: 1, maximum: 9 } }
+      responses:
+        "200": { description: Draft progress saved }
+  /api/platform/onboarding/{id}/activate:
+    post:
+      summary: Atomically activate a draft and materialize rooms, people, accounts, roles, and permissions
+      security: [{ platformBearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Workspace activated with one-time temporary credentials }
+        "409": { description: Draft is incomplete or already activated }
+  /api/platform/organizations/{id}/control:
+    get:
+      summary: Load client people, accounts, rooms, role dashboards, permissions, and overrides
+      security: [{ platformBearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Complete client control state }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    platformBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

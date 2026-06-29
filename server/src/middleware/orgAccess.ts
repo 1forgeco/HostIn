@@ -7,6 +7,18 @@ export interface AuthorizedRequest extends AuthenticatedRequest {
   userOrgRole?: OrgRole;
 }
 
+const featureForRequest = (url: string) => {
+  const routes: [string, string][] = [
+    ["/api/rooms", "rooms"], ["/api/dues", "dues"], ["/api/payments", "dues"],
+    ["/api/gate-passes", "gate_pass"], ["/api/visitors", "visitor_log"],
+    ["/api/announcements", "community"], ["/api/complaints", "community"],
+    ["/api/community", "community"], ["/api/mess-menus", "mess_menu"],
+    ["/api/mess-feedback", "mess_menu"], ["/api/documents", "documents"],
+    ["/api/parents", "parent_portal"],
+  ];
+  return routes.find(([prefix]) => url.startsWith(prefix))?.[1];
+};
+
 export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
   return async (req: AuthorizedRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
@@ -34,14 +46,21 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
           org_id: orgId,
           is_active: true,
         },
-        include: { organization: { select: { is_active: true, plan_status: true, plan_expires_at: true } } },
+        include: {
+          user: { select: { is_active: true, account_status: true } },
+          organization: { select: { is_active: true, workspace_status: true, plan_status: true, plan_expires_at: true } },
+        },
       });
 
       if (!userOrgRole) {
         return res.status(403).json({ error: "Access denied. You do not belong to this organization." });
       }
 
-      const subscriptionBlocked = !userOrgRole.organization.is_active || ["paused", "canceled", "expired"].includes(userOrgRole.organization.plan_status);
+      if (!userOrgRole.user.is_active || userOrgRole.user.account_status !== "active") {
+        return res.status(403).json({ error: "This user account is not active", code: "ACCOUNT_INACTIVE" });
+      }
+
+      const subscriptionBlocked = !userOrgRole.organization.is_active || userOrgRole.organization.workspace_status !== "active" || ["paused", "canceled", "expired"].includes(userOrgRole.organization.plan_status);
       const subscriptionExpired = userOrgRole.organization.plan_expires_at && userOrgRole.organization.plan_expires_at < new Date();
       if (subscriptionBlocked || subscriptionExpired) return res.status(402).json({ error: "Workspace subscription is inactive", code: "SUBSCRIPTION_INACTIVE" });
 
@@ -50,6 +69,24 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
         return res.status(403).json({
           error: `Access denied. Requires one of the following roles: ${allowedRoles.join(", ")}`,
         });
+      }
+
+      const [dashboard, legacyRoleToggle] = await Promise.all([
+        prisma.roleDashboard.findUnique({ where: { org_id_role: { org_id: orgId, role: userOrgRole.role } } }),
+        prisma.orgFeature.findUnique({ where: { org_id_feature_key: { org_id: orgId, feature_key: `role_${userOrgRole.role}` } } }),
+      ]);
+      if ((dashboard && dashboard.status !== "active") || (!dashboard && legacyRoleToggle?.is_enabled === false)) {
+        return res.status(403).json({ error: `${userOrgRole.role} dashboard is inactive`, code: "ROLE_DASHBOARD_INACTIVE" });
+      }
+
+      const featureKey = featureForRequest(req.originalUrl);
+      if (featureKey) {
+        const [permission, override] = await Promise.all([
+          prisma.roleFeaturePermission.findUnique({ where: { org_id_role_feature_key: { org_id: orgId, role: userOrgRole.role, feature_key: featureKey } } }),
+          prisma.accessOverride.findFirst({ where: { org_id: orgId, user_id: userId, role: userOrgRole.role, feature_key: featureKey, OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }] }, orderBy: { updated_at: "desc" } }),
+        ]);
+        if (override?.decision === "block") return res.status(403).json({ error: `${featureKey} is blocked for this account`, code: "USER_FEATURE_BLOCKED" });
+        if (permission?.is_allowed === false && override?.decision !== "allow") return res.status(403).json({ error: `${featureKey} is not allowed for the ${userOrgRole.role} role`, code: "ROLE_FEATURE_DISABLED" });
       }
 
       // Set/normalize headers and attach the role to the request

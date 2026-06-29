@@ -27,7 +27,7 @@ export const handleLogin = async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
-    if (!user.is_active) {
+    if (!user.is_active || user.account_status !== "active") {
       return res.status(403).json({ error: "User account is deactivated" });
     }
 

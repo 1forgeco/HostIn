@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
 import { prisma } from "../../../../lib/prisma";
+import { OrgRole } from "../../../../../generated/prisma/client";
 
 export const handleToggleOrgFeatures = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
@@ -54,6 +55,17 @@ export const handleToggleOrgFeatures = async (req: PlatformAuthenticatedRequest,
         updated_by: ownerRole.user_id,
       },
     });
+
+    if (featureKey.startsWith("role_")) {
+      const role = featureKey.slice(5) as OrgRole;
+      if (Object.values(OrgRole).includes(role)) {
+        await prisma.roleDashboard.upsert({
+          where: { org_id_role: { org_id: orgId, role } },
+          create: { org_id: orgId, role, status: isEnabled ? "active" : "inactive" },
+          update: { status: isEnabled ? "active" : "inactive" },
+        });
+      }
+    }
 
     await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "toggle_feature", entity_type: "organization", entity_id: orgId, details: { featureKey, isEnabled: !!isEnabled } } });
 

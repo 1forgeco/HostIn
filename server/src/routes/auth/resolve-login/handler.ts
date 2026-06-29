@@ -22,14 +22,19 @@ export const handleResolveLogin = async (req: Request, res: Response) => {
       return res.json({ accountType: "platform", accessToken, destination: "/1forge/platform", session: { accessToken, orgId: "platform", userName: platformUser.full_name, email, workspace: "1forge", role: "platform" } });
     }
 
-    const user = await prisma.user.findFirst({ where: { email, is_active: true } });
+    const user = await prisma.user.findFirst({ where: { email, is_active: true, account_status: "active" } });
     if (!user || !await bcrypt.compare(password, user.password_hash)) return res.status(401).json({ error: "Invalid email or password" });
 
     const memberships = await prisma.userOrgRole.findMany({ where: { user_id: user.id, is_active: true }, include: { organization: { include: { plan: true } } }, orderBy: [{ is_primary: "desc" }, { created_at: "asc" }] });
     if (!memberships.length) return res.status(403).json({ error: "This account is not assigned to a workspace" });
     const membership = memberships[0];
     const organization = membership.organization;
-    if (!organization.is_active || ["paused", "canceled", "expired"].includes(organization.plan_status)) return res.status(403).json({ error: "This workspace subscription is not active. Contact your property administrator." });
+    if (!organization.is_active || organization.workspace_status !== "active" || ["paused", "canceled", "expired"].includes(organization.plan_status)) return res.status(403).json({ error: "This workspace subscription is not active. Contact your property administrator." });
+    const [dashboard, legacyRoleToggle] = await Promise.all([
+      prisma.roleDashboard.findUnique({ where: { org_id_role: { org_id: organization.id, role: membership.role } } }),
+      prisma.orgFeature.findUnique({ where: { org_id_feature_key: { org_id: organization.id, feature_key: `role_${membership.role}` } } }),
+    ]);
+    if ((dashboard && dashboard.status !== "active") || (!dashboard && legacyRoleToggle?.is_enabled === false)) return res.status(403).json({ error: "Your role dashboard is currently inactive", code: "ROLE_DASHBOARD_INACTIVE" });
 
     const accountSlug = membership.account_slug || slugify(user.full_name);
     const accessToken = jwt.sign({ userId: user.id, email: user.email }, env.JWT_SECRET, { expiresIn: "1d" });
@@ -41,8 +46,13 @@ export const handleResolveLogin = async (req: Request, res: Response) => {
       ...(!membership.account_slug ? [prisma.userOrgRole.update({ where: { id: membership.id }, data: { account_slug: accountSlug, is_primary: true } })] : []),
     ]);
     res.cookie("hostin_refresh", refreshToken, { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/api/auth", maxAge: 7 * 24 * 60 * 60 * 1000 });
-    const destination = `/${organization.slug}/${membership.role}/${accountSlug}`;
-    return res.json({ accountType: "workspace", accessToken, destination, session: { accessToken, orgId: organization.id, userName: user.full_name, email: user.email, workspace: organization.slug, role: membership.role, accountSlug, themeColor: organization.theme_color } });
+    const workspaceDestination = `/${organization.slug}/${membership.role}/${accountSlug}`;
+    const destination = user.force_password_change ? "/change-password" : workspaceDestination;
+    const availableRoles = memberships.map((item) => {
+      const slug = item.account_slug || slugify(user.full_name);
+      return { orgId: item.organization.id, workspace: item.organization.slug, role: item.role, accountSlug: slug, destination: `/${item.organization.slug}/${item.role}/${slug}` };
+    });
+    return res.json({ accountType: "workspace", accessToken, destination, session: { accessToken, orgId: organization.id, userName: user.full_name, email: user.email, workspace: organization.slug, role: membership.role, accountSlug, themeColor: organization.theme_color, requiresPasswordChange: user.force_password_change, intendedDestination: workspaceDestination, availableRoles } });
   } catch (error) {
     console.error("Resolve login error:", error);
     return res.status(500).json({ error: "Unable to sign in" });

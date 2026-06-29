@@ -225,6 +225,44 @@ enum TenantStatus {
   deactivated
 }
 
+enum WorkspaceStatus {
+  draft
+  setup_incomplete
+  ready
+  active
+  suspended
+  canceled
+}
+
+enum AccountStatus {
+  pending
+  active
+  inactive
+  suspended
+  left
+  archived
+}
+
+enum RoleDashboardStatus {
+  active
+  inactive
+  plan_locked
+  setup_required
+  suspended
+}
+
+enum PersonStatus {
+  active
+  inactive
+  left
+  archived
+}
+
+enum AccessDecision {
+  allow
+  block
+}
+
 // ─────────────────────────────────────────────
 // PLATFORM (Super Admin — separate from org users)
 // ─────────────────────────────────────────────
@@ -312,53 +350,63 @@ model PropertyGroup {
 }
 
 model Organization {
-  id              String     @id @default(uuid()) @db.Uuid
-  name            String     @db.VarChar(255)
-  slug            String     @unique @db.VarChar(255) // Canvas-style login lookup
-  owner_name      String     @db.VarChar(255)
-  address         String?    @db.Text
-  city_state      String     @db.VarChar(255)
-  latitude        Decimal?   @db.Decimal(10, 8)
-  longitude       Decimal?   @db.Decimal(11, 8)
-  contact_email   String?    @db.VarChar(255)
-  contact_phone   String?    @db.VarChar(20)
-  logo_url        String?    @db.Text
-  theme_color     String?    @db.VarChar(7)
-  plan_id         String     @db.Uuid
-  plan_status     PlanStatus
-  plan_expires_at DateTime?  @db.Timestamp(6)
-  group_id        String?    @db.Uuid
-  total_capacity  Int
-  is_active       Boolean    @default(true)
-  created_at      DateTime   @default(now()) @db.Timestamp(6)
-  updated_at      DateTime   @updatedAt @db.Timestamp(6)
+  id               String          @id @default(uuid()) @db.Uuid
+  name             String          @db.VarChar(255)
+  slug             String          @unique @db.VarChar(255) // Canvas-style login lookup
+  owner_name       String          @db.VarChar(255)
+  address          String?         @db.Text
+  city_state       String          @db.VarChar(255)
+  latitude         Decimal?        @db.Decimal(10, 8)
+  longitude        Decimal?        @db.Decimal(11, 8)
+  contact_email    String?         @db.VarChar(255)
+  contact_phone    String?         @db.VarChar(20)
+  logo_url         String?         @db.Text
+  theme_color      String?         @db.VarChar(7)
+  client_type      String?         @db.VarChar(50)
+  branch_count     Int             @default(1)
+  billing_cycle    String          @default("monthly") @db.VarChar(50)
+  start_date       DateTime?       @db.Date
+  workspace_status WorkspaceStatus @default(active)
+  plan_id          String          @db.Uuid
+  plan_status      PlanStatus
+  plan_expires_at  DateTime?       @db.Timestamp(6)
+  group_id         String?         @db.Uuid
+  total_capacity   Int
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  updated_at       DateTime        @updatedAt @db.Timestamp(6)
 
-  plan                    Plan                    @relation(fields: [plan_id], references: [id])
-  group                   PropertyGroup?          @relation(fields: [group_id], references: [id])
-  org_features            OrgFeature[]
-  user_org_roles          UserOrgRole[]
-  onboarding_invites      OnboardingInvite[]
-  floors                  Floor[]
-  rooms                   Room[]
-  tenant_profiles         TenantProfile[]
-  parent_profiles         ParentProfile[]
-  gate_passes             GatePass[]
-  visitors                Visitor[]
-  mess_menus              MessMenu[]
-  mess_feedback           MessFeedback[]
-  dues                    Due[]
-  payments                Payment[]
-  complaints              Complaint[]
-  announcements           Announcement[]
-  documents               Document[]
-  staff_contacts          StaffContact[]
-  notifications           Notification[]
-  audit_logs              AuditLog[]
-  platform_metrics        PlatformMetric[]
-  due_reminder_config     DueReminderConfig?
-  room_assignment_history RoomAssignmentHistory[]
-  community_interactions  CommunityInteraction[]
-  lost_found_posts        LostFoundPost[]
+  plan                     Plan                    @relation(fields: [plan_id], references: [id])
+  group                    PropertyGroup?          @relation(fields: [group_id], references: [id])
+  org_features             OrgFeature[]
+  user_org_roles           UserOrgRole[]
+  onboarding_invites       OnboardingInvite[]
+  floors                   Floor[]
+  rooms                    Room[]
+  tenant_profiles          TenantProfile[]
+  parent_profiles          ParentProfile[]
+  gate_passes              GatePass[]
+  visitors                 Visitor[]
+  mess_menus               MessMenu[]
+  mess_feedback            MessFeedback[]
+  dues                     Due[]
+  payments                 Payment[]
+  complaints               Complaint[]
+  announcements            Announcement[]
+  documents                Document[]
+  staff_contacts           StaffContact[]
+  notifications            Notification[]
+  audit_logs               AuditLog[]
+  platform_metrics         PlatformMetric[]
+  due_reminder_config      DueReminderConfig?
+  room_assignment_history  RoomAssignmentHistory[]
+  community_interactions   CommunityInteraction[]
+  lost_found_posts         LostFoundPost[]
+  onboarding               ClientOnboarding?
+  people                   Person[]
+  role_dashboards          RoleDashboard[]
+  role_feature_permissions RoleFeaturePermission[]
+  access_overrides         AccessOverride[]
 
   @@map("organizations")
 }
@@ -384,16 +432,20 @@ model OrgFeature {
 // ─────────────────────────────────────────────
 
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
-  email             String    @unique @db.VarChar(255)
-  phone             String    @unique @db.VarChar(20)
-  password_hash     String    @db.VarChar(255)
-  full_name         String    @db.VarChar(255)
-  profile_photo_url String?   @db.Text
-  is_active         Boolean   @default(true)
-  last_login_at     DateTime? @db.Timestamp(6)
-  created_at        DateTime  @default(now()) @db.Timestamp(6)
-  updated_at        DateTime  @updatedAt @db.Timestamp(6)
+  id                    String        @id @default(uuid()) @db.Uuid
+  email                 String        @unique @db.VarChar(255)
+  phone                 String        @unique @db.VarChar(20)
+  password_hash         String        @db.VarChar(255)
+  full_name             String        @db.VarChar(255)
+  profile_photo_url     String?       @db.Text
+  is_active             Boolean       @default(true)
+  account_status        AccountStatus @default(active)
+  force_password_change Boolean       @default(false)
+  real_email            String?       @db.VarChar(255)
+  person_id             String?       @unique @db.Uuid
+  last_login_at         DateTime?     @db.Timestamp(6)
+  created_at            DateTime      @default(now()) @db.Timestamp(6)
+  updated_at            DateTime      @updatedAt @db.Timestamp(6)
 
   user_org_roles            UserOrgRole[]
   onboarding_invites        OnboardingInvite[]
@@ -428,6 +480,8 @@ model User {
   room_assignment_history   RoomAssignmentHistory[] @relation("RoomAssignmentTenant")
   community_interactions    CommunityInteraction[]
   lost_found_posts          LostFoundPost[]
+  person                    Person?                 @relation(fields: [person_id], references: [id], onDelete: SetNull)
+  access_overrides          AccessOverride[]
 
   @@map("users")
 }
@@ -451,6 +505,108 @@ model UserOrgRole {
   @@unique([org_id, account_slug])
   @@index([user_id, org_id])
   @@map("user_org_roles")
+}
+
+/// Persists the nine-step 1Forge client setup before activation.
+model ClientOnboarding {
+  id             String          @id @default(uuid()) @db.Uuid
+  org_id         String          @unique @db.Uuid
+  current_step   Int             @default(1)
+  status         WorkspaceStatus @default(draft)
+  structure_data Json            @default("{}") @db.JsonB
+  rooms_data     Json            @default("{}") @db.JsonB
+  people_data    Json            @default("{}") @db.JsonB
+  roles_data     Json            @default("{}") @db.JsonB
+  accounts_data  Json            @default("{}") @db.JsonB
+  features_data  Json            @default("{}") @db.JsonB
+  branding_data  Json            @default("{}") @db.JsonB
+  review_data    Json            @default("{}") @db.JsonB
+  created_at     DateTime        @default(now()) @db.Timestamp(6)
+  updated_at     DateTime        @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("client_onboarding")
+}
+
+/// A real person in a client workspace; a login account is optional.
+model Person {
+  id                      String       @id @default(uuid()) @db.Uuid
+  org_id                  String       @db.Uuid
+  full_name               String       @db.VarChar(255)
+  phone                   String       @db.VarChar(20)
+  email                   String?      @db.VarChar(255)
+  person_type             String       @db.VarChar(50)
+  branch                  String?      @db.VarChar(255)
+  room_number             String?      @db.VarChar(50)
+  emergency_contact_name  String?      @db.VarChar(255)
+  emergency_contact_phone String?      @db.VarChar(20)
+  parent_name             String?      @db.VarChar(255)
+  parent_phone            String?      @db.VarChar(20)
+  joining_date            DateTime?    @db.Date
+  status                  PersonStatus @default(active)
+  metadata                Json?        @db.JsonB
+  created_at              DateTime     @default(now()) @db.Timestamp(6)
+  updated_at              DateTime     @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User?
+
+  @@index([org_id, person_type, status])
+  @@index([org_id, phone])
+  @@map("people")
+}
+
+/// Enables or disables an entire role application for one client.
+model RoleDashboard {
+  id         String              @id @default(uuid()) @db.Uuid
+  org_id     String              @db.Uuid
+  role       OrgRole
+  status     RoleDashboardStatus @default(active)
+  config     Json?               @db.JsonB
+  updated_at DateTime            @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, role])
+  @@map("role_dashboards")
+}
+
+/// Role-level feature policy below the client feature switch.
+model RoleFeaturePermission {
+  id          String   @id @default(uuid()) @db.Uuid
+  org_id      String   @db.Uuid
+  role        OrgRole
+  feature_key String   @db.VarChar(255)
+  is_allowed  Boolean  @default(true)
+  permissions Json?    @db.JsonB
+  updated_at  DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, role, feature_key])
+  @@map("role_feature_permissions")
+}
+
+/// Final per-user allow/block override in the access hierarchy.
+model AccessOverride {
+  id          String         @id @default(uuid()) @db.Uuid
+  org_id      String         @db.Uuid
+  user_id     String         @db.Uuid
+  role        OrgRole
+  feature_key String         @db.VarChar(255)
+  decision    AccessDecision
+  reason      String?        @db.Text
+  expires_at  DateTime?      @db.Timestamp(6)
+  created_at  DateTime       @default(now()) @db.Timestamp(6)
+  updated_at  DateTime       @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, user_id, role, feature_key])
+  @@index([org_id, role, feature_key])
+  @@map("access_overrides")
 }
 
 /// Digital onboarding — warden sends invite link, tenant fills in own details.

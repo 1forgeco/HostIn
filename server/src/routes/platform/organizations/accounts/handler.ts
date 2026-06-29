@@ -22,7 +22,7 @@ export const handleCreateOrganizationAccount = async (req: PlatformAuthenticated
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.user.findFirst({ where: { OR: [{ email }, { phone }] } });
-      const user = existing ? await tx.user.update({ where: { id: existing.id }, data: { full_name: fullName, password_hash: passwordHash, is_active: true } }) : await tx.user.create({ data: { full_name: fullName, email, phone, password_hash: passwordHash, is_active: true } });
+      const user = existing ? await tx.user.update({ where: { id: existing.id }, data: { full_name: fullName, password_hash: passwordHash, is_active: true, account_status: "active", force_password_change: true } }) : await tx.user.create({ data: { full_name: fullName, email, phone, password_hash: passwordHash, is_active: true, account_status: "active", force_password_change: true } });
       const membership = await tx.userOrgRole.upsert({ where: { user_id_org_id_role: { user_id: user.id, org_id: orgId, role: role as OrgRole } }, update: { is_active: true, is_primary: true, account_slug: baseSlug }, create: { user_id: user.id, org_id: orgId, role: role as OrgRole, account_slug: baseSlug, is_primary: true, is_active: true } });
       await tx.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "create_account", entity_type: "organization_account", entity_id: membership.id, details: { orgId, email, role, accountSlug: baseSlug } } });
       return { user, membership };

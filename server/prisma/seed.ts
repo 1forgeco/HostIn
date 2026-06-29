@@ -21,6 +21,8 @@ async function upsertUser(input: {
       full_name: input.full_name,
       password_hash: input.passwordHash,
       is_active: true,
+      account_status: "active",
+      force_password_change: false,
     },
     create: {
       email: input.email,
@@ -28,6 +30,8 @@ async function upsertUser(input: {
       full_name: input.full_name,
       password_hash: input.passwordHash,
       is_active: true,
+      account_status: "active",
+      force_password_change: false,
     },
   });
 }
@@ -231,6 +235,10 @@ async function main() {
       plan_expires_at: trialEndsAt,
       total_capacity: 120,
       is_active: true,
+      workspace_status: "active",
+      client_type: "PG",
+      branch_count: 1,
+      billing_cycle: "monthly",
     },
     create: {
       name: "City Complex",
@@ -245,6 +253,10 @@ async function main() {
       plan_expires_at: trialEndsAt,
       total_capacity: 120,
       is_active: true,
+      workspace_status: "active",
+      client_type: "PG",
+      branch_count: 1,
+      billing_cycle: "monthly",
     },
   });
 
@@ -270,6 +282,14 @@ async function main() {
     ensureRole(secondTenant.id, org.id, "tenant", "isha-rao"),
     ensureRole(parent.id, org.id, "parent", "meena-mehta"),
   ]);
+
+  for (const role of ["owner", "warden", "guard", "staff", "tenant", "parent"] as const) {
+    await prisma.roleDashboard.upsert({
+      where: { org_id_role: { org_id: org.id, role } },
+      update: { status: "active" },
+      create: { org_id: org.id, role, status: "active" },
+    });
+  }
 
   console.log("Seeding feature toggles...");
   for (const featureKey of ["rooms", "gate_passes", "visitors", "dues", "payments", "complaints", "mess", "documents", "parents"]) {

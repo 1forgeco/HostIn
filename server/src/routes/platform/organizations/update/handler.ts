@@ -47,7 +47,10 @@ export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest
       }
     }
 
-    if (isActive !== undefined) updateData.is_active = !!isActive;
+    if (isActive !== undefined) {
+      updateData.is_active = !!isActive;
+      updateData.workspace_status = isActive ? "active" : "suspended";
+    }
     if (themeColor !== undefined) {
       if (themeColor !== null && !/^#[0-9a-fA-F]{6}$/.test(themeColor)) return res.status(400).json({ error: "themeColor must be a six-digit hex colour" });
       updateData.theme_color = themeColor;

@@ -13,6 +13,7 @@ import { prisma } from "./lib/prisma";
 import loginRoutes from "./routes/auth/login";
 import resolveLoginRoutes from "./routes/auth/resolve-login";
 import sessionRoutes from "./routes/auth/session";
+import changePasswordRoutes from "./routes/auth/change-password";
 import meRoutes from "./routes/auth/me";
 import inviteRoutes from "./routes/orgs/invites/create";
 import createFloorRoutes from "./routes/floors/create";
@@ -78,6 +79,8 @@ import listOrgRoutes from "./routes/platform/organizations/list";
 import updateOrgRoutes from "./routes/platform/organizations/update";
 import featuresOrgRoutes from "./routes/platform/organizations/features";
 import accountOrgRoutes from "./routes/platform/organizations/accounts";
+import controlOrgRoutes from "./routes/platform/organizations/control";
+import platformOnboardingRoutes from "./routes/platform/onboarding";
 
 
 
@@ -126,6 +129,7 @@ app.use("/api/documents", checkFeatureAccess("documents"));
 app.use("/api/auth/login", loginRoutes);
 app.use("/api/auth/resolve-login", resolveLoginRoutes);
 app.use("/api/auth", sessionRoutes);
+app.use("/api/auth/change-password", changePasswordRoutes);
 app.use("/api/auth/me", meRoutes);
 app.use("/api/orgs/invites", inviteRoutes);
 app.use("/api/orgs/:orgId", listMembersRoutes);
@@ -191,6 +195,8 @@ app.use("/api/platform/organizations", listOrgRoutes);
 app.use("/api/platform/organizations", updateOrgRoutes);
 app.use("/api/platform/organizations", featuresOrgRoutes);
 app.use("/api/platform/organizations", accountOrgRoutes);
+app.use("/api/platform/organizations", controlOrgRoutes);
+app.use("/api/platform/onboarding", platformOnboardingRoutes);
 
 
 

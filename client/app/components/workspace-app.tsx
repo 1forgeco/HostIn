@@ -4,6 +4,7 @@ import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } fro
 import Link from "next/link";
 import Image from "next/image";
 import { applyCustomColor, ColorThemeToggle, useColorTheme } from "./theme-system";
+import { ClientOnboardingWizard } from "./client-onboarding-wizard";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
 type SectionId =
@@ -38,6 +39,7 @@ type LoginState = {
   userName: string;
   email: string;
   themeColor?: string | null;
+  availableRoles?: { orgId: string; workspace: string; role: string; accountSlug: string; destination: string }[];
 };
 
 type Occupant = {
@@ -151,8 +153,22 @@ type PlatformOrganization = {
   address?: string | null;
   createdAt?: string;
   themeColor?: string | null;
+  workspaceStatus?: string;
+  clientType?: string | null;
+  branchCount?: number;
+  billingCycle?: string;
+  onboarding?: { current_step: number; status: string } | null;
 };
 type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
+type PlatformControlData = {
+  onboarding?: { current_step: number; status: string } | null;
+  people: { id: string; full_name: string; phone: string; email?: string | null; person_type: string; room_number?: string | null; status: string }[];
+  accounts: { id: string; full_name: string; email: string; phone: string; account_status: string; force_password_change: boolean; last_login_at?: string | null; roles: string[] }[];
+  floors: { id: string; floor_number: number; floor_name: string; rooms: { id: string; room_number: string; capacity: number; current_occupancy: number; monthly_rent: string | number; status: string }[] }[];
+  roleDashboards: { role: string; status: string }[];
+  rolePermissions: { role: string; feature_key: string; is_allowed: boolean }[];
+  accessOverrides: { id: string; user_id: string; role: string; feature_key: string; decision: string; reason?: string | null; expires_at?: string | null; user: { full_name: string; email: string } }[];
+};
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 
@@ -388,13 +404,15 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
       const stored = window.sessionStorage.getItem("hostin-session");
       if (!stored) return;
       const session = JSON.parse(stored);
-      if (session.workspace === workspace && normalizeRole(session.role) === normalizedRole) {
+      const matchingAccess = session.availableRoles?.find((item: { workspace: string; role: string }) => item.workspace === workspace && normalizeRole(item.role) === normalizedRole);
+      if ((session.workspace === workspace && normalizeRole(session.role) === normalizedRole) || matchingAccess) {
         setLogin({
           accessToken: session.accessToken,
-          orgId: session.orgId,
+          orgId: matchingAccess?.orgId || session.orgId,
           userName: session.userName,
           email: session.email,
           themeColor: session.themeColor,
+          availableRoles: session.availableRoles,
         });
         if (session.themeColor && normalizedRole !== "platform") applyCustomColor(session.themeColor);
         setMessage("Workspace opened.");
@@ -458,6 +476,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
         themeColor: matchedRole?.themeColor,
+        availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({ orgId: item.orgId, workspace: item.orgSlug, role: item.role, accountSlug: item.accountSlug || "account", destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}` })),
       });
       window.sessionStorage.setItem(
         "hostin-session",
@@ -469,6 +488,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
           workspace,
           role: normalizedRole,
           themeColor: matchedRole?.themeColor,
+          availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({ orgId: item.orgId, workspace: item.orgSlug, role: item.role, accountSlug: item.accountSlug || "account", destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}` })),
         })
       );
       if (matchedRole?.themeColor && !isPlatform) applyCustomColor(matchedRole.themeColor);
@@ -623,6 +643,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
               </button>
             ))}
           </div>}
+          {normalizedRole !== "platform" && (login.availableRoles?.length ?? 0) > 1 ? <div className="moduleGroup roleSwitcher"><p>Switch role</p>{login.availableRoles?.filter((item) => item.workspace === workspace).map((item) => <Link className={normalizeRole(item.role) === normalizedRole ? "active navItem" : "navItem"} href={item.destination} key={`${item.orgId}-${item.role}`}>{roleLabel(item.role)}</Link>)}</div> : null}
           <button
             className="outlineButton fullButton"
             onClick={logout}
@@ -777,6 +798,9 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [controlTab, setControlTab] = useState("overview");
+  const [controlData, setControlData] = useState<PlatformControlData | null>(null);
+  const [oneTimeCredential, setOneTimeCredential] = useState<{ loginId: string; temporaryPassword: string } | null>(null);
+  const [overrideDraft, setOverrideDraft] = useState({ userId: "", role: "tenant", featureKey: "community", decision: "block", reason: "", expiresAt: "" });
   const selected = organizations.find((organization) => organization.slug === routeView);
   const headers = { Authorization: `Bearer ${accessToken}` };
 
@@ -798,6 +822,17 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
     loadPlatform(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [accessToken]);
 
+  async function loadControl(orgId: string) {
+    const response = await fetch(`${apiBase}/platform/organizations/${orgId}/control`, { headers });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) setControlData(data.control);
+  }
+  useEffect(() => {
+    if (selected) loadControl(selected.id);
+    else setControlData(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   async function updateOrganization(values: Record<string, unknown>) {
     if (!selected) return;
     const response = await fetch(`${apiBase}/platform/organizations/${selected.id}`, {
@@ -815,6 +850,38 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
       body: JSON.stringify({ featureKey, isEnabled }),
     });
     if (response.ok) await loadPlatform();
+  }
+  async function updateRoleDashboard(role: string, enabled: boolean) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-dashboards/${role}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ status: enabled ? "active" : "inactive" }) });
+    if (response.ok) await loadControl(selected.id);
+  }
+  async function updateRolePermission(role: string, featureKey: string, isAllowed: boolean) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-permissions/${role}/${featureKey}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ isAllowed }) });
+    if (response.ok) await loadControl(selected.id);
+  }
+  async function updateAccountStatus(userId: string, status: string) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/status`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    if (response.ok) await loadControl(selected.id);
+  }
+  async function resetAccountPassword(userId: string) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/reset-password`, { method: "POST", headers });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) { setOneTimeCredential(data.account); await loadControl(selected.id); }
+  }
+  async function saveAccessOverride(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !overrideDraft.userId) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(overrideDraft) });
+    if (response.ok) { await loadControl(selected.id); setOverrideDraft((current) => ({ ...current, reason: "", expiresAt: "" })); }
+  }
+  async function deleteAccessOverride(overrideId: string) {
+    if (!selected) return;
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides/${overrideId}`, { method: "DELETE", headers });
+    if (response.ok) await loadControl(selected.id);
   }
   const roleLabels = ["owner", "warden", "guard", "staff", "tenant", "parent"];
   const featureKeys = Array.from(
@@ -837,6 +904,7 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
         <DirectorySkeleton />
       </section>
     );
+  if (routeView === "new") return <ClientOnboardingWizard accessToken={accessToken} plans={plans} />;
   if (routeView && routeView !== "analytics" && !selected)
     return (
       <section className="panel">
@@ -847,7 +915,7 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   const mrr = activeOrganizations.reduce((total, organization) => total + Number(organization.monthlyPrice), 0);
   const filteredOrganizations = organizations.filter((organization) => {
     const matchesQuery = `${organization.name} ${organization.ownerName} ${organization.cityState ?? ""} ${organization.planName}`.toLowerCase().includes(query.toLowerCase());
-    const matchesFilter = filter === "all" || (filter === "active" ? organization.isActive && organization.planStatus === "active" : organization.planStatus === filter) || (filter === "suspended" && !organization.isActive);
+    const matchesFilter = filter === "all" || (filter === "active" ? organization.isActive && organization.planStatus === "active" : organization.planStatus === filter) || (filter === "suspended" && organization.workspaceStatus === "suspended") || (filter === "setup" && !["active", "suspended"].includes(organization.workspaceStatus || "active"));
     return matchesQuery && matchesFilter;
   });
   const money = (value: number | string) => `₹${Number(value).toLocaleString("en-IN")}`;
@@ -889,26 +957,32 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   }
 
   if (selected) {
-    const tabs = ["overview", "apps & roles", "features", "theme & branding", "billing"];
+    const tabs = ["overview", "setup", "people", "accounts", "rooms", "apps & roles", "features", "access overrides", "theme & branding", "billing"];
     return <div className="platformPage">
-      <div className="clientControlHeader panel"><div className="clientAvatar large">{selected.name.slice(0, 2).toUpperCase()}</div><div><p className="sectionEyebrow">Client control</p><h2>{selected.name}</h2><span>{selected.cityState || selected.slug} · {selected.planName} · {money(selected.monthlyPrice)}/month</span></div><div className="clientHeaderActions"><a className="outlineButton" href={`/${selected.slug}/owner`}>Open client app</a><button className={selected.isActive ? "dangerButton" : "gradientButton"} onClick={() => updateOrganization({ isActive: !selected.isActive })} type="button">{selected.isActive ? "Suspend" : "Restore"}</button></div></div>
+      <div className="clientControlHeader panel"><div className="clientAvatar large">{selected.name.slice(0, 2).toUpperCase()}</div><div><p className="sectionEyebrow">Client control</p><h2>{selected.name}</h2><span>{selected.cityState || selected.slug} · {selected.planName} · {money(selected.monthlyPrice)}/month</span></div><div className="clientHeaderActions">{selected.workspaceStatus === "active" ? <><a className="outlineButton" href={`/${selected.slug}/owner`}>Open client app</a><button className="dangerButton" onClick={() => updateOrganization({ isActive: false })} type="button">Suspend</button></> : <><span className={`statusPill ${selected.workspaceStatus}`}>{titleFromSlug(selected.workspaceStatus || "draft")}</span>{selected.workspaceStatus === "suspended" ? <button className="gradientButton" onClick={() => updateOrganization({ isActive: true })} type="button">Restore</button> : null}</>}</div></div>
+      <label className="clientControlSelect"><span>Client control section</span><select aria-label="Client control section" onChange={(event) => setControlTab(event.target.value)} value={controlTab}>{tabs.map((tab) => <option key={tab} value={tab}>{tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>)}</select></label>
       <nav className="clientControlTabs" aria-label="Client control sections">{tabs.map((tab) => <button className={controlTab === tab ? "active" : ""} key={tab} onClick={() => setControlTab(tab)} type="button">{tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}</button>)}</nav>
       {controlTab === "overview" ? <div className="clientOverviewGrid"><section className="panel"><PanelTitle title="Client details" meta={`/${selected.slug}`} /><dl className="clientDetails"><div><dt>Owner</dt><dd>{selected.ownerName}</dd></div><div><dt>Email</dt><dd>{selected.contactEmail || "Not added"}</dd></div><div><dt>Phone</dt><dd>{selected.contactPhone || "Not added"}</dd></div><div><dt>Location</dt><dd>{selected.cityState || "Not added"}</dd></div><div><dt>Joined</dt><dd>{selected.createdAt ? new Date(selected.createdAt).toLocaleDateString("en-IN") : "—"}</dd></div><div><dt>Capacity</dt><dd>{selected.totalCapacity} beds</dd></div></dl></section><section className="panel"><PanelTitle title="Client health" meta={selected.isActive ? "Operational" : "Attention"} /><div className="healthChecks">{[["Payment", selected.planStatus === "active" ? "Clear" : titleFromSlug(selected.planStatus)],["Usage", selected.memberCount ? "Active" : "Low usage"],["Setup", selected.totalCapacity ? "Complete" : "Incomplete"],["Occupancy", `${selected.occupancyRate}%`]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div></section><section className="panel overviewRoleStats"><PanelTitle title="Accounts & occupancy" meta={`${selected.memberCount} accounts`} /><div className="platformMetrics">{roleLabels.map((roleName) => <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active" />)}<Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity}`} /></div></section></div> : null}
-      {controlTab === "apps & roles" ? <section className="roleAppGrid">{roleLabels.map((roleName) => { const key = `role_${roleName}`; const saved = selected.features.find((feature) => feature.key === key); const enabled = saved?.enabled ?? (selected.roleCounts[roleName] ?? 0) > 0; return <article className="panel roleAppCard" key={roleName}><div><span className="clientAvatar">{roleName.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${enabled ? "active" : "paused"}`}>{enabled ? "Enabled" : "Disabled"}</span></div><h3>{titleFromSlug(roleName)} App</h3><p>{roleName === "tenant" ? "Dues, passes, community and resident services." : roleName === "guard" ? "Visitor entry, gate passes and security workflows." : "Role-specific access to the client workspace."}</p><footer><small>{selected.roleCounts[roleName] ?? 0} active accounts</small><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></footer></article>; })}</section> : null}
-      {controlTab === "features" ? <section className="panel"><PanelTitle title="Feature access" meta="Changes apply to every enabled role app" /><div className="featureManagementTable">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <div key={key}><span><strong>{titleFromSlug(key)}</strong><small>Control this capability across the client workspace.</small></span><em>{enabled ? "In use" : "Not in use"}</em><b>{selected.planName}</b><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></div>; })}</div></section> : null}
+      {controlTab === "setup" ? <section className="panel setupControl"><PanelTitle title="Setup checklist" meta={titleFromSlug(selected.workspaceStatus || "active")} /><div className="setupChecklist">{[["Workspace created", true],["Rooms added", Boolean(controlData?.floors.some((floor) => floor.rooms.length))],["People imported", Boolean(controlData?.people.length)],["Accounts generated", Boolean(controlData?.accounts.length)],["Features selected", Boolean(selected.features.length)],["Branding applied", Boolean(selected.themeColor)],["Billing started", selected.planStatus === "active"]].map(([label, complete]) => <div key={String(label)}><span className={complete ? "complete" : "pending"}>{complete ? "✓" : "!"}</span><b>{label}</b><small>{complete ? "Complete" : "Still required"}</small></div>)}</div>{selected.workspaceStatus !== "active" ? <Link className="gradientButton" href={`/1forge/platform/new?org=${selected.id}`}>Continue setup wizard</Link> : null}</section> : null}
+      {controlTab === "people" ? <section className="panel"><PanelTitle title="People directory" meta={`${controlData?.people.length ?? 0} people`} /><div className="controlTable peopleControlTable"><div><b>Name</b><b>Type</b><b>Room</b><b>Status</b></div>{controlData?.people.map((person) => <div key={person.id}><span><strong>{person.full_name}</strong><small>{person.phone}</small></span><span>{titleFromSlug(person.person_type)}</span><span>{person.room_number || "—"}</span><span className={`statusPill ${person.status}`}>{person.status}</span></div>)}</div></section> : null}
+      {controlTab === "accounts" ? <section className="panel"><PanelTitle title="Accounts & credentials" meta={`${controlData?.accounts.length ?? 0} logins`} />{oneTimeCredential ? <div className="credentialNotice"><b>Temporary password—copy now</b><code>{oneTimeCredential.loginId}</code><code>{oneTimeCredential.temporaryPassword}</code><button onClick={() => setOneTimeCredential(null)} type="button">Done</button></div> : null}<div className="controlTable accountControlTable"><div><b>Person</b><b>Login ID</b><b>Roles</b><b>Status</b><b>Actions</b></div>{controlData?.accounts.map((account) => <div key={account.id}><span><strong>{account.full_name}</strong><small>{account.phone}</small></span><code>{account.email}</code><span>{account.roles.join(", ")}</span><span className={`statusPill ${account.account_status}`}>{account.force_password_change ? "Password reset required" : account.account_status}</span><span className="tableActions"><button onClick={() => resetAccountPassword(account.id)} type="button">Reset password</button><button onClick={() => updateAccountStatus(account.id, account.account_status === "active" ? "suspended" : "active")} type="button">{account.account_status === "active" ? "Suspend" : "Activate"}</button></span></div>)}</div></section> : null}
+      {controlTab === "rooms" ? <section className="panel"><PanelTitle title="Property structure" meta={`${controlData?.floors.reduce((sum, floor) => sum + floor.rooms.length, 0) ?? 0} rooms`} /><div className="controlFloorGrid">{controlData?.floors.map((floor) => <article key={floor.id}><h3>{floor.floor_name}</h3><div>{floor.rooms.map((room) => <span key={room.id}><b>{room.room_number}</b><small>{room.current_occupancy}/{room.capacity} occupied</small><em>₹{Number(room.monthly_rent).toLocaleString("en-IN")}</em></span>)}</div></article>)}</div></section> : null}
+      {controlTab === "apps & roles" ? <section className="roleAppGrid">{roleLabels.map((roleName) => { const dashboard = controlData?.roleDashboards.find((item) => item.role === roleName); const key = `role_${roleName}`; const saved = selected.features.find((feature) => feature.key === key); const enabled = dashboard ? dashboard.status === "active" : saved?.enabled ?? (selected.roleCounts[roleName] ?? 0) > 0; return <article className="panel roleAppCard" key={roleName}><div><span className="clientAvatar">{roleName.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${enabled ? "active" : "paused"}`}>{enabled ? "Enabled" : titleFromSlug(dashboard?.status || "Disabled")}</span></div><h3>{titleFromSlug(roleName)} App</h3><p>{roleName === "tenant" ? "Dues, passes, community and resident services." : roleName === "guard" ? "Visitor entry, gate passes and security workflows." : "Role-specific access to the client workspace."}</p><footer><small>{selected.roleCounts[roleName] ?? 0} active accounts</small><label className="switch"><input checked={enabled} onChange={(event) => updateRoleDashboard(roleName, event.target.checked)} type="checkbox"/><i /></label></footer></article>; })}</section> : null}
+      {controlTab === "features" ? <section className="panel"><PanelTitle title="Feature access" meta="Client and role-level policy" /><div className="featureManagementTable">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <div key={key}><span><strong>{titleFromSlug(key)}</strong><small>Control this capability across the client workspace.</small></span><em>{enabled ? "In use" : "Not in use"}</em><b>{selected.planName}</b><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></div>; })}</div><div className="rolePermissionMatrix"><h3>Role feature permissions</h3><div className="permissionMatrixHead"><b>Feature</b>{roleLabels.map((role) => <b key={role}>{titleFromSlug(role)}</b>)}</div>{featureKeys.map((feature) => <div key={feature}><strong>{titleFromSlug(feature)}</strong>{roleLabels.map((role) => { const saved = controlData?.rolePermissions.find((permission) => permission.role === role && permission.feature_key === feature); const allowed = saved?.is_allowed !== false; return <label key={role}><input aria-label={`${titleFromSlug(role)} ${titleFromSlug(feature)}`} checked={allowed} onChange={(event) => updateRolePermission(role, feature, event.target.checked)} type="checkbox"/><span>{allowed ? "Allow" : "Block"}</span></label>; })}</div>)}</div></section> : null}
+      {controlTab === "access overrides" ? <div className="overrideControlGrid"><form className="panel overrideForm" onSubmit={saveAccessOverride}><PanelTitle title="Add access override" meta="Advanced control" /><label><span>User</span><select onChange={(event) => { const account = controlData?.accounts.find((item) => item.id === event.target.value); setOverrideDraft((current) => ({ ...current, userId: event.target.value, role: account?.roles[0] || current.role })); }} required value={overrideDraft.userId}><option value="">Select account</option>{controlData?.accounts.map((account) => <option key={account.id} value={account.id}>{account.full_name} · {account.email}</option>)}</select></label><label><span>Role</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, role: event.target.value }))} value={overrideDraft.role}>{(controlData?.accounts.find((item) => item.id === overrideDraft.userId)?.roles || roleLabels).map((role) => <option key={role}>{role}</option>)}</select></label><label><span>Feature</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, featureKey: event.target.value }))} value={overrideDraft.featureKey}>{featureKeys.map((feature) => <option key={feature} value={feature}>{titleFromSlug(feature)}</option>)}</select></label><label><span>Access</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, decision: event.target.value }))} value={overrideDraft.decision}><option value="block">Block</option><option value="allow">Allow</option></select></label><label><span>Reason</span><textarea onChange={(event) => setOverrideDraft((current) => ({ ...current, reason: event.target.value }))} value={overrideDraft.reason}/></label><label><span>Expiry date (optional)</span><input onChange={(event) => setOverrideDraft((current) => ({ ...current, expiresAt: event.target.value }))} type="date" value={overrideDraft.expiresAt}/></label><button className="gradientButton" type="submit">Save override</button></form><section className="panel"><PanelTitle title="Active overrides" meta={`${controlData?.accessOverrides.length ?? 0} rules`} /><div className="overrideList">{controlData?.accessOverrides.map((override) => <div key={override.id}><span className={`statusPill ${override.decision === "allow" ? "active" : "paused"}`}>{override.decision}</span><p><strong>{override.user.full_name}</strong><small>{titleFromSlug(override.role)} · {titleFromSlug(override.feature_key)}</small></p><span>{override.reason || "No reason supplied"}</span><button onClick={() => deleteAccessOverride(override.id)} type="button">Remove</button></div>)}</div></section></div> : null}
       {controlTab === "theme & branding" ? <section className="brandingGrid"><div className="panel brandingControls"><PanelTitle title="Client theme" meta="Applies across all role apps" /><label><span>Primary theme colour</span><div className="brandColorField"><input type="color" value={selected.themeColor || "#7c5cff"} onChange={(event) => updateOrganization({ themeColor: event.target.value })}/><strong>{selected.themeColor || "#7c5cff"}</strong></div></label><p>The saved colour is loaded automatically whenever an owner, warden, guard, staff member, tenant, or parent signs into this client.</p><div className="applyRoleList">{roleLabels.map((roleName) => <span key={roleName}>✓ {titleFromSlug(roleName)} App</span>)}</div></div><div className="panel brandPreview" style={{ "--preview-accent": selected.themeColor || "#7c5cff" } as CSSProperties}><PanelTitle title="Live preview" meta="Workspace shell" /><div className="brandPreviewWindow"><aside><b>{selected.name.slice(0, 1)}</b><i/><i/><i/></aside><main><small>{selected.name}</small><h3>Good morning, team.</h3><div><span/><span/><span/></div><button type="button">Primary action</button></main></div></div></section> : null}
       {controlTab === "billing" ? <section className="panel"><PanelTitle title="Subscription & billing" meta={`${money(selected.monthlyPrice)}/month`} /><div className="platformControlGrid"><label><span>Plan</span><select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.price_monthly)}/mo</option>)}</select></label><label><span>Subscription status</span><select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>{["active", "trialing", "paused", "canceled", "expired"].map((status) => <option key={status} value={status}>{titleFromSlug(status)}</option>)}</select></label><label><span>Renewal / expiry date</span><input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""}/></label><label><span>Licensed capacity</span><input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity}/></label></div></section> : null}
     </div>;
   }
 
   return <div className="platformPage">
-    <PlatformPageHeader eyebrow="1Forge / Control center" title="Dashboard" copy="A focused view of every HostIn client and what needs your attention." />
+    <PlatformPageHeader eyebrow="1Forge / Control center" title="Dashboard" copy="A focused view of every HostIn client and what needs your attention." action={<Link className="gradientButton" href="/1forge/platform/new">+ Add client</Link>} />
     <div className="platformKpis"><PlatformKpi label="Total clients" value={organizations.length} note="Across all plans"/><PlatformKpi label="Active clients" value={activeOrganizations.length} note={`${organizations.length ? Math.round(activeOrganizations.length / organizations.length * 100) : 0}% active rate`}/><PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note="Current subscribed plans"/><PlatformKpi label="Pending payments" value={organizations.filter((item) => ["paused", "expired"].includes(item.planStatus)).length} note="Clients need action" tone="warning"/></div>
-    <section className="clientDirectory"><div className="clientDirectoryTools"><div><h3>Clients</h3><span>{filteredOrganizations.length} shown</span></div><input aria-label="Search clients" onChange={(event) => setQuery(event.target.value)} placeholder="Search by client, owner, city or plan" value={query}/><div className="clientFilters">{["all", "active", "trialing", "paused", "suspended"].map((item) => <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">{titleFromSlug(item)}</button>)}</div></div><div className="clientCardGrid">{filteredOrganizations.map((organization) => <Link className="panel platformClientCard" href={`/1forge/platform/${organization.slug}`} key={organization.id}><header><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${organization.planStatus}`}>{organization.isActive ? organization.planStatus : "suspended"}</span></header><div><h3>{organization.name}</h3><p>{organization.cityState || organization.ownerName}</p></div><div className="clientPlanLine"><span>{organization.planName}</span><strong>{money(organization.monthlyPrice)}<small>/month</small></strong></div><div className="clientQuickStats"><span><b>{organization.activeTenantsCount}</b>Tenants</span><span><b>{organization.totalCapacity}</b>Capacity</span><span><b>{organization.memberCount}</b>Accounts</span><span><b>{organization.features.filter((item) => item.enabled).length}</b>Features</span></div><footer><span className={organization.isActive ? "healthy" : "attention"}>● {organization.isActive ? "Healthy" : "Needs attention"}</span><b>Manage client →</b></footer></Link>)}</div></section>
+    <section className="clientDirectory"><div className="clientDirectoryTools"><div><h3>Clients</h3><span>{filteredOrganizations.length} shown</span></div><input aria-label="Search clients" onChange={(event) => setQuery(event.target.value)} placeholder="Search by client, owner, city or plan" value={query}/><div className="clientFilters">{["all", "active", "trialing", "paused", "suspended", "setup"].map((item) => <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">{titleFromSlug(item)}</button>)}</div></div><div className="clientCardGrid">{filteredOrganizations.map((organization) => { const displayStatus = organization.workspaceStatus && organization.workspaceStatus !== "active" ? organization.workspaceStatus : organization.isActive ? organization.planStatus : "suspended"; return <Link className="panel platformClientCard" href={`/1forge/platform/${organization.slug}`} key={organization.id}><header><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${displayStatus}`}>{titleFromSlug(displayStatus)}</span></header><div><h3>{organization.name}</h3><p>{organization.cityState || organization.ownerName}</p></div><div className="clientPlanLine"><span>{organization.planName}</span><strong>{money(organization.monthlyPrice)}<small>/month</small></strong></div><div className="clientQuickStats"><span><b>{organization.activeTenantsCount}</b>Tenants</span><span><b>{organization.totalCapacity}</b>Capacity</span><span><b>{organization.memberCount}</b>Accounts</span><span><b>{organization.features.filter((item) => item.enabled).length}</b>Features</span></div><footer><span className={organization.workspaceStatus === "active" ? "healthy" : "attention"}>● {organization.workspaceStatus === "active" ? "Healthy" : "Setup needs attention"}</span><b>Manage client →</b></footer></Link>; })}</div></section>
   </div>;
 }
 
-function PlatformPageHeader({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) { return <header className="platformPageHeader"><div><p className="crumb">{eyebrow}</p><h2>{title}</h2><p>{copy}</p></div><span>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span></header>; }
+function PlatformPageHeader({ eyebrow, title, copy, action }: { eyebrow: string; title: string; copy: string; action?: ReactNode }) { return <header className="platformPageHeader"><div><p className="crumb">{eyebrow}</p><h2>{title}</h2><p>{copy}</p></div><div className="platformHeaderAside"><span>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span>{action}</div></header>; }
 function PlatformKpi({ label, value, note, tone }: { label: string; value: string | number; note: string; tone?: string }) { return <article className="panel platformKpi"><span>{label}</span><strong>{value}</strong><small className={tone || ""}>{note}</small></article>; }
 
 function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: string }) {
