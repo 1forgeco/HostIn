@@ -1,272 +1,254 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useColorTheme } from "./components/theme-system";
+import Image from "next/image";
 
-const roles = [
-  { key: "owner", label: "Owner", email: "owner" },
-  { key: "warden", label: "Warden", email: "warden" },
-  { key: "security", label: "Security", email: "security" },
-  { key: "tenant", label: "Tenant", email: "tenant" },
-  { key: "parent", label: "Parent", email: "parent" },
+const pains = [
+  ["01", "Rooms are hard to track", "No clear view of vacant beds, occupied rooms, or upcoming availability."],
+  ["02", "Rent follow-ups eat your day", "Pending dues are scattered across notebooks, sheets, and personal chats."],
+  ["03", "Gate registers get messy", "Entry, exit, visitor, and gate pass records are difficult to check later."],
+  ["04", "Complaints disappear", "Important requests get buried under everyday WhatsApp messages."],
+  ["05", "Parents keep calling", "There is no simple, privacy-safe way to share the right updates."],
+  ["06", "Staff works without one system", "Owners cannot see whether daily tasks are actually moving."],
 ];
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+const features = [
+  ["▦", "Rooms & occupancy", "See every floor, room, bed, and vacancy in one visual map."],
+  ["◎", "Tenant management", "Keep profiles, documents, room details, and guardian information together."],
+  ["₹", "Dues & payments", "Track rent, charges, payment history, pending dues, and reminders."],
+  ["↗", "Gate passes", "Move requests, approvals, check-out, and return into one clean flow."],
+  ["⌂", "Visitor management", "Record visitors and maintain a searchable check-in and check-out history."],
+  ["◌", "Complaints & community", "Organize notices, complaints, discussions, and lost & found."],
+  ["◇", "Mess & feedback", "Publish the weekly menu and understand how residents feel about meals."],
+  ["♥", "Parent access", "Share selected ward, dues, announcement, and gate pass updates safely."],
+];
 
-function titleCase(value: string) {
-  return value
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
-    .join(" ");
-}
+const roleData = {
+  Owner: ["Business at a glance", "Occupancy and revenue", "Pending dues", "Staff and reports"],
+  Warden: ["Daily operations", "Rooms and tenants", "Gate pass approvals", "Complaints and mess"],
+  Guard: ["Approved gate passes", "Visitor entry", "Check-in and check-out", "Clear daily log"],
+  Tenant: ["Room and dues", "Gate pass requests", "Complaints", "Mess menu and notices"],
+  Parent: ["Selected ward updates", "Gate pass history", "Dues visibility", "Announcements"],
+};
+
+const rolePromise = {
+  Owner: "Know what needs attention before someone calls you.",
+  Warden: "Move the day forward without juggling five registers.",
+  Guard: "See the next approved action, clearly and quickly.",
+  Tenant: "Handle hostel life without waiting at the office.",
+  Parent: "Stay reassured with the right updates—not every detail.",
+};
+
+const journeySteps = [
+  ["01", "Start with the whole picture", "Occupancy, dues, requests, and activity settle into one calm owner view."],
+  ["02", "Open any room", "Move from property health to the exact bed and resident in a single step."],
+  ["03", "Keep the gate moving", "Approved passes and visitor records reach the guard without phone calls."],
+  ["04", "Close the rent loop", "Collections, pending dues, and reminders stay visible to the right people."],
+  ["05", "Keep everyone informed", "Notices, complaints, meal feedback, and parent updates stay organized."],
+];
+
+const faqs = [
+  ["Will 1Forge set it up for us?", "Yes. We help map your property, rooms, users, and workflows, then train the people who will use Hostin every day."],
+  ["Can my warden and guard use it separately?", "Yes. Each person gets a focused view for their work, so guards do not have to navigate owner or warden tools."],
+  ["Can tenants and parents access Hostin?", "Yes. They see only the information and actions selected for their role and property."],
+  ["Can I start with only a few features?", "Yes. Start with the modules you need now and add more as your operations grow."],
+  ["Is Hostin useful for a small PG?", "Yes. Hostin can simplify a single property today and support more beds or properties later."],
+  ["Can it support multiple properties?", "Yes. Custom plans can be configured for owners running multiple PGs, hostels, or co-living properties."],
+];
 
 export default function LandingPage() {
-  useColorTheme();
-  const [propertyName, setPropertyName] = useState("City Complex");
-  const [ownerName, setOwnerName] = useState("City Complex Admin");
-  const [city, setCity] = useState("Bengaluru");
-  const slug = useMemo(() => slugify(propertyName) || "city-complex", [propertyName]);
-  const domain = `${slug}.hostin.local`;
+  const [activeRole, setActiveRole] = useState<keyof typeof roleData>("Owner");
+  const [openFaq, setOpenFaq] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    const items = Array.from(document.querySelectorAll<HTMLElement>(
+      ".marketingPage .landingSection > *, .painCard, .featureCard, .audienceGrid article, .pricingCard, .whyGrid article, .steps article"
+    ));
+
+    items.forEach((item, index) => {
+      item.classList.add("revealItem");
+      item.style.setProperty("--reveal-delay", `${(index % 5) * 70}ms`);
+    });
+
+    const page = document.querySelector<HTMLElement>(".marketingPage");
+    const nav = document.querySelector<HTMLElement>(".marketingNav");
+    let frame = 0;
+    const updateScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const range = document.documentElement.scrollHeight - window.innerHeight;
+        page?.style.setProperty("--scroll-progress", `${range > 0 ? window.scrollY / range : 0}`);
+        nav?.classList.toggle("isScrolled", window.scrollY > 24);
+      });
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -7%" }
+    );
+
+    items.forEach((item) => observer.observe(item));
+    updateScroll();
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", updateScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   return (
-    <main>
-      <header className="topbar">
-        <button className="brand" type="button">
-          <span>host</span>in<span>.</span>
-        </button>
+    <main className="marketingPage">
+      <div className="scrollProgress" aria-hidden="true" />
+      <header className="topbar marketingNav">
+        <a className="brand markBrand" href="#top" aria-label="Hostin home"><Image src="/brand/hostin-mark.png" alt="" width={52} height={52} priority /></a>
         <nav className="topnav" aria-label="Public navigation">
-          <a href="#about">About</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#consultation">Consultation</a>
-          <a href="#careers">Careers</a>
-          <a href="#contact">Contact</a>
+          <a href="#features">Features</a><a href="#roles">Who it helps</a><a href="#setup">Setup</a><Link href="/plans">Plans</Link>
         </nav>
-        <Link className="gradientButton" href="/login">
-          Get Started
-        </Link>
+        <div className="navActions"><Link className="navDemo" href="/login#demo-accounts">Try demo</Link><Link className="navLogin" href="/login">Log in</Link><a className="gradientButton" href="#demo">Book free demo</a></div>
       </header>
 
-      <section className="productHero landingHero">
-        <div>
-          <p className="pill">Multi-tenant PG & hostel SaaS</p>
-          <h1>Every property gets its own private app.</h1>
-          <p>
-            Create a workspace slug, generate role-based portals, issue login accounts, and manage subscriptions from
-            one platform panel.
-          </p>
+      <section className="newHero" id="top">
+        <div className="heroCopy">
+          <p className="pill">Hostel management, handled.</p>
+          <h1>Run your PG like a <em>real business.</em></h1>
+          <p>Manage rooms, tenants, rent, gate passes, complaints, mess, staff, and parents from one modern platform—set up for you by 1Forge.</p>
+          <div className="heroActions"><a className="gradientButton" href="#demo">Book free demo <span>→</span></a><Link className="outlineButton" href="/login#demo-accounts">Try live demo</Link><a className="heroFeatureLink" href="#features">Explore features ↓</a></div>
+          <div className="heroProof"><span>✓ Guided setup</span><span>✓ No tech team needed</span><span>✓ Built for Indian hostels</span></div>
         </div>
-        <div className="heroConsole">
-          <div>
-            <span>Workspace URL</span>
-            <strong>/{slug}</strong>
-          </div>
-          <div>
-            <span>Main account</span>
-            <strong>{roles.length}</strong>
-          </div>
-          <div>
-            <span>Billing state</span>
-            <strong>Trial</strong>
-          </div>
-        </div>
+        <DashboardPreview />
       </section>
 
-      <section className="landingSection aboutSection" id="about">
-        <div className="landingSectionHeader">
-          <p className="sectionEyebrow">About HostIn</p>
-          <h2>One operating system for PGs, hostels, and shared living properties.</h2>
-          <p>
-            HostIn gives every customer a private workspace with role-based portals for owners, wardens, security teams,
-            tenants, parents, staff, and platform admins.
-          </p>
-        </div>
-        <div className="serviceCards">
-          {[
-            ["Private workspaces", "Each property runs on its own slug, users, roles, and data."],
-            ["Role-aware app", "Owners, wardens, tenants, parents, and security see only their allowed modules."],
-            ["Operations ready", "Rooms, dues, visitors, gate passes, complaints, mess, documents, and notices."],
-          ].map(([title, copy]) => (
-            <article className="serviceCard" key={title}>
-              <span>{title.slice(0, 2)}</span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
+      <ProductJourney />
+
+      <section className="painBand landingSection">
+        <div className="splitHeading"><div><p className="sectionEyebrow">The daily reality</p><h2>Still managing your hostel on registers and WhatsApp?</h2></div><p>Manual systems work—until your property grows, your team gets busy, and important details start slipping through the cracks.</p></div>
+        <div className="painGrid">{pains.map(([number,title,copy]) => <article className="painCard" key={title}><span>{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
+        <ChaosToClarity />
       </section>
 
-      <section className="landingSection pricingSection" id="pricing">
-        <div className="landingSectionHeader">
-          <p className="sectionEyebrow">Pricing</p>
-          <h2>Start with a trial, then scale by property size.</h2>
-          <p>Keep billing tied to the same workspace that stores every room, tenant, and module permission.</p>
-        </div>
-        <div className="pricingGrid">
-          {[
-            ["Starter", "For single PGs testing digital operations", "15-day trial", "Rooms, tenants, dues, notices"],
-            [
-              "Growth",
-              "For active hostels with staff workflows",
-              "Most useful",
-              "Gate, visitors, complaints, documents",
-            ],
-            ["Portfolio", "For owners managing multiple properties", "Custom", "Multi-property controls and support"],
-          ].map(([title, copy, badge, features]) => (
-            <article className="pricingCard" key={title}>
-              <span>{badge}</span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-              <strong>{features}</strong>
-            </article>
-          ))}
-        </div>
+      <BeforeAfter />
+
+      <section className="ecosystem landingSection">
+        <div className="landingSectionHeader"><p className="sectionEyebrow">One connected system</p><h2>Hostin brings your entire hostel into one place.</h2><p>Owners, wardens, guards, tenants, staff, and parents get the right tools for their part of the day.</p></div>
+        <div className="orbit"><div className="orbitCenter"><Image className="orbitLogo" src="/brand/hostin-mark.png" alt="Hostin" width={76} height={76} /><strong>Your property,<br/>under control</strong></div>{["Owner","Warden","Guard","Tenant","Parent","Staff"].map((role, index) => <div className={`orbitRole orbitRole${index + 1}`} key={role}><i>{role.charAt(0)}</i>{role}</div>)}</div>
       </section>
 
-      <section className="landingSection consultationSection" id="consultation">
-        <div className="consultationPanel">
-          <div>
-            <p className="sectionEyebrow">Consultation</p>
-            <h2>Map your property setup before launch.</h2>
-            <p>
-              We collect floors, rooms, capacities, staff roles, subscription needs, and module access, then generate
-              the workspace and first login accounts.
-            </p>
-          </div>
-          <a className="gradientButton" href="#contact">
-            Start setup
-          </a>
-        </div>
+      <section className="landingSection" id="features">
+        <div className="splitHeading"><div><p className="sectionEyebrow">Everything you need</p><h2>One place for every moving part.</h2></div><p>From the first vacant bed to the last rent reminder, Hostin keeps your team on the same page.</p></div>
+        <div className="featureGrid">{features.map(([icon,title,copy], index) => <article className="featureCard" key={title}><span>{icon}</span><h3>{title}</h3><p>{copy}</p><FeatureMini index={index} /><a href="#demo">See how it works <b>→</b></a></article>)}</div>
       </section>
 
-      <section className="landingSection careersSection" id="careers">
-        <div className="landingSectionHeader">
-          <p className="sectionEyebrow">Careers</p>
-          <h2>Build practical software for real hostel operations.</h2>
-          <p>We keep roles lean and product-focused: engineering, implementation, support, and customer onboarding.</p>
-        </div>
-        <div className="careerGrid">
-          {["Full-stack product engineer", "Implementation specialist", "Customer support associate"].map(
-            (roleName) => (
-              <article className="careerCard" key={roleName}>
-                <h3>{roleName}</h3>
-                <p>Help properties move from manual work to clean daily workflows.</p>
-                <a href="#contact">Contact team</a>
-              </article>
-            )
-          )}
-        </div>
+      <section className="showcase landingSection roomShowcase">
+        <div className="showcaseCopy"><p className="sectionEyebrow">The clearest room view</p><h2>See every room, bed, and vacancy at a glance.</h2><p>Instead of searching through registers or spreadsheets, your warden can instantly see what is full, what is available, and who is staying where.</p><ul><li>Floor-wise visual room map</li><li>Live full, partial, and vacant status</li><li>Open any room to view resident details</li></ul><a className="textLink" href="#demo">See Hostin for your property →</a></div>
+        <RoomMap />
       </section>
 
-      <section className="landingWorkspace" id="create">
-        <section className="panel setupPanel">
-          <div className="panelTitle">
-            <h2>Create customer workspace</h2>
-            <span>Public landing</span>
-          </div>
-          <div className="setupGrid">
-            <label>
-              <span>PG / Hostel name</span>
-              <input value={propertyName} onChange={(event) => setPropertyName(event.target.value)} />
-            </label>
-            <label>
-              <span>Owner / main account name</span>
-              <input value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
-            </label>
-            <label>
-              <span>City</span>
-              <input value={city} onChange={(event) => setCity(event.target.value)} />
-            </label>
-            <label>
-              <span>Generated slug</span>
-              <input value={slug} readOnly />
-            </label>
-          </div>
-        </section>
+      <OwnerCommandCenter />
 
-        <aside className="panel subscriptionPanel" id="platform">
-          <div className="panelTitle">
-            <h2>Subscription control</h2>
-            <span>Platform</span>
-          </div>
-          <div className="billingRows">
-            <div>
-              <span>Workspace</span>
-              <strong>{titleCase(slug)}</strong>
-            </div>
-            <div>
-              <span>Plan</span>
-              <strong>Growth trial</strong>
-            </div>
-            <div>
-              <span>Trial</span>
-              <strong>15 days</strong>
-            </div>
-            <div>
-              <span>Status</span>
-              <strong>Active</strong>
-            </div>
-          </div>
-          <Link className="outlineButton fullButton" href="/login">
-            Open platform panel
-          </Link>
-        </aside>
+      <section className="roleSection landingSection" id="roles">
+        <div className="landingSectionHeader"><p className="sectionEyebrow">Made for the whole team</p><h2>One platform. Different views for everyone.</h2><p>Everyone gets what they need—without the clutter they do not.</p></div>
+        <div className="roleTabs" role="tablist">{Object.keys(roleData).map(role => <button key={role} className={activeRole === role ? "active" : ""} onClick={() => setActiveRole(role as keyof typeof roleData)}>{role}</button>)}</div>
+        <div className="rolePreview"><div className="roleScreen" key={`screen-${activeRole}`}><div className="miniSidebar"><Image className="miniBrandMark" src="/brand/hostin-mark.png" alt="Hostin" width={36} height={36} />{["Overview","Rooms","Residents","Payments","Community"].map((item,index)=><span className={index===0?"selected":""} key={item}>{item}</span>)}</div><div className="miniMain"><small>{activeRole} dashboard</small><h3>Good morning, {activeRole}.</h3><div className="miniMetrics">{roleData[activeRole].slice(0,3).map((item,index)=><div key={item}><span>{item}</span><strong>{["92%","₹48k","12"][index]}</strong></div>)}</div><div className="miniChart"><span style={{height:"44%"}}/><span style={{height:"63%"}}/><span style={{height:"52%"}}/><span style={{height:"78%"}}/><span style={{height:"88%"}}/><span style={{height:"72%"}}/></div></div></div><div className="roleBenefits" key={`benefits-${activeRole}`}><span className="roleInitial">{activeRole.charAt(0)}</span><h3>{activeRole} view</h3><em>{rolePromise[activeRole]}</em>{roleData[activeRole].map(item => <p key={item}>✓ {item}</p>)}</div></div>
       </section>
 
-      <section className="landingWorkspace accountsSection" id="accounts">
-        <section className="panel widePanel">
-          <div className="panelTitle">
-            <h2>Generated role portals</h2>
-            <span>{domain}</span>
-          </div>
-          <div className="accountGrid">
-            {roles.map((role) => {
-              const email = `${role.email}@${slug}.hostin.local`;
-              return (
-                <article className="accountCard" key={role.key}>
-                  <div>
-                    <p>{role.label}</p>
-                    <h3>{email}</h3>
-                    <span>Temporary password: {slug}@123</span>
-                  </div>
-                  <Link className="gradientButton" href="/login">
-                    Common login
-                  </Link>
-                  <small>Routes automatically after sign-in</small>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </section>
+      <section className="darkSection landingSection safetySection"><div><p className="sectionEyebrow">Safer daily operations</p><h2>More control for your staff.<br/>More trust for parents.</h2><p>Digital gate pass records, visitor logs, emergency contacts, entry history, and trackable complaints create a clear record of everyday hostel life.</p><div className="safetyTags">{["Gate pass records","Visitor logs","Entry history","Emergency contacts","Staff accountability","Complaint tracking"].map(x=><span key={x}>✓ {x}</span>)}</div></div><div className="gateCard"><div className="gateHead"><span>Today at the gate</span><b>Live</b></div>{[["Aarav Mehta","Out • 6:40 PM"],["Nisha Rao","Returned • 7:12 PM"],["Visitor: R. Singh","Checked in • 7:25 PM"]].map(([name,status],i)=><div className="gateRow" key={name}><i>{i===2?"V":name.charAt(0)}</i><p><strong>{name}</strong><span>{status}</span></p><b>✓</b></div>)}</div></section>
 
-      <section className="landingSection contactSection" id="contact">
-        <div className="contactGrid">
-          <div>
-            <p className="sectionEyebrow">Contact</p>
-            <h2>Bring your PG or hostel online with one clean workspace.</h2>
-            <p>
-              Use the setup panel above to preview role emails and slugs, then connect the workspace to live onboarding.
-            </p>
-          </div>
-          <div className="contactCard">
-            <span>Email</span>
-            <strong>hello@hostin.local</strong>
-            <span>Demo workspace</span>
-            <strong>/{slug}/owner</strong>
-            <Link className="gradientButton fullButton" href="/login">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </section>
+      <section className="showcase landingSection financeShowcase"><div className="financeMock"><div className="financeTop"><span>June collections</span><b>₹4,86,000</b><small>84% collected</small></div><div className="progress"><i/></div>{[["Paid","64 residents","₹4,86,000"],["Pending","12 residents","₹82,500"],["Overdue","4 residents","₹28,000"]].map(row=><div className="moneyRow" key={row[0]}><span>{row[0]}<small>{row[1]}</small></span><strong>{row[2]}</strong></div>)}</div><div className="showcaseCopy"><p className="sectionEyebrow">Payments made visible</p><h2>Stop chasing rent room to room.</h2><p>Know who paid, who did not, and what is pending—instantly. Track rent, electricity, damage charges, payment history, and reminders tenant by tenant.</p><a className="textLink" href="#demo">Explore dues and payments →</a></div></section>
+
+      <DayWithHostin />
+
+      <section className="communitySection landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">Calmer communication</p><h2>Replace scattered WhatsApp messages.</h2><p>Important updates stay organized, visible, and trackable in one shared community space.</p></div><div className="communityMock"><div className="communityTabs"><b>Announcements</b><span>Complaints</span><span>Lost & Found</span></div><article><i>HN</i><div><small>HOSTEL NOTICE • 10:30 AM</small><h3>Water tank cleaning on Sunday</h3><p>Supply will pause between 11 AM and 1 PM. Please plan accordingly.</p></div><b>New</b></article><article><i>RK</i><div><small>MAINTENANCE • ROOM 204</small><h3>Bathroom tap repair</h3><p>Assigned to Manoj • Expected today</p></div><b className="resolved">In progress</b></article></div></section>
+
+      <section className="parentStrip landingSection"><div><span className="bigIcon">♥</span><p className="sectionEyebrow">Parent confidence</p><h2>Give parents peace of mind—without giving up privacy.</h2><p>Parents can see selected ward updates, dues, gate pass history, and important announcements. Your hostel stays fully in control of what is shared.</p></div><div className="phoneMock"><div className="phoneTop"><Image className="phoneBrandMark" src="/brand/hostin-mark.png" alt="Hostin" width={30} height={30} /><span>Parent view</span></div><p>Good evening, Mrs. Sharma</p><div className="wardCard"><small>Your ward</small><strong>Ananya Sharma</strong><span>Room 302 • Checked in</span></div>{["Latest gate pass","Dues status","Announcements"].map((x,i)=><div className="phoneRow" key={x}><i>{["↗","₹","◌"][i]}</i><span>{x}<small>{["Returned at 7:12 PM","All paid","2 new updates"][i]}</small></span><b>›</b></div>)}</div></section>
+
+      <MobileExperience />
+
+      <section className="setupSection landingSection" id="setup"><div className="setupIntro"><p className="sectionEyebrow">Managed by 1Forge</p><h2>You do not need a tech team. We set it up for you.</h2><p>We map your property, configure the right tools, onboard your people, and stay around after launch.</p><div className="setupChecks">{["Property and room mapping","Staff account setup","Tenant onboarding support","Owner, warden, and guard training","Feature customization","Monthly support"].map(x=><span key={x}>✓ {x}</span>)}</div></div><div className="steps">{[["01","We understand your property","Rooms, beds, staff, rent cycle, and rules."],["02","We set up Hostin","Your data, users, features, and views."],["03","Your team goes live","Everyone gets access and practical training."],["04","We support you monthly","Updates, changes, and help when needed."]].map(([num,title,copy])=><article key={num}><b>{num}</b><div><h3>{title}</h3><p>{copy}</p></div></article>)}</div></section>
+
+      <IndianOperations />
+
+      <section className="modules landingSection"><div className="splitHeading"><div><p className="sectionEyebrow">Built around your property</p><h2>Start with what you need. Add more as you grow.</h2></div><p>Choose the parts that solve today’s problems. Your Hostin setup can evolve with your hostel.</p></div><div className="moduleCloud">{["Rooms","Tenants","Gate Pass","Visitors","Payments","Mess","Parent Portal","Community","Documents","Reports"].map((x,i)=><span className={i<4?"featured":""} key={x}>{i<4?"✓ ":"＋ "}{x}</span>)}</div></section>
+
+      <section className="audience landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">Who Hostin is for</p><h2>Made for properties of every shape and size.</h2></div><div className="audienceGrid">{["Boys PG","Girls PG","Student hostels","Professional PGs","College hostels","Co-living spaces","Multi-property owners","Staff accommodation"].map((x,i)=><article key={x}><span>{["♂","♀","⌂","◇","▦","◎","↗","◌"][i]}</span><h3>{x}</h3></article>)}</div></section>
+
+      <section className="whySection landingSection"><div><p className="sectionEyebrow">Why Hostin by 1Forge</p><h2>Not a generic CRM wearing a hostel badge.</h2><p>Hostin is designed around how Indian PGs and hostels actually operate—from the front gate to the owner’s reports.</p><a className="gradientButton" href="#demo">Talk to our team</a></div><div className="whyGrid">{["Purpose-built for PGs and hostels","Friendly for owners, staff, tenants, and parents","Setup and training handled by 1Forge","Works for one PG or a growing portfolio","Custom workflows when you need them","Ongoing monthly support available"].map((x,i)=><article key={x}><b>0{i+1}</b><p>{x}</p></article>)}</div></section>
+
+      <LiveDemoPreview />
+
+      <section className="faqSection landingSection"><div><p className="sectionEyebrow">Frequently asked</p><h2>Questions before you make the switch?</h2><p>Good. A new system should make sense before it becomes part of your day.</p></div><div className="faqList">{faqs.map(([question,answer],index)=><article className={openFaq===index?"open":""} key={question}><button onClick={()=>setOpenFaq(openFaq===index?-1:index)}><span>{question}</span><b>{openFaq===index?"−":"+"}</b></button>{openFaq===index&&<p>{answer}</p>}</article>)}</div></section>
+
+      <section className="demoSection landingSection" id="demo"><div className="demoCopy"><p className="sectionEyebrow">Your next, calmer workday</p><h2>Ready to make your hostel easier to manage?</h2><p>Book a free Hostin demo and see how your rooms, tenants, dues, gate passes, complaints, and staff operations can move into one clean system.</p><div className="demoPoint"><b>30 min</b><span>Personal product walkthrough</span></div><div className="demoPoint"><b>₹0</b><span>No-obligation consultation</span></div></div><form className="demoForm" onSubmit={event=>{event.preventDefault();setSubmitted(true)}}>{submitted?<div className="successMessage"><span>✓</span><h3>Demo request received.</h3><p>Thanks—we’ll get in touch to understand your property.</p><button type="button" className="outlineButton" onClick={()=>setSubmitted(false)}>Submit another</button></div>:<><h3>Book your free demo</h3><div className="formRow"><label><span>Your name</span><input required placeholder="Name" /></label><label><span>Phone number</span><input required type="tel" placeholder="+91 98765 43210" /></label></div><div className="formRow"><label><span>City</span><input required placeholder="Bengaluru" /></label><label><span>Property type</span><select defaultValue=""><option value="" disabled>Select type</option><option>PG</option><option>Hostel</option><option>Co-living</option><option>Other</option></select></label></div><label><span>Number of beds</span><input type="number" min="1" placeholder="e.g. 80" /></label><label><span>Anything we should know?</span><textarea placeholder="Tell us about your property or current challenges" /></label><button className="gradientButton fullButton" type="submit">Book free demo →</button><small>By submitting, you agree to be contacted about Hostin.</small></>}</form></section>
+
+      <footer className="marketingFooter"><a className="brand markBrand footerMark" href="#top" aria-label="Hostin home"><Image src="/brand/hostin-mark.png" alt="" width={52} height={52} /></a><p>A fully managed hostel and PG operating system by 1Forge.</p><div><a href="#features">Features</a><a href="#setup">Setup</a><Link href="/plans">Plans</Link><Link href="/login#demo-accounts">Try demo</Link><Link href="/login">Log in</Link></div><small>© {new Date().getFullYear()} 1Forge. Built for better hostel operations.</small></footer>
     </main>
   );
+}
+
+function DashboardPreview() {
+  return <div className="dashboardPreview"><div className="previewTop"><Image className="previewBrandMark" src="/brand/hostin-mark.png" alt="Hostin" width={30} height={30} /><span>City House · Owner</span><i>KS</i></div><div className="previewBody"><aside><b>Overview</b><span>Rooms</span><span>Residents</span><span>Payments</span><span>Gate activity</span><span>Community</span></aside><section><small>MONDAY, 28 JUNE</small><h3>Good morning, Kavya.</h3><div className="previewMetrics"><article><span>Occupancy</span><b>92%</b><small>74 of 80 beds</small></article><article><span>Pending dues</span><b>₹48k</b><small>12 residents</small></article><article><span>Gate passes</span><b>08</b><small>3 awaiting approval</small></article></div><div className="previewLower"><article><div><b>Room occupancy</b><span>View all</span></div><div className="tinyRooms">{["101","102","103","104","201","202","203","204"].map((x,i)=><i className={i===3||i===7?"empty":i===2?"partial":""} key={x}>{x}</i>)}</div></article><article><b>Today’s activity</b>{["Rent received","Gate pass approved","Complaint assigned"].map((x,i)=><p key={x}><i>{["₹","↗","!"][i]}</i><span>{x}<small>{["Room 201 · ₹8,500","Ananya · 6:30 PM","Room 304 · Plumbing"][i]}</small></span></p>)}</article></div></section></div></div>;
+}
+
+function ProductJourney() {
+  const [active, setActive] = useState(0);
+  return <section className="productJourney landingSection" aria-label="Hostin product journey">
+    <div className="journeyIntro"><p className="sectionEyebrow">Watch your hostel come into focus</p><h2>One day. One property. One connected view.</h2></div>
+    <div className="journeyLayout">
+      <div className="journeySteps">{journeySteps.map(([number,title,copy], index)=><button key={title} className={active===index?"active":""} onMouseEnter={()=>setActive(index)} onFocus={()=>setActive(index)} onClick={()=>setActive(index)}><b>{number}</b><span><strong>{title}</strong><small>{copy}</small></span></button>)}</div>
+      <div className={`journeyStage journeyStage${active}`}><div className="journeyBrowser"><div className="journeyChrome"><i/><i/><i/><span>app.hostin.in</span></div><div className="journeyUi"><aside><Image src="/brand/hostin-mark.png" alt="" width={32} height={32}/>{["⌂","▦","₹","↗","◌"].map((x,i)=><i className={i===active?"active":""} key={i}>{x}</i>)}</aside><div className="journeyCanvas"><small>{["OWNER OVERVIEW","ROOM 204","GATE ACTIVITY","JUNE COLLECTIONS","COMMUNITY"][active]}</small><h3>{["Everything that needs you.","Two beds. One available.","The gate knows what is approved.","₹4.86L collected this month.","Updates people can find again."][active]}</h3><div className="journeyMetricRow"><span><b>{["92%","2/3","08","84%","12"][active]}</b><small>{["occupancy","beds occupied","active passes","rent collected","open updates"][active]}</small></span><span><b>{["₹48k","1","03","12","94% "][active]}</b><small>{["pending dues","bed available","awaiting approval","pending payments","resolved"][active]}</small></span></div><div className="journeyChart">{[35,58,48,76,64,89,82].map((height,i)=><i style={{height:`${Math.max(20,height-active*3)}%`}} key={i}/>)}</div></div></div></div></div>
+    </div>
+  </section>;
+}
+
+function ChaosToClarity() {
+  return <div className="chaosClarity"><div className="chaosPile" aria-hidden="true"><span>Rent pending?</span><span>Visitor log</span><span>Room 204 tap</span><span>Gate pass photo</span><span>June.xlsx</span></div><div className="clarityArrow"><i>→</i><small>Hostin organizes the noise</small></div><div className="clarityStack"><span><i>▦</i><b>Rooms</b><small>5 beds available</small></span><span><i>₹</i><b>Dues</b><small>12 follow-ups</small></span><span><i>✓</i><b>Requests</b><small>All assigned</small></span></div></div>;
+}
+
+function BeforeAfter() {
+  return <section className="beforeAfter landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">A calmer operating system</p><h2>Same property. A very different workday.</h2></div><div className="comparisonGrid"><article><b>Before Hostin</b>{["Registers at the gate","Rent tracked in separate sheets","Complaints buried in chats","Owner calls for every update"].map(x=><p key={x}><i>×</i>{x}</p>)}</article><article><b>With Hostin</b>{["Searchable gate history","One live dues view","Trackable assigned requests","Owner sees attention points instantly"].map(x=><p key={x}><i>✓</i>{x}</p>)}</article></div></section>;
+}
+
+function FeatureMini({index}:{index:number}) {
+  const rows = [["201","Full"],["204","Vacant"],["302","2 / 3"]];
+  if(index===0) return <div className="featureMini roomMini">{rows.map(([a,b])=><span key={a}><b>{a}</b><small>{b}</small></span>)}</div>;
+  if(index===2) return <div className="featureMini duesMini"><span><b>₹4.86L</b><small>collected</small></span><i><b/></i></div>;
+  if(index===3) return <div className="featureMini passMini"><span>AM</span><p><b>Aarav</b><small>Approved · 6:30 PM</small></p><i>✓</i></div>;
+  return <div className="featureMini listMini"><span/><span/><span/></div>;
+}
+
+function OwnerCommandCenter() {
+  return <section className="ownerCenter landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">The owner command center</p><h2>See what needs attention—not another wall of data.</h2><p>Hostin turns daily activity into a short, useful operating brief.</p></div><div className="attentionBoard"><article><small>NEEDS ATTENTION</small><h3>Four things to close today</h3>{[["₹","12 overdue dues","Send grouped reminder"],["!","3 open complaints","Review assignments"],["↗","3 gate passes","Awaiting approval"],["▦","5 vacant beds","Ready to allocate"]].map(([icon,title,action])=><div key={title}><i>{icon}</i><span><b>{title}</b><small>{action}</small></span><strong>→</strong></div>)}</article><div className="ownerPulse"><span>Property pulse</span><b>Healthy</b><div><i style={{height:"44%"}}/><i style={{height:"58%"}}/><i style={{height:"54%"}}/><i style={{height:"78%"}}/><i style={{height:"92%"}}/></div><small>Occupancy and collections are trending up</small></div></div></section>;
+}
+
+function DayWithHostin() {
+  const events=[["7:15 AM","Guard","Night log handed over"],["9:30 AM","Warden","Vacant bed allocated"],["12:10 PM","Tenant","Rent receipt confirmed"],["4:45 PM","Owner","Pending dues reviewed"],["7:12 PM","Parent","Ward return update received"]];
+  return <section className="daySection landingSection"><div className="splitHeading"><div><p className="sectionEyebrow">A day with Hostin</p><h2>Every role moves the same day forward.</h2></div><p>No repeated calls. No mystery handovers. Each action becomes useful context for the next person.</p></div><div className="dayTimeline">{events.map(([time,role,event],i)=><article key={time}><b>{time}</b><i>{i+1}</i><span><small>{role}</small><strong>{event}</strong></span></article>)}</div></section>;
+}
+
+function MobileExperience() {
+  return <section className="mobileExperience landingSection"><div><p className="sectionEyebrow">Built for work on the move</p><h2>The useful part of the dashboard, right in your pocket.</h2><p>Wardens, guards, tenants, and owners can handle quick actions without squeezing a desktop screen onto a phone.</p><div className="mobileChips">{["Approve a gate pass","Log a visitor","Check dues","Post a notice"].map(x=><span key={x}>✓ {x}</span>)}</div></div><div className="phonePair"><div className="actionPhone"><small>WARDEN · TODAY</small><h3>3 approvals</h3><button>Approve gate pass <b>→</b></button><button>Assign complaint <b>→</b></button><button>View vacant beds <b>→</b></button></div><div className="actionPhone guard"><small>GUARD · LIVE</small><h3>Gate activity</h3><div><i>AM</i><span><b>Aarav Mehta</b><small>Approved until 9 PM</small></span><strong>OUT</strong></div><div><i>NS</i><span><b>Nisha Rao</b><small>Returned at 7:12 PM</small></span><strong>IN</strong></div></div></div></section>;
+}
+
+function IndianOperations() {
+  return <section className="indiaFlow landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">Built around Indian PG operations</p><h2>From the front gate to the owner’s monthly view.</h2><p>The workflow follows how your property actually runs, including the handoffs generic tools miss.</p></div><div className="flowTrack">{[["01","Enquiry","Bed availability"],["02","Move-in","KYC & allocation"],["03","Daily life","Gate, mess, complaints"],["04","Collections","Rent & charges"],["05","Visibility","Owner & parent updates"]].map(([n,title,copy])=><article key={n}><b>{n}</b><h3>{title}</h3><p>{copy}</p></article>)}</div></section>;
+}
+
+function LiveDemoPreview() {
+  const [role,setRole]=useState("Owner");
+  return <section className="livePreview landingSection"><div className="landingSectionHeader"><p className="sectionEyebrow">Try before the walkthrough</p><h2>Switch roles. See how focused each app feels.</h2></div><div className="livePreviewShell"><div className="livePreviewTabs">{["Owner","Warden","Guard"].map(x=><button className={role===x?"active":""} onClick={()=>setRole(x)} key={x}>{x}</button>)}</div><div className="livePreviewBody" key={role}><aside><Image src="/brand/hostin-mark.png" alt="" width={36} height={36}/><b>{role} view</b><span>Overview</span><span>Today</span><span>Activity</span></aside><section><small>LIVE PRODUCT PREVIEW</small><h3>{role==="Owner"?"Your property, summarized.":role==="Warden"?"Today’s work, prioritized.":"The next gate action, clear."}</h3><div className="previewTaskGrid">{(role==="Owner"?["92% occupied","₹48k pending","4 attention items"]:role==="Warden"?["5 vacant beds","3 approvals","2 open complaints"]:["8 active passes","2 visitors inside","All logs synced"]).map(x=><span key={x}><i>✓</i><b>{x}</b></span>)}</div><Link className="gradientButton" href="/login#demo-accounts">Open the full {role.toLowerCase()} demo →</Link></section></div></div></section>;
+}
+
+function RoomMap() {
+  const rooms = [["101","3 / 3","full"],["102","2 / 3","partial"],["103","3 / 3","full"],["104","0 / 2","empty"],["201","3 / 3","full"],["202","1 / 2","partial"],["203","2 / 2","full"],["204","0 / 3","empty"]];
+  const [selected,setSelected]=useState("204");
+  return <div className="roomMap"><div className="mapTop"><div><small>PROPERTY</small><strong>Sunrise Residency</strong></div><span>＋ Add room</span></div><div className="mapStats"><p><b>8</b><span>Rooms</span></p><p><b>19</b><span>Total beds</span></p><p><b>14</b><span>Occupied</span></p><p><b>5</b><span>Available</span></p></div><div className="floorTitle"><b>First & second floor</b><span><i/> Full <i/> Partial <i/> Vacant</span></div><div className="roomTiles">{rooms.map(([number,count,status])=><button type="button" aria-label={`View room ${number}`} onClick={()=>setSelected(number)} className={`${status} ${selected===number?"selected":""}`} key={number}><span>Room {number}</span><b>{count}</b><small>beds occupied</small></button>)}</div><div className="roomDetail" key={selected}><span><small>SELECTED ROOM</small><b>Room {selected}</b></span><span><small>RESIDENT</small><b>{selected==="204"?"Available now":"Resident details ready"}</b></span><button type="button">Open room →</button></div></div>;
 }

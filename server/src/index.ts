@@ -204,4 +204,10 @@ app.use((err: any, req: express.Request, res: express.Response, _next: express.N
 });
 
 // Start Server
-if (env.NODE_ENV !== "test") app.listen(env.PORT, () => logger.info({ port: env.PORT }, "HostIn API started"));
+// Vercel imports the Express application as a function. Local, Docker, and
+// traditional Node deployments still use the port listener.
+export default app;
+
+if (env.NODE_ENV !== "test" && !process.env.VERCEL) {
+  app.listen(env.PORT, () => logger.info({ port: env.PORT }, "HostIn API started"));
+}

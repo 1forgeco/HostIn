@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ColorThemeToggle, useColorTheme } from "./theme-system";
+import { applyCustomColor, ColorThemeToggle, useColorTheme } from "./theme-system";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
 type SectionId =
@@ -37,6 +37,7 @@ type LoginState = {
   orgId: string;
   userName: string;
   email: string;
+  themeColor?: string | null;
 };
 
 type Occupant = {
@@ -144,6 +145,12 @@ type PlatformOrganization = {
   roleCounts: Record<string, number>;
   features: { key: string; enabled: boolean }[];
   monthlyPrice: string | number;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  cityState?: string;
+  address?: string | null;
+  createdAt?: string;
+  themeColor?: string | null;
 };
 type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
 
@@ -366,7 +373,7 @@ function titleFromSlug(slug: string) {
     .join(" ");
 }
 
-export function WorkspaceApp({ workspace, role }: { workspace: string; role: string }) {
+export function WorkspaceApp({ workspace, role, profile }: { workspace: string; role: string; profile?: string }) {
   const normalizedRole = normalizeRole(role);
   const { customColor, setCustomColor, themeKey, setThemeKey } = useColorTheme();
   const [login, setLogin] = useState<LoginState | null>(null);
@@ -387,7 +394,9 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           orgId: session.orgId,
           userName: session.userName,
           email: session.email,
+          themeColor: session.themeColor,
         });
+        if (session.themeColor && normalizedRole !== "platform") applyCustomColor(session.themeColor);
         setMessage("Workspace opened.");
       }
     } catch {
@@ -448,6 +457,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
         orgId: matchedRole?.orgId ?? "platform",
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
+        themeColor: matchedRole?.themeColor,
       });
       window.sessionStorage.setItem(
         "hostin-session",
@@ -458,8 +468,10 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           email: data.user?.email ?? form.get("username")?.toString() ?? "",
           workspace,
           role: normalizedRole,
+          themeColor: matchedRole?.themeColor,
         })
       );
+      if (matchedRole?.themeColor && !isPlatform) applyCustomColor(matchedRole.themeColor);
       setMessage("Workspace opened.");
     } catch {
       setMessage("Backend is offline. Start the server to login and view this workspace.");
@@ -591,7 +603,14 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             <strong>{roleLabel(role)}</strong>
             <small>{login.userName}</small>
           </div>
-          <div className="moduleGroup">
+          {normalizedRole === "platform" ? (
+            <div className="moduleGroup platformNavGroup">
+              <p>Control center</p>
+              <Link className={!profile ? "active navItem" : "navItem"} href="/1forge/platform">Dashboard</Link>
+              <Link className={profile && profile !== "analytics" ? "active navItem" : "navItem"} href="/1forge/platform">Clients</Link>
+              <Link className={profile === "analytics" ? "active navItem" : "navItem"} href="/1forge/platform/analytics">Analytics</Link>
+            </div>
+          ) : <div className="moduleGroup">
             <p>Allowed modules</p>
             {allowedModules.map((module) => (
               <button
@@ -603,7 +622,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
                 {module.title}
               </button>
             ))}
-          </div>
+          </div>}
           <button
             className="outlineButton fullButton"
             onClick={logout}
@@ -613,7 +632,10 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
           </button>
         </aside>
 
-        <section className="content">
+        <section className={normalizedRole === "platform" ? "content platformContent" : "content"}>
+          {normalizedRole === "platform" ? (
+            <PlatformSection accessToken={login.accessToken} routeView={profile} />
+          ) : <>
           <div className="pageHeader">
             <div>
               <p className="crumb">
@@ -692,8 +714,6 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
             />
           ) : activeModule.id === "staff" ? (
             <StaffContactsSection accessToken={login.accessToken} orgId={login.orgId} />
-          ) : activeModule.id === "platform" ? (
-            <PlatformSection accessToken={login.accessToken} />
           ) : (
             <div className="productGrid">
               <section className="panel statGridPanel">
@@ -734,6 +754,7 @@ export function WorkspaceApp({ workspace, role }: { workspace: string; role: str
               </section>
             </div>
           )}
+          </>}
         </section>
       </section>
     </main>
@@ -749,12 +770,14 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-function PlatformSection({ accessToken }: { accessToken: string }) {
+function PlatformSection({ accessToken, routeView }: { accessToken: string; routeView?: string }) {
   const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
   const [plans, setPlans] = useState<PlatformPlan[]>([]);
-  const [selectedId, setSelectedId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const selected = organizations.find((organization) => organization.id === selectedId) ?? organizations[0];
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [controlTab, setControlTab] = useState("overview");
+  const selected = organizations.find((organization) => organization.slug === routeView);
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   async function loadPlatform() {
@@ -767,7 +790,6 @@ function PlatformSection({ accessToken }: { accessToken: string }) {
       const [orgData, planData] = await Promise.all([orgResponse.json(), planResponse.json()]);
       setOrganizations(orgData.organizations ?? []);
       setPlans(planData.plans ?? []);
-      setSelectedId((current) => current || orgData.organizations?.[0]?.id || "");
     } finally {
       setIsLoading(false);
     }
@@ -805,7 +827,7 @@ function PlatformSection({ accessToken }: { accessToken: string }) {
       "mess_menu",
       "documents",
       "parent_portal",
-      ...(selected?.features.map((feature) => feature.key) ?? []),
+      ...(selected?.features.map((feature) => feature.key).filter((key) => !key.startsWith("role_")) ?? []),
     ])
   );
 
@@ -815,137 +837,79 @@ function PlatformSection({ accessToken }: { accessToken: string }) {
         <DirectorySkeleton />
       </section>
     );
-  if (!selected)
+  if (routeView && routeView !== "analytics" && !selected)
     return (
       <section className="panel">
-        <EmptyPanel title="No clients yet" copy="Onboarded organizations will appear here." />
+        <EmptyPanel title="Client not found" copy="Return to the dashboard and choose an available client." />
       </section>
     );
-  return (
-    <div className="platformExperience">
-      <aside className="panel platformClientList">
-        <PanelTitle title="Clients" meta={`${organizations.length} total`} />
-        <input aria-label="Search clients" placeholder="Search clients..." />
-        {organizations.map((organization) => (
-          <button
-            className={organization.id === selected.id ? "active platformClient" : "platformClient"}
-            key={organization.id}
-            onClick={() => setSelectedId(organization.id)}
-            type="button"
-          >
-            <div>
-              <strong>{organization.name}</strong>
-              <small>/{organization.slug}</small>
-            </div>
-            <span className={`statusPill ${organization.planStatus}`}>{organization.planStatus}</span>
-          </button>
-        ))}
-      </aside>
-      <section className="platformDetail">
-        <section className="panel platformSummary">
-          <div>
-            <p className="sectionEyebrow">Client workspace</p>
-            <h3>{selected.name}</h3>
-            <span>
-              {selected.ownerName} · {selected.planName}
-            </span>
-          </div>
-          <button
-            className={selected.isActive ? "dangerButton" : "gradientButton"}
-            onClick={() => updateOrganization({ isActive: !selected.isActive })}
-            type="button"
-          >
-            {selected.isActive ? "Suspend workspace" : "Restore workspace"}
-          </button>
-        </section>
-        <section className="platformMetrics">
-          {roleLabels.map((roleName) => (
-            <Metric
-              key={roleName}
-              label={titleFromSlug(roleName)}
-              value={selected.roleCounts[roleName] ?? 0}
-              meta="active accounts"
-            />
-          ))}
-          <Metric
-            label="Occupancy"
-            value={`${selected.occupancyRate}%`}
-            meta={`${selected.activeTenantsCount}/${selected.totalCapacity} tenants`}
-          />
-        </section>
-        <section className="panel platformControls">
-          <PanelTitle
-            title="Subscription & billing"
-            meta={`₹${Number(selected.monthlyPrice).toLocaleString("en-IN")}/month`}
-          />
-          <div className="platformControlGrid">
-            <label>
-              <span>Plan</span>
-              <select
-                value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""}
-                onChange={(event) => updateOrganization({ planId: event.target.value })}
-              >
-                {plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} · ₹{Number(plan.price_monthly).toLocaleString("en-IN")}/mo
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Subscription status</span>
-              <select
-                value={selected.planStatus}
-                onChange={(event) => updateOrganization({ planStatus: event.target.value })}
-              >
-                {["active", "trialing", "paused", "canceled", "expired"].map((status) => (
-                  <option key={status} value={status}>
-                    {titleFromSlug(status)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Expires on</span>
-              <input
-                onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })}
-                type="date"
-                value={selected.planExpiresAt?.slice(0, 10) ?? ""}
-              />
-            </label>
-            <label>
-              <span>Capacity</span>
-              <input
-                min="0"
-                onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })}
-                type="number"
-                defaultValue={selected.totalCapacity}
-              />
-            </label>
+  const activeOrganizations = organizations.filter((organization) => organization.isActive && ["active", "trialing"].includes(organization.planStatus));
+  const mrr = activeOrganizations.reduce((total, organization) => total + Number(organization.monthlyPrice), 0);
+  const filteredOrganizations = organizations.filter((organization) => {
+    const matchesQuery = `${organization.name} ${organization.ownerName} ${organization.cityState ?? ""} ${organization.planName}`.toLowerCase().includes(query.toLowerCase());
+    const matchesFilter = filter === "all" || (filter === "active" ? organization.isActive && organization.planStatus === "active" : organization.planStatus === filter) || (filter === "suspended" && !organization.isActive);
+    return matchesQuery && matchesFilter;
+  });
+  const money = (value: number | string) => `₹${Number(value).toLocaleString("en-IN")}`;
+
+  if (routeView === "analytics") {
+    const today = new Date();
+    const months = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(today.getFullYear(), today.getMonth() - 5 + index, 1);
+      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      const value = organizations.reduce((sum, organization) => {
+        const joined = organization.createdAt ? new Date(organization.createdAt) : new Date(0);
+        return joined <= end ? sum + Number(organization.monthlyPrice) : sum;
+      }, 0);
+      return { label: date.toLocaleDateString("en-IN", { month: "short" }), value };
+    });
+    const maxRevenue = Math.max(...months.map((month) => month.value), 1);
+    return <div className="platformPage">
+      <PlatformPageHeader eyebrow="1Forge / Analytics" title="Financial analytics" copy="Subscription revenue, client contribution, and portfolio health in one view." />
+      <div className="platformKpis">
+        <PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note={`${activeOrganizations.length} contributing clients`} />
+        <PlatformKpi label="Annual run rate" value={money(mrr * 12)} note="Based on current plans" />
+        <PlatformKpi label="Average revenue / client" value={money(activeOrganizations.length ? Math.round(mrr / activeOrganizations.length) : 0)} note="Active portfolio" />
+        <PlatformKpi label="Pending accounts" value={organizations.filter((item) => item.planStatus === "paused" || !item.isActive).length} note="Needs attention" tone="warning" />
+      </div>
+      <div className="analyticsGrid">
+        <section className="panel revenueChartPanel">
+          <PanelTitle title="Monthly recurring revenue" meta="Last 6 months" />
+          <div className="revenueBars" aria-label="Monthly recurring revenue chart">
+            {months.map((month) => <div key={month.label} className="revenueBarColumn"><strong>{money(month.value)}</strong><div><i style={{ height: `${Math.max(8, month.value / maxRevenue * 100)}%` }} /></div><span>{month.label}</span></div>)}
           </div>
         </section>
-        <section className="panel platformFeatures">
-          <PanelTitle title="Feature access" meta="Changes apply immediately" />
-          <div className="featureToggleGrid">
-            {featureKeys.map((key) => {
-              const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false;
-              return (
-                <label key={key}>
-                  <span>{titleFromSlug(key)}</span>
-                  <input
-                    checked={enabled}
-                    onChange={(event) => toggleFeature(key, event.target.checked)}
-                    type="checkbox"
-                  />
-                </label>
-              );
-            })}
-          </div>
+        <section className="panel revenueMixPanel">
+          <PanelTitle title="Revenue by client" meta={`${organizations.length} clients`} />
+          <div className="revenueClientList">{[...organizations].sort((a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice)).map((organization) => <div key={organization.id}><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><p><strong>{organization.name}</strong><small>{organization.planName}</small></p><b>{money(organization.monthlyPrice)}</b><i><em style={{ width: `${mrr ? Math.min(100, Number(organization.monthlyPrice) / mrr * 100) : 0}%` }} /></i></div>)}</div>
         </section>
-      </section>
-    </div>
-  );
+      </div>
+      <section className="panel analyticsTablePanel"><PanelTitle title="Client subscription ledger" meta="Current monthly billing" /><div className="analyticsTable"><div className="analyticsTableHead"><span>Client</span><span>Plan</span><span>Status</span><span>Monthly revenue</span><span>Annual value</span></div>{organizations.map((organization) => <Link href={`/1forge/platform/${organization.slug}`} key={organization.id}><strong>{organization.name}</strong><span>{organization.planName}</span><span className={`statusPill ${organization.planStatus}`}>{organization.isActive ? organization.planStatus : "suspended"}</span><b>{money(organization.monthlyPrice)}</b><span>{money(Number(organization.monthlyPrice) * 12)}</span></Link>)}</div></section>
+    </div>;
+  }
+
+  if (selected) {
+    const tabs = ["overview", "apps & roles", "features", "theme & branding", "billing"];
+    return <div className="platformPage">
+      <div className="clientControlHeader panel"><div className="clientAvatar large">{selected.name.slice(0, 2).toUpperCase()}</div><div><p className="sectionEyebrow">Client control</p><h2>{selected.name}</h2><span>{selected.cityState || selected.slug} · {selected.planName} · {money(selected.monthlyPrice)}/month</span></div><div className="clientHeaderActions"><a className="outlineButton" href={`/${selected.slug}/owner`}>Open client app</a><button className={selected.isActive ? "dangerButton" : "gradientButton"} onClick={() => updateOrganization({ isActive: !selected.isActive })} type="button">{selected.isActive ? "Suspend" : "Restore"}</button></div></div>
+      <nav className="clientControlTabs" aria-label="Client control sections">{tabs.map((tab) => <button className={controlTab === tab ? "active" : ""} key={tab} onClick={() => setControlTab(tab)} type="button">{tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}</button>)}</nav>
+      {controlTab === "overview" ? <div className="clientOverviewGrid"><section className="panel"><PanelTitle title="Client details" meta={`/${selected.slug}`} /><dl className="clientDetails"><div><dt>Owner</dt><dd>{selected.ownerName}</dd></div><div><dt>Email</dt><dd>{selected.contactEmail || "Not added"}</dd></div><div><dt>Phone</dt><dd>{selected.contactPhone || "Not added"}</dd></div><div><dt>Location</dt><dd>{selected.cityState || "Not added"}</dd></div><div><dt>Joined</dt><dd>{selected.createdAt ? new Date(selected.createdAt).toLocaleDateString("en-IN") : "—"}</dd></div><div><dt>Capacity</dt><dd>{selected.totalCapacity} beds</dd></div></dl></section><section className="panel"><PanelTitle title="Client health" meta={selected.isActive ? "Operational" : "Attention"} /><div className="healthChecks">{[["Payment", selected.planStatus === "active" ? "Clear" : titleFromSlug(selected.planStatus)],["Usage", selected.memberCount ? "Active" : "Low usage"],["Setup", selected.totalCapacity ? "Complete" : "Incomplete"],["Occupancy", `${selected.occupancyRate}%`]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div></section><section className="panel overviewRoleStats"><PanelTitle title="Accounts & occupancy" meta={`${selected.memberCount} accounts`} /><div className="platformMetrics">{roleLabels.map((roleName) => <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active" />)}<Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity}`} /></div></section></div> : null}
+      {controlTab === "apps & roles" ? <section className="roleAppGrid">{roleLabels.map((roleName) => { const key = `role_${roleName}`; const saved = selected.features.find((feature) => feature.key === key); const enabled = saved?.enabled ?? (selected.roleCounts[roleName] ?? 0) > 0; return <article className="panel roleAppCard" key={roleName}><div><span className="clientAvatar">{roleName.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${enabled ? "active" : "paused"}`}>{enabled ? "Enabled" : "Disabled"}</span></div><h3>{titleFromSlug(roleName)} App</h3><p>{roleName === "tenant" ? "Dues, passes, community and resident services." : roleName === "guard" ? "Visitor entry, gate passes and security workflows." : "Role-specific access to the client workspace."}</p><footer><small>{selected.roleCounts[roleName] ?? 0} active accounts</small><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></footer></article>; })}</section> : null}
+      {controlTab === "features" ? <section className="panel"><PanelTitle title="Feature access" meta="Changes apply to every enabled role app" /><div className="featureManagementTable">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <div key={key}><span><strong>{titleFromSlug(key)}</strong><small>Control this capability across the client workspace.</small></span><em>{enabled ? "In use" : "Not in use"}</em><b>{selected.planName}</b><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></div>; })}</div></section> : null}
+      {controlTab === "theme & branding" ? <section className="brandingGrid"><div className="panel brandingControls"><PanelTitle title="Client theme" meta="Applies across all role apps" /><label><span>Primary theme colour</span><div className="brandColorField"><input type="color" value={selected.themeColor || "#7c5cff"} onChange={(event) => updateOrganization({ themeColor: event.target.value })}/><strong>{selected.themeColor || "#7c5cff"}</strong></div></label><p>The saved colour is loaded automatically whenever an owner, warden, guard, staff member, tenant, or parent signs into this client.</p><div className="applyRoleList">{roleLabels.map((roleName) => <span key={roleName}>✓ {titleFromSlug(roleName)} App</span>)}</div></div><div className="panel brandPreview" style={{ "--preview-accent": selected.themeColor || "#7c5cff" } as CSSProperties}><PanelTitle title="Live preview" meta="Workspace shell" /><div className="brandPreviewWindow"><aside><b>{selected.name.slice(0, 1)}</b><i/><i/><i/></aside><main><small>{selected.name}</small><h3>Good morning, team.</h3><div><span/><span/><span/></div><button type="button">Primary action</button></main></div></div></section> : null}
+      {controlTab === "billing" ? <section className="panel"><PanelTitle title="Subscription & billing" meta={`${money(selected.monthlyPrice)}/month`} /><div className="platformControlGrid"><label><span>Plan</span><select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.price_monthly)}/mo</option>)}</select></label><label><span>Subscription status</span><select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>{["active", "trialing", "paused", "canceled", "expired"].map((status) => <option key={status} value={status}>{titleFromSlug(status)}</option>)}</select></label><label><span>Renewal / expiry date</span><input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""}/></label><label><span>Licensed capacity</span><input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity}/></label></div></section> : null}
+    </div>;
+  }
+
+  return <div className="platformPage">
+    <PlatformPageHeader eyebrow="1Forge / Control center" title="Dashboard" copy="A focused view of every HostIn client and what needs your attention." />
+    <div className="platformKpis"><PlatformKpi label="Total clients" value={organizations.length} note="Across all plans"/><PlatformKpi label="Active clients" value={activeOrganizations.length} note={`${organizations.length ? Math.round(activeOrganizations.length / organizations.length * 100) : 0}% active rate`}/><PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note="Current subscribed plans"/><PlatformKpi label="Pending payments" value={organizations.filter((item) => ["paused", "expired"].includes(item.planStatus)).length} note="Clients need action" tone="warning"/></div>
+    <section className="clientDirectory"><div className="clientDirectoryTools"><div><h3>Clients</h3><span>{filteredOrganizations.length} shown</span></div><input aria-label="Search clients" onChange={(event) => setQuery(event.target.value)} placeholder="Search by client, owner, city or plan" value={query}/><div className="clientFilters">{["all", "active", "trialing", "paused", "suspended"].map((item) => <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">{titleFromSlug(item)}</button>)}</div></div><div className="clientCardGrid">{filteredOrganizations.map((organization) => <Link className="panel platformClientCard" href={`/1forge/platform/${organization.slug}`} key={organization.id}><header><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${organization.planStatus}`}>{organization.isActive ? organization.planStatus : "suspended"}</span></header><div><h3>{organization.name}</h3><p>{organization.cityState || organization.ownerName}</p></div><div className="clientPlanLine"><span>{organization.planName}</span><strong>{money(organization.monthlyPrice)}<small>/month</small></strong></div><div className="clientQuickStats"><span><b>{organization.activeTenantsCount}</b>Tenants</span><span><b>{organization.totalCapacity}</b>Capacity</span><span><b>{organization.memberCount}</b>Accounts</span><span><b>{organization.features.filter((item) => item.enabled).length}</b>Features</span></div><footer><span className={organization.isActive ? "healthy" : "attention"}>● {organization.isActive ? "Healthy" : "Needs attention"}</span><b>Manage client →</b></footer></Link>)}</div></section>
+  </div>;
 }
+
+function PlatformPageHeader({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) { return <header className="platformPageHeader"><div><p className="crumb">{eyebrow}</p><h2>{title}</h2><p>{copy}</p></div><span>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span></header>; }
+function PlatformKpi({ label, value, note, tone }: { label: string; value: string | number; note: string; tone?: string }) { return <article className="panel platformKpi"><span>{label}</span><strong>{value}</strong><small className={tone || ""}>{note}</small></article>; }
 
 function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: string }) {
   const [open, setOpen] = useState(false);

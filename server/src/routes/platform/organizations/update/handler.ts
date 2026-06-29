@@ -5,7 +5,7 @@ import { PlanStatus } from "../../../../../generated/prisma/client";
 
 export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
-  const { planId, planStatus, planExpiresAt, isActive, totalCapacity } = req.body;
+  const { planId, planStatus, planExpiresAt, isActive, totalCapacity, themeColor } = req.body;
 
   try {
     // 1. Verify organization exists
@@ -48,6 +48,10 @@ export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest
     }
 
     if (isActive !== undefined) updateData.is_active = !!isActive;
+    if (themeColor !== undefined) {
+      if (themeColor !== null && !/^#[0-9a-fA-F]{6}$/.test(themeColor)) return res.status(400).json({ error: "themeColor must be a six-digit hex colour" });
+      updateData.theme_color = themeColor;
+    }
     if (totalCapacity !== undefined) {
       const capacityInt = parseInt(totalCapacity, 10);
       if (isNaN(capacityInt) || capacityInt < 0) {
