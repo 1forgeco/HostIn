@@ -1,15 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { ColorThemeToggle } from "./theme-system";
+import { beforeEach, describe, expect, it } from "vitest";
+import { applyCustomColor } from "./theme-system";
 
-describe("ColorThemeToggle", () => {
-  it("emits preset and custom theme changes", () => {
-    const changeTheme = vi.fn();
-    const changeCustom = vi.fn();
-    render(<ColorThemeToggle customColor="#22a06b" onCustomColor={changeCustom} onChange={changeTheme} themeKey="hostin-coral" />);
-    fireEvent.click(screen.getByRole("button", { name: "Studio" }));
-    expect(changeTheme).toHaveBeenCalledWith("forge-violet");
-    fireEvent.input(screen.getByLabelText("Custom theme colour"), { target: { value: "#123456" } });
-    expect(changeCustom).toHaveBeenCalledWith("#123456");
+describe("admin-applied client theme", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("style");
+  });
+
+  it("applies and persists a client theme without exposing a client-side picker", () => {
+    applyCustomColor("#123456");
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "custom");
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("#123456");
+    expect(window.localStorage.getItem("hostin-color-theme")).toBe("custom");
+    expect(window.localStorage.getItem("hostin-custom-color")).toBe("#123456");
   });
 });

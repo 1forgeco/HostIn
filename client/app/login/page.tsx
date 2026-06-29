@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { ColorThemeToggle, useColorTheme } from "../components/theme-system";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 const demoPassword = "city-complex@123";
@@ -16,7 +15,6 @@ const demoAccounts = [
 ];
 
 export default function LoginPage() {
-  const { customColor, setCustomColor, themeKey, setThemeKey } = useColorTheme();
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,7 +53,7 @@ export default function LoginPage() {
     <main className="commonLoginPage">
       <header className="commonLoginTop">
         <Link className="brand" href="/"><span>host</span>in<span>.</span></Link>
-        <ColorThemeToggle customColor={customColor} onCustomColor={setCustomColor} onChange={setThemeKey} themeKey={themeKey} />
+        <span className="loginManagedThemeNote">Theme managed by 1Forge</span>
       </header>
       <section>
         <div className="commonLoginIntro">

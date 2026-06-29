@@ -1,4 +1,4 @@
-.PHONY: help setup dev build check test test-client test-server test-integration e2e e2e-public e2e-platform migrate seed logs down reset-db
+.PHONY: help setup dev build check test test-client test-server test-integration e2e-prepare e2e e2e-public e2e-platform migrate seed logs down reset-db
 
 # List the available commands; use this when you are unsure what to run.
 help:
@@ -11,6 +11,7 @@ help:
 		'make test-client       Run client component and theme bootstrap tests' \
 		'make test-server       Run isolated API protection tests' \
 		'make test-integration  Prepare demo data and run database authorization tests' \
+		'make e2e-prepare       Apply migrations and refresh demo data for browser tests' \
 		'make e2e               Run every desktop and mobile browser journey' \
 		'make e2e-public        Run landing, plans, login, alias, and recovery journeys' \
 		'make e2e-platform      Run tenant routing and 1Forge control-center journeys' \
@@ -54,8 +55,12 @@ test-integration:
 	npm run test:e2e:prepare
 	npm run test:integration
 
+# Browser tests depend on seeded demo users, roles, features, and platform data.
+e2e-prepare:
+	npm run test:e2e:prepare
+
 # Before pushing any user journey change: run all desktop and mobile browser tests.
-e2e:
+e2e: e2e-prepare
 	npm run test:e2e
 
 # While changing public pages: run landing, plans, login, aliases, and recovery routes.
@@ -63,7 +68,7 @@ e2e-public:
 	npx playwright test e2e/public-journey.spec.ts
 
 # While changing private workspaces or 1Forge: run routing and control-center coverage.
-e2e-platform:
+e2e-platform: e2e-prepare
 	npx playwright test e2e/unified-login.spec.ts
 
 # After schema changes: start PostgreSQL if needed and apply pending migrations.

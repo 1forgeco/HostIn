@@ -1,5 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
+async function signIn(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  const emailField = page.getByLabel("Email address");
+  const passwordField = page.getByLabel("Password");
+  await expect(emailField).toBeEnabled();
+  await emailField.fill(email);
+  await passwordField.fill(password);
+  await page.getByRole("button", { name: "Continue" }).click();
+}
+
 async function openClientControlSection(page: Page, label: string, value: string) {
   const mobileSelector = page.getByLabel("Client control section", { exact: true });
   if (await mobileSelector.isVisible()) {
@@ -9,10 +19,31 @@ async function openClientControlSection(page: Page, label: string, value: string
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
+async function expectOnboardingStepList(page: Page) {
+  const fullStepLabels = [
+    /PG Structure/,
+    /Rooms & Beds/,
+    /People Import/,
+    /Role Assignment/,
+    /Account Generation/,
+    /Feature Access/,
+    /Branding & Billing/,
+    /Review & Activate/,
+  ];
+  const fullLabelsVisible = await page.getByRole("button", { name: fullStepLabels[0] }).isVisible().catch(() => false);
+  if (fullLabelsVisible) {
+    for (const label of fullStepLabels) await expect(page.getByRole("button", { name: label })).toBeVisible();
+    return;
+  }
+  await expect(page.locator(".wizardSteps button")).toHaveCount(9);
+}
+
 test("tenant account routes directly to its private profile", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Email address").fill("tenant@city-complex.hostin.local");
-  await page.getByLabel("Password").fill("city-complex@123");
+  await expect(page.getByLabel("Email address")).toBeEnabled();
+  await page.getByRole("button", { name: "Use Tenant demo account" }).click();
+  await expect(page.getByLabel("Email address")).toHaveValue("tenant@city-complex.hostin.local");
+  await expect(page.getByLabel("Password")).toHaveValue("city-complex@123");
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL(/\/city-complex\/tenant\/aarav-mehta$/);
   await expect(page.getByRole("button", { name: "Gate Passes" }).first()).toBeVisible();
@@ -20,10 +51,7 @@ test("tenant account routes directly to its private profile", async ({ page }) =
 });
 
 test("1Forge account can use the complete control-center journey", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Email address").fill("admin@1forge.com");
-  await page.getByLabel("Password").fill("PlatformAdminPassword123");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await signIn(page, "admin@1forge.com", "PlatformAdminPassword123");
   await expect(page).toHaveURL(/\/1forge\/platform$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByText("Monthly recurring revenue", { exact: true })).toBeVisible();
@@ -35,6 +63,7 @@ test("1Forge account can use the complete control-center journey", async ({ page
   await expect(page.getByRole("heading", { name: "Client Details" })).toBeVisible();
   await expect(page.getByText("Step 1 of 9", { exact: false })).toBeVisible();
   await expect(page.getByLabel("PG / Hostel name")).toBeVisible();
+  await expectOnboardingStepList(page);
   await page.getByRole("link", { name: "Back to clients", exact: false }).click();
   await expect(page).toHaveURL(/\/1forge\/platform$/);
 

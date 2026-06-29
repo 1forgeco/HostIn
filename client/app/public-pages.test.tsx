@@ -61,6 +61,7 @@ describe("public product journey", () => {
     expect(screen.getByLabelText("Email address")).toHaveValue("owner@city-complex.hostin.local");
     expect(screen.getByLabelText("Password")).toHaveValue("city-complex@123");
     expect(screen.getByRole("status")).toHaveTextContent("Owner demo selected");
-    expect(screen.getByLabelText("Dashboard colour theme")).toBeVisible();
+    expect(screen.queryByLabelText("Dashboard colour theme")).not.toBeInTheDocument();
+    expect(screen.getByText("Theme managed by 1Forge")).toBeVisible();
   });
 });

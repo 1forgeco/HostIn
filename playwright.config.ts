@@ -12,6 +12,7 @@ export default defineConfig({
   timeout: 30000,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
+  workers: productionRun ? undefined : 1,
   use: { baseURL: clientOrigin, trace: "on-first-retry" },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
@@ -29,7 +30,7 @@ export default defineConfig({
     {
       command: productionRun
         ? `NODE_ENV=production npm --prefix client run start -- -H 0.0.0.0 -p ${clientPort}`
-        : `NEXT_PUBLIC_API_URL=${apiOrigin}/api npm --prefix client run dev -- -H 0.0.0.0 -p ${clientPort}`,
+        : `NEXT_PUBLIC_API_URL=${apiOrigin}/api npm --prefix client run dev -- --webpack -H 0.0.0.0 -p ${clientPort}`,
       url: `${clientOrigin}/login`,
       reuseExistingServer: false,
       timeout: 120000,

@@ -3,7 +3,7 @@
 import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { applyCustomColor, ColorThemeToggle, useColorTheme } from "./theme-system";
+import { applyCustomColor } from "./theme-system";
 import { ClientOnboardingWizard } from "./client-onboarding-wizard";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
@@ -391,7 +391,6 @@ function titleFromSlug(slug: string) {
 
 export function WorkspaceApp({ workspace, role, profile }: { workspace: string; role: string; profile?: string }) {
   const normalizedRole = normalizeRole(role);
-  const { customColor, setCustomColor, themeKey, setThemeKey } = useColorTheme();
   const [login, setLogin] = useState<LoginState | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [activeId, setActiveId] = useState<SectionId>(normalizedRole === "platform" ? "platform" : "overview");
@@ -604,12 +603,6 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
             </button>
           ))}
         </nav>
-        <ColorThemeToggle
-          customColor={customColor}
-          onCustomColor={setCustomColor}
-          themeKey={themeKey}
-          onChange={setThemeKey}
-        />
         {normalizedRole !== "platform" ? <NotificationMenu accessToken={login.accessToken} orgId={login.orgId} /> : null}
         <button className="gradientButton" onClick={syncModule} type="button">
           Sync

@@ -4,16 +4,17 @@ test("landing, plans, and demo entry form one complete public journey", async ({
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Run your PG like a real business." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Try live demo" })).toHaveAttribute("href", "/login#demo-accounts");
+  await expect(page.getByRole("navigation", { name: "Public navigation" }).getByRole("link", { name: "Plans" })).toHaveAttribute("href", "/plans");
   await expect(page.getByRole("heading", { name: "Custom pricing" })).toHaveCount(0);
 
-  await page.getByRole("navigation", { name: "Public navigation" }).getByRole("link", { name: "Plans" }).click();
-  await expect(page).toHaveURL(/\/plans$/);
+  await page.goto("/plans");
   await expect(page.getByRole("heading", { name: "A plan shaped around your property." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Custom pricing" })).toHaveCount(3);
+  await expect(page.getByRole("link", { name: "Try every role" })).toHaveAttribute("href", "/login#demo-accounts");
 
-  await page.getByRole("link", { name: "Try every role" }).click();
-  await expect(page).toHaveURL(/\/login#demo-accounts$/);
+  await page.goto("/login#demo-accounts");
   await expect(page.getByRole("heading", { name: "Try every Hostin role." })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeEnabled();
 
   const ownerAccount = page.getByRole("button", { name: "Use Owner demo account" });
   await expect(ownerAccount).toContainText("owner@city-complex.hostin.local");
@@ -23,10 +24,11 @@ test("landing, plans, and demo entry form one complete public journey", async ({
   await expect(page.getByLabel("Password")).toHaveValue("city-complex@123");
 });
 
-test("app theme preferences never replace the fixed landing identity", async ({ page }) => {
+test("client-facing pages do not expose theme preferences", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: "Studio" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "forge-violet");
+  await expect(page.getByLabel("Dashboard colour theme")).toHaveCount(0);
+  await expect(page.getByLabel("Custom theme colour")).toHaveCount(0);
+  await expect(page.getByText("Theme managed by 1Forge")).toBeVisible();
 
   await page.goto("/");
   const landingAccent = await page
