@@ -263,6 +263,28 @@ enum AccessDecision {
   block
 }
 
+enum OwnerRequestType {
+  credential_creation
+  feature_request
+  plan_upgrade
+  new_property
+  staff_addition
+  document_verification
+  support
+}
+
+enum OwnerRequestStatus {
+  draft
+  submitted
+  under_review
+  need_more_info
+  approved
+  fulfilled
+  activated
+  rejected
+  canceled
+}
+
 // ─────────────────────────────────────────────
 // PLATFORM (Super Admin — separate from org users)
 // ─────────────────────────────────────────────
@@ -407,6 +429,7 @@ model Organization {
   role_dashboards          RoleDashboard[]
   role_feature_permissions RoleFeaturePermission[]
   access_overrides         AccessOverride[]
+  owner_requests           OwnerRequest[]
 
   @@map("organizations")
 }
@@ -482,6 +505,7 @@ model User {
   lost_found_posts          LostFoundPost[]
   person                    Person?                 @relation(fields: [person_id], references: [id], onDelete: SetNull)
   access_overrides          AccessOverride[]
+  owner_requests            OwnerRequest[]          @relation("OwnerRequestRequestedBy")
 
   @@map("users")
 }
@@ -607,6 +631,32 @@ model AccessOverride {
   @@unique([org_id, user_id, role, feature_key])
   @@index([org_id, role, feature_key])
   @@map("access_overrides")
+}
+
+/// Owner-submitted service requests that 1Forge reviews and fulfills.
+model OwnerRequest {
+  id              String             @id @default(uuid()) @db.Uuid
+  org_id          String             @db.Uuid
+  requested_by    String             @db.Uuid
+  type            OwnerRequestType
+  status          OwnerRequestStatus @default(submitted)
+  title           String             @db.VarChar(255)
+  person_name     String?            @db.VarChar(255)
+  role            OrgRole?
+  property_name   String?            @db.VarChar(255)
+  department      String?            @db.VarChar(255)
+  reason          String?            @db.Text
+  required_access String?            @db.Text
+  details         Json?              @db.JsonB
+  created_at      DateTime           @default(now()) @db.Timestamp(6)
+  updated_at      DateTime           @updatedAt @db.Timestamp(6)
+
+  organization      Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  requested_by_user User         @relation("OwnerRequestRequestedBy", fields: [requested_by], references: [id])
+
+  @@index([org_id, type, status])
+  @@index([requested_by, created_at])
+  @@map("owner_requests")
 }
 
 /// Digital onboarding — warden sends invite link, tenant fills in own details.

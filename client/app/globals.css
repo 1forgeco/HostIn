@@ -360,6 +360,118 @@ button {
   text-decoration: none;
 }
 
+.appTopbarActions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.propertySwitcher {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: flex;
+  gap: 10px;
+  min-height: 48px;
+  min-width: 0;
+  padding: 4px 6px 4px 16px;
+}
+
+.propertySwitcher span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.propertySwitcher select {
+  background: #ffffff;
+  border-radius: 999px;
+  min-height: 38px;
+  min-width: 180px;
+  width: auto;
+}
+
+.profileMenu {
+  position: relative;
+}
+
+.profileMenuButton,
+.notificationIconButton {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink);
+  display: inline-flex;
+  font-weight: 900;
+  height: 48px;
+  justify-content: center;
+  position: relative;
+  width: 48px;
+}
+
+.profileMenuButton {
+  background: linear-gradient(135deg, var(--accent-gradient-start), var(--accent-gradient-end));
+  border: 0;
+  color: #ffffff;
+  box-shadow: 0 12px 22px var(--accent-shadow);
+}
+
+.profileMenu.isOpen .profileMenuButton,
+.profileMenuButton:hover {
+  box-shadow: 0 0 0 5px var(--accent-focus), 0 12px 22px var(--accent-shadow);
+}
+
+.profilePopover {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(16,24,40,.18);
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  width: min(300px, calc(100vw - 24px));
+  z-index: 80;
+}
+
+.profilePopoverHeader {
+  border-bottom: 1px solid var(--soft-line);
+  display: grid;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 10px;
+}
+
+.profilePopoverHeader span,
+.profilePopoverHeader small {
+  color: var(--muted);
+}
+
+.profilePopover a,
+.profilePopover button {
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--ink);
+  font-weight: 900;
+  padding: 11px 10px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.profilePopover a:hover,
+.profilePopover button:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .gradientButton,
 .outlineButton {
   align-items: center;
@@ -400,6 +512,277 @@ button {
   font-size: 12px;
   font-weight: 800;
   padding: 10px 14px;
+}
+
+.ownerDashboardHome,
+.ownerPageGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.ownerWelcome h2 {
+  font-size: clamp(32px, 4vw, 58px);
+  letter-spacing: -.05em;
+  margin: 8px 0 10px;
+}
+
+.ownerPropertyGrid,
+.ownerBillingGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.ownerPropertyCard {
+  display: grid;
+  gap: 16px;
+}
+
+.ownerPropertyCard header,
+.ownerPropertyCard footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.ownerPropertyCard footer button,
+.quickActionGrid button,
+.ownerPropertyMiniList button,
+.attentionList button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.ownerPropertyMiniList,
+.attentionList,
+.quickActionGrid,
+.ownerRequestList {
+  display: grid;
+  gap: 10px;
+}
+
+.ownerPropertyMiniList button {
+  display: grid;
+  gap: 4px;
+}
+
+.ownerPropertyMiniList span,
+.ownerPropertyMiniList small,
+.ownerRequestList small,
+.ownerRequestList p {
+  color: var(--muted);
+}
+
+.attentionList button {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 52px 1fr;
+}
+
+.attentionList strong {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: 14px;
+  color: var(--accent);
+  display: flex;
+  font-size: 22px;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.quickActionGrid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.ownerRequestForm {
+  align-self: start;
+  display: grid;
+  gap: 14px;
+}
+
+.ownerRequestForm label {
+  display: grid;
+  gap: 7px;
+}
+
+.ownerRequestForm textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.ownerSectionHeader {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.ownerSectionHeader h3,
+.ownerCredentialCard h3 {
+  margin: 0;
+}
+
+.ownerSectionHeader p,
+.ownerCredentialCard span,
+.mutedCopy {
+  color: var(--muted);
+}
+
+.ownerCredentialCards,
+.settingsCardGrid,
+.profilePageGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.profilePageGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profilePageTitle {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.profileHeroCard {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  grid-column: 1 / -1;
+}
+
+.profileHeroCard h3 {
+  font-size: clamp(28px, 3vw, 44px);
+  letter-spacing: -0.04em;
+  margin: 4px 0 8px;
+}
+
+.profileHeroCard p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.profileAvatarLarge {
+  align-items: center;
+  background: linear-gradient(135deg, var(--accent-gradient-start), var(--accent-gradient-end));
+  border-radius: 26px;
+  color: #fff;
+  display: flex;
+  flex: 0 0 92px;
+  font-size: 42px;
+  font-weight: 900;
+  height: 92px;
+  justify-content: center;
+  box-shadow: 0 20px 36px var(--accent-shadow);
+}
+
+.profileActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.ownerCredentialCards {
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+}
+
+.ownerCredentialCard {
+  display: grid;
+  gap: 18px;
+}
+
+.ownerCredentialCard header,
+.ownerCredentialCard footer {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.ownerCredentialCard dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.ownerCredentialCard dl div,
+.settingsCardGrid div {
+  background: #f8fafc;
+  border: 1px solid var(--soft-line);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ownerCredentialCard dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ownerCredentialCard dd {
+  margin: 4px 0 0;
+}
+
+.ownerCredentialCard footer button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  font-weight: 900;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.ownerRequestModal {
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  width: min(900px, 100%);
+}
+
+.ownerRequestModal label {
+  display: grid;
+  gap: 7px;
+}
+
+.ownerRequestModal textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.settingsCardGrid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 18px 0;
+}
+
+.settingsCardGrid b,
+.settingsCardGrid span {
+  display: block;
+}
+
+.settingsCardGrid span {
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.ownerRequestList article {
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto 1fr auto;
+  padding: 14px;
 }
 
 .fullButton {
@@ -1062,14 +1445,16 @@ button {
 .modalHeader {
   align-items: flex-start;
   display: flex;
+  gap: 16px;
   justify-content: space-between;
   margin-bottom: 20px;
 }
 
+.modalHeader > div { min-width: 0; }
 .modalHeader h3, .modalHeader p { margin: 0; }
 .modalHeader h3 { font-size: 26px; }
 .modalHeader p { color: var(--muted); margin-top: 5px; }
-.modalHeader button { background: #f2f4f7; border: 0; border-radius: 50%; font-size: 24px; height: 38px; width: 38px; }
+.modalHeader button { background: #f2f4f7; border: 0; border-radius: 50%; flex: 0 0 38px; font-size: 24px; height: 38px; position: relative; width: 38px; z-index: 2; }
 
 @keyframes modalFade { from { opacity: 0; } }
 @keyframes modalRise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
@@ -2433,6 +2818,34 @@ select:focus {
   .topnav,
   .heroConsole {
     display: none;
+  }
+
+  .appTopbar {
+    gap: 12px;
+    padding-inline: 18px;
+  }
+
+  .appTopbarActions {
+    gap: 8px;
+  }
+
+  .propertySwitcher {
+    padding: 4px;
+  }
+
+  .propertySwitcher span {
+    display: none;
+  }
+
+  .propertySwitcher select {
+    max-width: 138px;
+    min-width: 118px;
+  }
+
+  .profileMenuButton,
+  .notificationIconButton {
+    height: 44px;
+    width: 44px;
   }
 
   .productHero,

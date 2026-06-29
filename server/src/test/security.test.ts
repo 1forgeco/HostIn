@@ -72,6 +72,42 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect([403, 404]).toContain(foreignOrgAttempt.status);
   });
 
+  it("serves owner business dashboard data and accepts 1Forge-bound owner requests", async () => {
+    const ownerRole = await prisma.userOrgRole.findFirst({
+      where: { role: "owner", organization: { slug: "city-complex" }, user: { email: "owner@city-complex.hostin.local" } },
+      include: { user: true },
+    });
+    expect(ownerRole).toBeTruthy();
+    const accessToken = jwt.sign({ userId: ownerRole?.user_id, email: ownerRole?.user.email }, env.JWT_SECRET, { expiresIn: "5m" });
+    const authorization = { Authorization: `Bearer ${accessToken}`, "x-org-id": ownerRole?.org_id as string };
+
+    const dashboard = await request(app).get("/api/owner/dashboard").set(authorization);
+    expect(dashboard.status).toBe(200);
+    expect(dashboard.body.dashboard.summary.totalProperties).toBeGreaterThanOrEqual(1);
+    expect(dashboard.body.dashboard.credentials.some((item: { loginId: string }) => item.loginId === "owner@city-complex.hostin.local")).toBe(true);
+
+    const title = `Night guard credential ${Date.now()}`;
+    try {
+      const created = await request(app).post("/api/owner/requests").set(authorization).send({
+        type: "credential_creation",
+        title,
+        personName: "Night Guard",
+        role: "guard",
+        department: "Gate Security",
+        reason: "New night shift guard joined",
+        requiredAccess: "Guard dashboard and visitor management",
+      });
+      expect(created.status).toBe(201);
+      expect(created.body.request.status).toBe("submitted");
+
+      const requests = await request(app).get("/api/owner/requests").set(authorization);
+      expect(requests.status).toBe(200);
+      expect(requests.body.requests.some((item: { title: string }) => item.title === title)).toBe(true);
+    } finally {
+      await prisma.ownerRequest.deleteMany({ where: { title } });
+    }
+  });
+
   it("routes 1Forge accounts to the isolated platform portal", async () => {
     const login = await request(app).post("/api/auth/resolve-login").send({ email: "admin@1forge.com", password: "PlatformAdminPassword123" });
     expect(login.status).toBe(200);

@@ -48,6 +48,51 @@ test("tenant account routes directly to its private profile", async ({ page }) =
   await expect(page).toHaveURL(/\/city-complex\/tenant\/aarav-mehta$/);
   await expect(page.getByRole("button", { name: "Gate Passes" }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Rooms" })).toHaveCount(0);
+  await expect(page.getByLabel("Switch property")).toHaveValue("city-complex");
+  await expect(page.getByRole("button", { name: "Sync", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Profile menu" }).click();
+  await page.getByRole("button", { name: "View profile" }).click();
+  await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+  await expect(page.getByText("Posting identity", { exact: true })).toBeVisible();
+});
+
+test("owner account opens the database-backed business dashboard", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByLabel("Email address")).toBeEnabled();
+  await page.getByRole("button", { name: "Use Owner demo account" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/city-complex\/owner\/city-complex-owner$/);
+  await expect(page.getByRole("heading", { name: "Good morning, owner" })).toBeVisible();
+  await expect(page.getByText("Total tenants", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Switch property")).toHaveValue("city-complex");
+  await expect(page.getByRole("button", { name: "Sync", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Workspace navigation")).toHaveCount(0);
+  const ownerSidebar = page.getByRole("complementary");
+  await expect(ownerSidebar.getByRole("button", { name: "My Properties" })).toBeVisible();
+  await expect(ownerSidebar.getByRole("button", { name: "Credentials" })).toBeVisible();
+
+  await ownerSidebar.getByRole("button", { name: "Credentials" }).click();
+  await expect(page.locator(".ownerCredentialCards")).toBeVisible();
+  await expect(page.locator(".ownerCredentialCard")).toHaveCount(7);
+  await expect(page.getByText("owner@city-complex.hostin.local")).toBeVisible();
+  await page.getByRole("button", { name: "Add Team Member" }).click();
+  await expect(page.getByRole("heading", { name: "Add Team Member" })).toBeVisible();
+  await expect(page.getByLabel("Request type")).toHaveValue("credential_creation");
+  await page.getByRole("button", { name: "Close request form" }).click();
+  await expect(page.getByRole("heading", { name: "Add Team Member" })).toHaveCount(0);
+
+  await ownerSidebar.getByRole("button", { name: "Requests" }).click();
+  await expect(page.getByRole("heading", { name: "Request history" })).toBeVisible();
+  await page.getByRole("button", { name: "New Request" }).click();
+  await expect(page.getByRole("heading", { name: "New Request" })).toBeVisible();
+  await page.locator(".modalBackdrop").click({ position: { x: 10, y: 10 } });
+  await expect(page.getByRole("heading", { name: "New Request" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Profile menu" }).click();
+  await page.getByRole("button", { name: "View profile" }).click();
+  await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Account details" })).toBeVisible();
+  await expect(page.getByText("Posting identity", { exact: true })).toBeVisible();
 });
 
 test("1Forge account can use the complete control-center journey", async ({ page }) => {
