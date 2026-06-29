@@ -48,6 +48,7 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect(login.body.destination).toBe(destination);
     expect(login.body.session.role).toBe(role);
     expect(login.body.session.orgId).toBeTruthy();
+    expect(login.body.session).toHaveProperty("themeColor");
 
     const rooms = await request(app)
       .get("/api/rooms")
@@ -75,5 +76,7 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect(login.body.destination).toBe("/1forge/platform");
     const organizations = await request(app).get("/api/platform/organizations").set("Authorization", `Bearer ${login.body.accessToken}`);
     expect(organizations.status).toBe(200);
+    expect(organizations.body.organizations[0]).toHaveProperty("themeColor");
+    expect(organizations.body.organizations[0]).toHaveProperty("cityState");
   });
 });

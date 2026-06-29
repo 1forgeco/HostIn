@@ -1,19 +1,24 @@
-.PHONY: help setup dev build check test e2e migrate seed logs down reset-db
+.PHONY: help setup dev build check test test-client test-server test-integration e2e e2e-public e2e-platform migrate seed logs down reset-db
 
 # List the available commands; use this when you are unsure what to run.
 help:
 	@printf '%s\n' \
-		'make setup     First-time setup: create .env and start the Docker stack' \
-		'make dev       Start the Docker stack in the foreground for development' \
-		'make build     Build all Docker images without starting containers' \
-		'make check     Run the same full deployment gate used before every push' \
-		'make test      Run the server and client unit/API test suites' \
-		'make e2e       Run browser tests against temporary local app servers' \
-		'make migrate   Apply pending Prisma migrations using Docker' \
-		'make seed      Insert or refresh local demo data using Docker' \
-		'make logs      Follow client and server container logs' \
-		'make down      Stop the Docker stack while preserving database data' \
-		'make reset-db  Delete local Docker data and recreate a clean stack'
+		'make setup             First-time setup: create .env and start the Docker stack' \
+		'make dev               Start the Docker stack in the foreground for development' \
+		'make build             Build all Docker images without starting containers' \
+		'make check             Run the same full deployment gate used before every push' \
+		'make test              Run all fast server/API and client component tests' \
+		'make test-client       Run client component and theme bootstrap tests' \
+		'make test-server       Run isolated API protection tests' \
+		'make test-integration  Prepare demo data and run database authorization tests' \
+		'make e2e               Run every desktop and mobile browser journey' \
+		'make e2e-public        Run landing, plans, login, alias, and recovery journeys' \
+		'make e2e-platform      Run tenant routing and 1Forge control-center journeys' \
+		'make migrate           Apply pending Prisma migrations using Docker' \
+		'make seed              Insert or refresh local demo data using Docker' \
+		'make logs              Follow client and server container logs' \
+		'make down              Stop the Docker stack while preserving database data' \
+		'make reset-db          Delete local Docker data and recreate a clean stack'
 
 # First clone only: preserve an existing .env and start everything in the background.
 setup:
@@ -32,13 +37,34 @@ build:
 check:
 	npm run verify:push
 
-# During development: run fast server and client tests without browser tests.
+# During development: run every fast test without database integration or browsers.
 test:
 	npm test
 
-# Before pushing login/routing changes: run desktop and mobile browser tests.
+# While changing React UI or theme bootstrapping: run client-side unit tests only.
+test-client:
+	npm --prefix client test
+
+# While changing middleware, routes, or validation: run isolated API tests only.
+test-server:
+	npm --prefix server test
+
+# After auth, organization, schema, or role changes: refresh demo data and test the database flow.
+test-integration:
+	npm run test:e2e:prepare
+	npm run test:integration
+
+# Before pushing any user journey change: run all desktop and mobile browser tests.
 e2e:
 	npm run test:e2e
+
+# While changing public pages: run landing, plans, login, aliases, and recovery routes.
+e2e-public:
+	npx playwright test e2e/public-journey.spec.ts
+
+# While changing private workspaces or 1Forge: run routing and control-center coverage.
+e2e-platform:
+	npx playwright test e2e/unified-login.spec.ts
 
 # After schema changes: start PostgreSQL if needed and apply pending migrations.
 migrate:
