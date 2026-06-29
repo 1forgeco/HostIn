@@ -46,6 +46,7 @@ export const handleLogin = async (req: Request, res: Response) => {
             id: true,
             name: true,
             slug: true,
+            theme_color: true,
           },
         },
       },
@@ -86,6 +87,7 @@ export const handleLogin = async (req: Request, res: Response) => {
       orgName: r.organization.name,
       orgSlug: r.organization.slug,
       role: r.role,
+      themeColor: r.organization.theme_color,
     }));
 
     res.cookie("hostin_refresh", refreshRawToken, { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/api/auth", maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000 });
