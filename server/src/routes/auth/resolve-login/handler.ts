@@ -42,7 +42,7 @@ export const handleResolveLogin = async (req: Request, res: Response) => {
     ]);
     res.cookie("hostin_refresh", refreshToken, { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/api/auth", maxAge: 7 * 24 * 60 * 60 * 1000 });
     const destination = `/${organization.slug}/${membership.role}/${accountSlug}`;
-    return res.json({ accountType: "workspace", accessToken, destination, session: { accessToken, orgId: organization.id, userName: user.full_name, email: user.email, workspace: organization.slug, role: membership.role, accountSlug } });
+    return res.json({ accountType: "workspace", accessToken, destination, session: { accessToken, orgId: organization.id, userName: user.full_name, email: user.email, workspace: organization.slug, role: membership.role, accountSlug, themeColor: organization.theme_color } });
   } catch (error) {
     console.error("Resolve login error:", error);
     return res.status(500).json({ error: "Unable to sign in" });

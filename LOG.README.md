@@ -496,3 +496,52 @@ This file tracks what was requested, what decisions were made, what changed, and
 - `make setup` starts healthy PostgreSQL, server, and client containers.
 - Docker-hosted API health and frontend login endpoints both return HTTP 200.
 - Ignore-rule samples and `git diff --check` pass.
+
+# 2026-06-29 - 1Forge Control Center Restructure
+
+## Requested
+
+- Reduce the amount of client data shown on the main 1Forge platform page.
+- Add compact client cards that open a dedicated client control page.
+- Manage role apps, client features, and one client-wide theme colour from the control center.
+- Add a separate financial analytics page with monthly and per-client revenue views.
+- Use the supplied dashboard references for information architecture only and retain HostIn's current visual system.
+
+## Implemented
+
+- Replaced the overloaded platform view with a compact `/1forge/platform` dashboard containing portfolio KPIs, client search, status filters, and summary cards.
+- Added routed client controls at `/1forge/platform/{client-slug}` with Overview, Apps & Roles, Features, Theme & Branding, and Billing tabs.
+- Added `/1forge/platform/analytics` with MRR, annual run rate, average client revenue, revenue trend, per-client contribution, and a subscription ledger.
+- Added persistent organization theme colours and propagated the saved colour through workspace login sessions to all client role apps.
+- Added platform navigation for Dashboard, Clients, and Analytics while preserving existing HostIn colours, spacing, panels, and theme controls.
+- Added responsive layouts for compact desktop, tablet, and mobile widths.
+
+## Verification
+
+- Prisma formatting and client generation passed.
+- Organization theme migration applied successfully to the configured PostgreSQL database.
+- Client lint, typecheck, and production build passed.
+- Server lint, typecheck, production build, and API tests passed.
+- Browser-verified the dashboard, client overview, branding controls, analytics page, and a 390px mobile layout without horizontal overflow.
+
+# 2026-06-29 - Control Center Test Coverage Refresh
+
+## Requested
+
+- Update the existing tests for the redesigned 1Forge interface.
+- Add coverage for the new dashboard, client controls, branding, billing, and analytics experiences.
+
+## Implemented
+
+- Updated the platform E2E journey to follow the new Dashboard → Client Control → Billing structure.
+- Added desktop and mobile assertions for client search, status filtering, all client-control tabs, role apps, features, client-wide branding, financial analytics, and the subscription ledger.
+- Added a responsive overflow assertion and fixed the mobile analytics ledger so wide tabular content scrolls inside its panel instead of widening the page.
+- Added a unit test for pre-hydration custom theme restoration through `instrumentation-client.ts`.
+- Extended database-backed API assertions to cover organization theme colours and location data used by the new control center.
+- Removed the React client-render script warning by moving theme restoration out of the layout component.
+
+## Verification
+
+- Client unit tests, lint, and typecheck passed.
+- Server API tests, lint, and typecheck passed.
+- Expanded Playwright coverage passed on desktop Chromium and Pixel 7 mobile profiles.
