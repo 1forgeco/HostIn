@@ -103,6 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - run: docker build --target production -t hostin-server:test server
       - run: docker build --target production --build-arg NEXT_PUBLIC_API_URL=http://localhost:5001/api -t hostin-client:test client
