@@ -53,7 +53,7 @@ describe("public product journey", () => {
   it("shows every seeded workspace role and prefills its exact credentials", () => {
     render(<LoginPage />);
 
-    for (const role of ["Owner", "Warden", "Guard", "Staff", "Tenant", "Parent"]) {
+    for (const role of ["Owner", "Warden", "Guard", "Mess Manager", "Tenant", "Parent"]) {
       expect(screen.getByRole("button", { name: `Use ${role} demo account` })).toBeVisible();
     }
 

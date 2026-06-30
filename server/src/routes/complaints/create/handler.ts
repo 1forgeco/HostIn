@@ -43,9 +43,8 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
       return res.status(403).json({ error: "Only active tenants can file complaints" });
     }
 
-    // Create Complaint
-    const complaint = await prisma.complaint.create({
-      data: {
+    const complaint = await prisma.$transaction(async (tx) => {
+      const created = await tx.complaint.create({ data: {
         org_id: orgId,
         tenant_id: userId as string,
         category: category as ComplaintCategory,
@@ -54,7 +53,11 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
         priority: (priority as ComplaintPriority) || "medium",
         photo_urls: photoUrls || [],
         status: "open",
-      },
+      } });
+      const responders = await tx.userOrgRole.findMany({ where: { org_id: orgId, role: { in: ["owner", "warden"] }, is_active: true }, select: { user_id: true } });
+      const userIds = [...new Set(responders.map((item) => item.user_id))];
+      if (userIds.length) await tx.notification.createMany({ data: userIds.map((responderId) => ({ org_id: orgId, user_id: responderId, title: `New ${category} complaint`, body: title, type: "complaint" as const, reference_id: created.id, reference_type: "complaint" })) });
+      return created;
     });
 
     return res.status(201).json({

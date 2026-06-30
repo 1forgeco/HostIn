@@ -85,6 +85,30 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect([403, 404]).toContain(foreignOrgAttempt.status);
   });
 
+  it("updates the tenant's current rent bill when a warden changes rooms", async () => {
+    const startedAt = new Date();
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { slug: "city-complex" } });
+    const tenant = await prisma.user.findUniqueOrThrow({ where: { email: "tenant@city-complex.hostin.local" } });
+    const profile = await prisma.tenantProfile.findUniqueOrThrow({ where: { user_id_org_id: { user_id: tenant.id, org_id: organization.id } }, include: { room: true } });
+    const targetRoom = await prisma.room.findFirstOrThrow({ where: { org_id: organization.id, id: { not: profile.room_id }, is_active: true, current_occupancy: 0 } });
+    const login = await request(app).post("/api/auth/resolve-login").send({ email: "warden@city-complex.hostin.local", password: "city-complex@123" });
+    const authorization = { Authorization: `Bearer ${login.body.accessToken}`, "x-org-id": organization.id };
+    let moved = false;
+    try {
+      const assignment = await request(app).post(`/api/rooms/${targetRoom.id}/assign-tenant`).set(authorization).send({ tenantUserId: tenant.id });
+      expect(assignment.status).toBe(200);
+      moved = true;
+      expect(Number(assignment.body.rentDue.amount)).toBe(Number(targetRoom.monthly_rent));
+      expect(assignment.body.rentDue.description).toContain(targetRoom.room_number);
+      const notification = await prisma.notification.findFirst({ where: { org_id: organization.id, user_id: tenant.id, title: "Room rent updated", created_at: { gte: startedAt } } });
+      expect(notification?.body).toContain(targetRoom.room_number);
+    } finally {
+      if (moved) await request(app).post(`/api/rooms/${profile.room_id}/assign-tenant`).set(authorization).send({ tenantUserId: tenant.id });
+      await prisma.roomAssignmentHistory.deleteMany({ where: { org_id: organization.id, tenant_id: tenant.id, assigned_at: { gte: startedAt } } });
+      await prisma.notification.deleteMany({ where: { org_id: organization.id, user_id: tenant.id, title: "Room rent updated", created_at: { gte: startedAt } } });
+    }
+  });
+
   it("serves owner business dashboard data and accepts 1Forge-bound owner requests", async () => {
     const ownerRole = await prisma.userOrgRole.findFirst({
       where: { role: "owner", organization: { slug: "city-complex" }, user: { email: "owner@city-complex.hostin.local" } },
@@ -129,6 +153,9 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect(organizations.status).toBe(200);
     expect(organizations.body.organizations[0]).toHaveProperty("themeColor");
     expect(organizations.body.organizations[0]).toHaveProperty("cityState");
+    const notifications = await request(app).get("/api/platform/notifications").set("Authorization", `Bearer ${login.body.accessToken}`);
+    expect(notifications.status).toBe(200);
+    expect(Array.isArray(notifications.body.notifications)).toBe(true);
   });
 
   it("materializes an onboarding draft and enforces its role dashboard", async () => {

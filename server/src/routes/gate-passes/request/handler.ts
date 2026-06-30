@@ -43,9 +43,8 @@ export const handleRequestPass = async (req: AuthorizedRequest, res: Response) =
 
     const qrCode = `GP-${crypto.randomUUID()}`;
 
-    // Create GatePass record
-    const gatePass = await prisma.gatePass.create({
-      data: {
+    const gatePass = await prisma.$transaction(async (tx) => {
+      const created = await tx.gatePass.create({ data: {
         org_id: orgId,
         tenant_id: userId as string,
         purpose,
@@ -54,7 +53,11 @@ export const handleRequestPass = async (req: AuthorizedRequest, res: Response) =
         expected_return_time: returnTime,
         status: "pending",
         qr_code: qrCode,
-      },
+      } });
+      const reviewers = await tx.userOrgRole.findMany({ where: { org_id: orgId, role: { in: ["owner", "warden", "guard"] }, is_active: true }, select: { user_id: true } });
+      const userIds = [...new Set(reviewers.map((item) => item.user_id))];
+      if (userIds.length) await tx.notification.createMany({ data: userIds.map((reviewerId) => ({ org_id: orgId, user_id: reviewerId, title: "Gate pass awaiting review", body: `${purpose} · ${destination}`, type: "gate_pass" as const, reference_id: created.id, reference_type: "gate_pass" })) });
+      return created;
     });
 
     return res.status(201).json({

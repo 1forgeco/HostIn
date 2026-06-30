@@ -83,6 +83,7 @@ import featuresOrgRoutes from "./routes/platform/organizations/features";
 import accountOrgRoutes from "./routes/platform/organizations/accounts";
 import controlOrgRoutes from "./routes/platform/organizations/control";
 import platformOnboardingRoutes from "./routes/platform/onboarding";
+import platformNotificationRoutes from "./routes/platform/notifications";
 
 
 
@@ -91,7 +92,7 @@ import platformOnboardingRoutes from "./routes/platform/onboarding";
 
 export const app = express();
 const logger = pino({ level: env.LOG_LEVEL, redact: ["req.headers.authorization", "req.body.password", "req.body.refreshToken"] });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Too many login attempts. Try again later." } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: env.NODE_ENV === "test" ? 1000 : 10, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Too many login attempts. Try again later." } });
 const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: "draft-8", legacyHeaders: false });
 
 // Middlewares
@@ -201,6 +202,7 @@ app.use("/api/platform/organizations", featuresOrgRoutes);
 app.use("/api/platform/organizations", accountOrgRoutes);
 app.use("/api/platform/organizations", controlOrgRoutes);
 app.use("/api/platform/onboarding", platformOnboardingRoutes);
+app.use("/api/platform/notifications", platformNotificationRoutes);
 
 
 

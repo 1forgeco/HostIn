@@ -67,6 +67,7 @@ export const handleUpdateComplaintStatus = async (req: AuthorizedRequest, res: R
           note: note || null,
         },
       });
+      await tx.notification.create({ data: { org_id: orgId, user_id: complaint.tenant_id, title: `Complaint ${String(status).replaceAll("_", " ")}`, body: note || `Your complaint is now ${String(status).replaceAll("_", " ")}.`, type: "complaint", reference_id: id, reference_type: "complaint" } });
 
       return updatedComplaint;
     });

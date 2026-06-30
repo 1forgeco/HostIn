@@ -7,29 +7,7 @@ import { applyCustomColor, applyDefaultTheme } from "./theme-system";
 import { ClientOnboardingWizard } from "./client-onboarding-wizard";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
-type SectionId =
-  | "profile"
-  | "overview"
-  | "ownerProperties"
-  | "ownerPeople"
-  | "ownerCredentials"
-  | "ownerRequests"
-  | "ownerBilling"
-  | "ownerReports"
-  | "ownerSettings"
-  | "rooms"
-  | "tenants"
-  | "gate"
-  | "visitors"
-  | "finance"
-  | "community"
-  | "complaints"
-  | "announcements"
-  | "mess"
-  | "documents"
-  | "staff"
-  | "parents"
-  | "platform";
+type SectionId = "profile" | "overview" | "ownerProperties" | "ownerPeople" | "ownerCredentials" | "ownerRequests" | "ownerBilling" | "ownerReports" | "ownerSettings" | "rooms" | "tenants" | "gate" | "visitors" | "finance" | "community" | "complaints" | "announcements" | "mess" | "documents" | "staff" | "parents" | "platform";
 
 type Module = {
   id: SectionId;
@@ -193,12 +171,50 @@ type PlatformOrganization = {
 type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
 type PlatformControlData = {
   onboarding?: { current_step: number; status: string } | null;
-  people: { id: string; full_name: string; phone: string; email?: string | null; person_type: string; room_number?: string | null; status: string }[];
-  accounts: { id: string; full_name: string; email: string; phone: string; account_status: string; force_password_change: boolean; last_login_at?: string | null; roles: string[] }[];
-  floors: { id: string; floor_number: number; floor_name: string; rooms: { id: string; room_number: string; capacity: number; current_occupancy: number; monthly_rent: string | number; status: string }[] }[];
+  people: {
+    id: string;
+    full_name: string;
+    phone: string;
+    email?: string | null;
+    person_type: string;
+    room_number?: string | null;
+    status: string;
+  }[];
+  accounts: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string;
+    account_status: string;
+    force_password_change: boolean;
+    last_login_at?: string | null;
+    roles: string[];
+  }[];
+  floors: {
+    id: string;
+    floor_number: number;
+    floor_name: string;
+    rooms: {
+      id: string;
+      room_number: string;
+      capacity: number;
+      current_occupancy: number;
+      monthly_rent: string | number;
+      status: string;
+    }[];
+  }[];
   roleDashboards: { role: string; status: string }[];
   rolePermissions: { role: string; feature_key: string; is_allowed: boolean }[];
-  accessOverrides: { id: string; user_id: string; role: string; feature_key: string; decision: string; reason?: string | null; expires_at?: string | null; user: { full_name: string; email: string } }[];
+  accessOverrides: {
+    id: string;
+    user_id: string;
+    role: string;
+    feature_key: string;
+    decision: string;
+    reason?: string | null;
+    expires_at?: string | null;
+    user: { full_name: string; email: string };
+  }[];
 };
 
 type OwnerDashboardData = {
@@ -215,13 +231,76 @@ type OwnerDashboardData = {
     pendingRequests: number;
     pendingCredentialRequests: number;
   };
-  properties: { id: string; name: string; slug: string; cityState: string; clientType?: string | null; planName: string; planStatus: string; roomCount: number; totalBeds: number; occupiedBeds: number; availableBeds: number; activeTenants: number; monthlyRevenue: number; pendingRent: number; openComplaints: number; staffActive: number; status: string }[];
+  properties: {
+    id: string;
+    name: string;
+    slug: string;
+    cityState: string;
+    clientType?: string | null;
+    planName: string;
+    planStatus: string;
+    roomCount: number;
+    totalBeds: number;
+    occupiedBeds: number;
+    availableBeds: number;
+    activeTenants: number;
+    monthlyRevenue: number;
+    pendingRent: number;
+    openComplaints: number;
+    staffActive: number;
+    status: string;
+  }[];
   attention: { key: string; label: string; count: number; severity: string }[];
-  credentials: { userId: string; name: string; role: string; loginId: string; property: string; status: string; roleActive: boolean; createdOn: string; lastActive?: string | null }[];
-  people: { id: string; name: string; role: string; property: string; roomOrDepartment: string; phone: string; accountStatus: string; documentStatus: string; lastActive?: string | null; status: string }[];
+  credentials: {
+    userId: string;
+    name: string;
+    role: string;
+    loginId: string;
+    property: string;
+    status: string;
+    roleActive: boolean;
+    createdOn: string;
+    lastActive?: string | null;
+  }[];
+  people: {
+    id: string;
+    name: string;
+    role: string;
+    property: string;
+    roomOrDepartment: string;
+    phone: string;
+    accountStatus: string;
+    documentStatus: string;
+    lastActive?: string | null;
+    status: string;
+  }[];
   documents: { id: string; tenantName: string; type: string; fileName: string; status: string; createdAt: string }[];
-  requests: { id: string; type: string; status: string; title: string; personName?: string | null; role?: string | null; property: string; requestedBy: string; createdAt: string; updatedAt: string; reason?: string | null; requiredAccess?: string | null }[];
-  billing: { orgId: string; property: string; planName: string; planStatus: string; baseMonthly: number; maxTenants: number; activeFeatures: string[]; nextRenewal?: string | null; totalCapacity: number; activeUsers: number }[];
+  requests: {
+    id: string;
+    type: string;
+    status: string;
+    title: string;
+    personName?: string | null;
+    role?: string | null;
+    property: string;
+    requestedBy: string;
+    createdAt: string;
+    updatedAt: string;
+    reason?: string | null;
+    requiredAccess?: string | null;
+  }[];
+  billing: {
+    orgId: string;
+    property: string;
+    planName: string;
+    planStatus: string;
+    baseMonthly: number;
+    maxTenants: number;
+    activeFeatures: string[];
+    nextRenewal?: string | null;
+    totalCapacity: number;
+    activeUsers: number;
+  }[];
   recentActivity: { type: string; title: string; date: string }[];
   roleCounts: Record<string, number>;
 };
@@ -266,7 +345,7 @@ const modules: Module[] = [
   {
     id: "ownerPeople",
     title: "People & Roles",
-    description: "Master people directory across tenants, wardens, guards, staff, parents, and vendors.",
+    description: "Master people directory across tenants, wardens, guards, mess managers, parents, and vendors.",
     stat: "118",
     meta: "people",
     roles: ["owner"],
@@ -335,7 +414,7 @@ const modules: Module[] = [
     description: "Assign, update, and resolve operational complaints.",
     stat: "0",
     meta: "open",
-    roles: ["warden"],
+    roles: ["owner", "warden"],
     action: "Review complaints",
     endpoint: "/complaints",
     method: "GET",
@@ -546,10 +625,12 @@ function normalizeRole(role: string): Role {
 
 function roleLabel(role: string) {
   if (role === "security") return "Security";
+  if (role === "staff") return "Mess Manager";
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
 function titleFromSlug(slug: string) {
+  if (slug === "staff") return "Mess Manager";
   return slug
     .split("-")
     .filter(Boolean)
@@ -592,18 +673,13 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
     }
   }, [normalizedRole, workspace]);
 
-  const allowedModules = useMemo(
-    () => {
-      const available = modules.filter((module) => module.roles.includes(normalizedRole));
-      if (normalizedRole !== "warden") return available;
-      const order: SectionId[] = ["overview", "rooms", "tenants", "complaints", "gate", "visitors", "announcements", "staff", "documents"];
-      return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-    },
-    [normalizedRole]
-  );
-  const activeModule = activeId === "profile"
-    ? profileModule
-    : allowedModules.find((module) => module.id === activeId) ?? allowedModules[0] ?? modules[0];
+  const allowedModules = useMemo(() => {
+    const available = modules.filter((module) => module.roles.includes(normalizedRole));
+    if (normalizedRole !== "warden") return available;
+    const order: SectionId[] = ["overview", "rooms", "tenants", "complaints", "gate", "visitors", "announcements", "staff", "documents"];
+    return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  }, [normalizedRole]);
+  const activeModule = activeId === "profile" ? profileModule : (allowedModules.find((module) => module.id === activeId) ?? allowedModules[0] ?? modules[0]);
   const propertyOptions = useMemo(() => {
     if (!login || normalizedRole === "platform") return [];
     const seen = new Set<string>();
@@ -621,7 +697,13 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
       }));
     return options.length
       ? options
-      : [{ label: propertyName, value: workspace, destination: `/${workspace}/${normalizedRole}/${profile || "account"}` }];
+      : [
+          {
+            label: propertyName,
+            value: workspace,
+            destination: `/${workspace}/${normalizedRole}/${profile || "account"}`,
+          },
+        ];
   }, [login, normalizedRole, profile, propertyName, workspace]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -650,12 +732,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
         return;
       }
 
-      const matchedRole = Array.isArray(data.roles)
-        ? data.roles.find(
-            (item: { orgId: string; orgSlug: string; role: string }) =>
-              item.orgSlug === workspace && item.role === normalizedRole
-          )
-        : null;
+      const matchedRole = Array.isArray(data.roles) ? data.roles.find((item: { orgId: string; orgSlug: string; role: string }) => item.orgSlug === workspace && item.role === normalizedRole) : null;
 
       if (!isPlatform) {
         if (!matchedRole) {
@@ -670,7 +747,13 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
         userName: data.user?.fullName ?? data.platformUser?.fullName ?? roleLabel(role),
         email: data.user?.email ?? form.get("username")?.toString() ?? "",
         themeColor: matchedRole?.themeColor,
-        availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({ orgId: item.orgId, workspace: item.orgSlug, role: item.role, accountSlug: item.accountSlug || "account", destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}` })),
+        availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({
+          orgId: item.orgId,
+          workspace: item.orgSlug,
+          role: item.role,
+          accountSlug: item.accountSlug || "account",
+          destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}`,
+        })),
       });
       window.sessionStorage.setItem(
         "hostin-session",
@@ -682,7 +765,13 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
           workspace,
           role: normalizedRole,
           themeColor: matchedRole?.themeColor,
-          availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({ orgId: item.orgId, workspace: item.orgSlug, role: item.role, accountSlug: item.accountSlug || "account", destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}` })),
+          availableRoles: data.roles?.map((item: { orgId: string; orgSlug: string; role: string; accountSlug?: string }) => ({
+            orgId: item.orgId,
+            workspace: item.orgSlug,
+            role: item.role,
+            accountSlug: item.accountSlug || "account",
+            destination: `/${item.orgSlug}/${item.role}/${item.accountSlug || "account"}`,
+          })),
         })
       );
       if (matchedRole?.themeColor && !isPlatform) applyCustomColor(matchedRole.themeColor);
@@ -705,19 +794,20 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
           Authorization: `Bearer ${login.accessToken}`,
           ...(login.orgId !== "platform" ? { "x-org-id": login.orgId } : {}),
         },
-        body:
-          activeModule.method === "GET" ? undefined : JSON.stringify({ orgSlug: workspace, source: "workspace-ui" }),
+        body: activeModule.method === "GET" ? undefined : JSON.stringify({ orgSlug: workspace, source: "workspace-ui" }),
       });
-      setMessage(
-        response.ok ? `${activeModule.title} synced.` : `${activeModule.title} needs valid fields or permissions.`
-      );
+      setMessage(response.ok ? `${activeModule.title} synced.` : `${activeModule.title} needs valid fields or permissions.`);
     } catch {
       setMessage("Server is not reachable right now.");
     }
   }
 
   async function logout() {
-    try { await fetch(`${apiBase}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* Local session is still cleared below. */ }
+    try {
+      await fetch(`${apiBase}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {
+      /* Local session is still cleared below. */
+    }
     window.sessionStorage.removeItem("hostin-session");
     setLogin(null);
     window.location.assign("/login");
@@ -811,7 +901,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
               </select>
             </label>
           ) : null}
-          {normalizedRole !== "platform" ? <NotificationMenu accessToken={login.accessToken} orgId={login.orgId} /> : null}
+          <NotificationMenu accessToken={login.accessToken} isPlatform={normalizedRole === "platform"} orgId={login.orgId} />
           <ProfileMenu login={login} onLogout={logout} onOpenProfile={() => setActiveId("profile")} role={normalizedRole} workspace={propertyName} />
         </div>
       </header>
@@ -826,29 +916,39 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
           {normalizedRole === "platform" ? (
             <div className="moduleGroup platformNavGroup">
               <p>Control center</p>
-              <Link className={!profile ? "active navItem" : "navItem"} href="/1forge/platform">Dashboard</Link>
-              <Link className={profile && profile !== "analytics" ? "active navItem" : "navItem"} href="/1forge/platform">Clients</Link>
-              <Link className={profile === "analytics" ? "active navItem" : "navItem"} href="/1forge/platform/analytics">Analytics</Link>
+              <Link className={!profile ? "active navItem" : "navItem"} href="/1forge/platform">
+                Dashboard
+              </Link>
+              <Link className={profile && profile !== "analytics" ? "active navItem" : "navItem"} href="/1forge/platform">
+                Clients
+              </Link>
+              <Link className={profile === "analytics" ? "active navItem" : "navItem"} href="/1forge/platform/analytics">
+                Analytics
+              </Link>
             </div>
-          ) : <div className="moduleGroup">
-            <p>Allowed modules</p>
-            {allowedModules.map((module) => (
-              <button
-                className={module.id === activeModule.id ? "active navItem" : "navItem"}
-                key={module.id}
-                onClick={() => setActiveId(module.id)}
-                type="button"
-              >
-                {module.title}
-              </button>
-            ))}
-          </div>}
-          {normalizedRole !== "platform" && (login.availableRoles?.length ?? 0) > 1 ? <div className="moduleGroup roleSwitcher"><p>Switch role</p>{login.availableRoles?.filter((item) => item.workspace === workspace).map((item) => <Link className={normalizeRole(item.role) === normalizedRole ? "active navItem" : "navItem"} href={item.destination} key={`${item.orgId}-${item.role}`}>{roleLabel(item.role)}</Link>)}</div> : null}
-          <button
-            className="outlineButton fullButton"
-            onClick={logout}
-            type="button"
-          >
+          ) : (
+            <div className="moduleGroup">
+              <p>Allowed modules</p>
+              {allowedModules.map((module) => (
+                <button className={module.id === activeModule.id ? "active navItem" : "navItem"} key={module.id} onClick={() => setActiveId(module.id)} type="button">
+                  {module.title}
+                </button>
+              ))}
+            </div>
+          )}
+          {normalizedRole !== "platform" && (login.availableRoles?.length ?? 0) > 1 ? (
+            <div className="moduleGroup roleSwitcher">
+              <p>Switch role</p>
+              {login.availableRoles
+                ?.filter((item) => item.workspace === workspace)
+                .map((item) => (
+                  <Link className={normalizeRole(item.role) === normalizedRole ? "active navItem" : "navItem"} href={item.destination} key={`${item.orgId}-${item.role}`}>
+                    {roleLabel(item.role)}
+                  </Link>
+                ))}
+            </div>
+          ) : null}
+          <button className="outlineButton fullButton" onClick={logout} type="button">
             Logout
           </button>
         </aside>
@@ -860,147 +960,99 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
             ) : (
               <PlatformSection accessToken={login.accessToken} routeView={profile} />
             )
-          ) : <>
-          <div className="pageHeader">
-            <div>
-              <p className="crumb">
-                {propertyName} / {roleLabel(role)}
-              </p>
-              <h2>{activeModule.title}</h2>
-              <p>
-                {normalizedRole === "tenant" && activeModule.id === "gate"
-                  ? "Request an outing pass and review your permanent pass history."
-                  : normalizedRole === "tenant" && activeModule.id === "finance"
-                    ? "Review your dues, pay securely, and keep your payment history."
-                    : activeModule.description}
-              </p>
-            </div>
-            {activeModule.id === "tenants" ? (
-              <button
-                className="gradientButton"
-                onClick={() => window.dispatchEvent(new Event("hostin:add-tenant"))}
-                type="button"
-              >
-                Add tenant
-              </button>
-            ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "visitors", "gate", "community", "complaints", "announcements", "documents", "platform"].includes(activeModule.id) ? (
-              <button className="gradientButton" onClick={syncModule} type="button">
-                {activeModule.action}
-              </button>
-            ) : null}
-          </div>
-
-          <div className="syncBanner">
-            <span>Workspace</span>
-            <p>{message}</p>
-          </div>
-
-          {activeModule.id === "profile" ? (
-            <ProfilePage login={login} onLogout={logout} role={normalizedRole} workspace={propertyName} />
-          ) : normalizedRole === "owner" && ownerDashboardIds.includes(activeModule.id) ? (
-            <OwnerWorkspaceSection
-              accessToken={login.accessToken}
-              orgId={login.orgId}
-              setActiveId={setActiveId}
-              view={activeModule.id}
-            />
-          ) : normalizedRole === "warden" && activeModule.id === "overview" ? (
-            <WardenDashboard
-              accessToken={login.accessToken}
-              orgId={login.orgId}
-              setActiveId={setActiveId}
-              userName={login.userName}
-              workspace={propertyName}
-            />
-          ) : activeModule.id === "rooms" && ["owner", "warden"].includes(normalizedRole) ? (
-            <RoomsBoard
-              accessToken={login.accessToken}
-              canManage={["owner", "warden"].includes(normalizedRole)}
-              orgId={login.orgId}
-              role={role}
-              workspace={workspace}
-            />
-          ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
-            <TenantsSection accessToken={login.accessToken} orgId={login.orgId} workspace={workspace} />
-          ) : activeModule.id === "gate" ? (
-            <GatePassSection
-              accessToken={login.accessToken}
-              canModerate={["owner", "warden", "guard"].includes(normalizedRole)}
-              isTenant={normalizedRole === "tenant"}
-              orgId={login.orgId}
-            />
-          ) : activeModule.id === "visitors" ? (
-            <VisitorsSection
-              accessToken={login.accessToken}
-              canCreate={["guard", "warden"].includes(normalizedRole)}
-              canModerate={["owner", "warden", "guard"].includes(normalizedRole)}
-              orgId={login.orgId}
-            />
-          ) : activeModule.id === "community" || activeModule.id === "complaints" || activeModule.id === "announcements" ? (
-            <CommunitySection
-              accessToken={login.accessToken}
-              canCreate={activeModule.id !== "complaints" && ["owner", "warden"].includes(normalizedRole)}
-              mode={activeModule.id === "complaints" ? "complaints" : activeModule.id === "announcements" ? "announcements" : undefined}
-              orgId={login.orgId}
-              role={normalizedRole}
-            />
-          ) : activeModule.id === "documents" && normalizedRole === "warden" ? (
-            <DocumentsVault accessToken={login.accessToken} orgId={login.orgId} />
-          ) : activeModule.id === "finance" ? (
-            <FinanceSection
-              accessToken={login.accessToken}
-              isTenant={normalizedRole === "tenant"}
-              orgId={login.orgId}
-            />
-          ) : activeModule.id === "mess" ? (
-            <MessSection
-              accessToken={login.accessToken}
-              canManage={["owner", "warden", "staff"].includes(normalizedRole)}
-              orgId={login.orgId}
-            />
-          ) : activeModule.id === "staff" ? (
-            <StaffContactsSection accessToken={login.accessToken} orgId={login.orgId} />
           ) : (
-            <div className="productGrid">
-              <section className="panel statGridPanel">
-                <div className="statGrid">
-                  {allowedModules.slice(0, 6).map((module) => (
-                    <button className="metricCard" key={module.id} onClick={() => setActiveId(module.id)} type="button">
-                      <span>{module.title}</span>
-                      <strong>{module.stat}</strong>
-                      <small>{module.meta}</small>
-                    </button>
-                  ))}
+            <>
+              <div className="pageHeader">
+                <div>
+                  <p className="crumb">
+                    {propertyName} / {roleLabel(role)}
+                  </p>
+                  <h2>{activeModule.title}</h2>
+                  <p>{normalizedRole === "tenant" && activeModule.id === "gate" ? "Request an outing pass and review your permanent pass history." : normalizedRole === "tenant" && activeModule.id === "finance" ? "Review your dues, pay securely, and keep your payment history." : activeModule.description}</p>
                 </div>
-              </section>
+                {activeModule.id === "tenants" ? (
+                  <button className="gradientButton" onClick={() => window.dispatchEvent(new Event("hostin:add-tenant"))} type="button">
+                    Add tenant
+                  </button>
+                ) : normalizedRole === "tenant" && activeModule.id === "gate" ? (
+                  <button className="gradientButton" onClick={() => window.dispatchEvent(new Event("hostin:request-gate-pass"))} type="button">
+                    Request Gate Pass
+                  </button>
+                ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "visitors", "gate", "community", "complaints", "announcements", "documents", "platform"].includes(activeModule.id) ? (
+                  <button className="gradientButton" onClick={syncModule} type="button">
+                    {activeModule.action}
+                  </button>
+                ) : null}
+              </div>
 
-              <section className="panel largePanel">
-                <PanelTitle
-                  title={`${activeModule.title} records`}
-                  meta={`${(dataRows[activeModule.id] ?? []).length} items`}
-                />
-                <RecordList rows={dataRows[activeModule.id] ?? []} />
-              </section>
+              <div className="syncBanner">
+                <span>Workspace</span>
+                <p>{message}</p>
+              </div>
 
-              <section className="panel">
-                <PanelTitle title={activeModule.action} meta="Action" />
-                <SmartForm module={activeModule} onSubmit={syncModule} />
-              </section>
-
-              <section className="panel">
-                <PanelTitle title="Workflow" meta="Role access" />
-                <div className="timeline">
-                  {workflowFor(activeModule.id).map((item, index) => (
-                    <div key={item}>
-                      <span>{index + 1}</span>
-                      <p>{item}</p>
+              {activeModule.id === "profile" ? (
+                <ProfilePage login={login} onLogout={logout} role={normalizedRole} workspace={propertyName} />
+              ) : normalizedRole === "owner" && ownerDashboardIds.includes(activeModule.id) ? (
+                <OwnerWorkspaceSection accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} view={activeModule.id} />
+              ) : normalizedRole === "warden" && activeModule.id === "overview" ? (
+                <WardenDashboard accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} userName={login.userName} workspace={propertyName} />
+              ) : activeModule.id === "rooms" && ["owner", "warden"].includes(normalizedRole) ? (
+                <RoomsBoard accessToken={login.accessToken} canManage={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={role} workspace={workspace} />
+              ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
+                <TenantsSection accessToken={login.accessToken} orgId={login.orgId} workspace={workspace} />
+              ) : activeModule.id === "gate" ? (
+                <GatePassSection accessToken={login.accessToken} canModerate={["owner", "warden", "guard"].includes(normalizedRole)} isTenant={normalizedRole === "tenant"} orgId={login.orgId} />
+              ) : activeModule.id === "visitors" ? (
+                <VisitorsSection accessToken={login.accessToken} canCreate={["guard", "warden"].includes(normalizedRole)} canModerate={["owner", "warden", "guard"].includes(normalizedRole)} orgId={login.orgId} />
+              ) : activeModule.id === "community" || activeModule.id === "complaints" || activeModule.id === "announcements" ? (
+                <CommunitySection accessToken={login.accessToken} canCreate={activeModule.id !== "complaints" && ["owner", "warden"].includes(normalizedRole)} mode={activeModule.id === "complaints" ? "complaints" : activeModule.id === "announcements" ? "announcements" : undefined} orgId={login.orgId} role={normalizedRole} />
+              ) : activeModule.id === "documents" && normalizedRole === "warden" ? (
+                <DocumentsVault accessToken={login.accessToken} orgId={login.orgId} />
+              ) : activeModule.id === "finance" ? (
+                <FinanceSection accessToken={login.accessToken} isTenant={normalizedRole === "tenant"} orgId={login.orgId} />
+              ) : activeModule.id === "mess" ? (
+                <MessSection accessToken={login.accessToken} canManage={["owner", "warden", "staff"].includes(normalizedRole)} orgId={login.orgId} />
+              ) : activeModule.id === "staff" ? (
+                <StaffContactsSection accessToken={login.accessToken} orgId={login.orgId} />
+              ) : (
+                <div className="productGrid">
+                  <section className="panel statGridPanel">
+                    <div className="statGrid">
+                      {allowedModules.slice(0, 6).map((module) => (
+                        <button className="metricCard" key={module.id} onClick={() => setActiveId(module.id)} type="button">
+                          <span>{module.title}</span>
+                          <strong>{module.stat}</strong>
+                          <small>{module.meta}</small>
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  </section>
+
+                  <section className="panel largePanel">
+                    <PanelTitle title={`${activeModule.title} records`} meta={`${(dataRows[activeModule.id] ?? []).length} items`} />
+                    <RecordList rows={dataRows[activeModule.id] ?? []} />
+                  </section>
+
+                  <section className="panel">
+                    <PanelTitle title={activeModule.action} meta="Action" />
+                    <SmartForm module={activeModule} onSubmit={syncModule} />
+                  </section>
+
+                  <section className="panel">
+                    <PanelTitle title="Workflow" meta="Role access" />
+                    <div className="timeline">
+                      {workflowFor(activeModule.id).map((item, index) => (
+                        <div key={item}>
+                          <span>{index + 1}</span>
+                          <p>{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
-              </section>
-            </div>
+              )}
+            </>
           )}
-          </>}
         </section>
       </section>
     </main>
@@ -1018,13 +1070,14 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
 
 function ProfileMenu({ login, role, workspace, onOpenProfile, onLogout }: { login: LoginState; role: Role; workspace: string; onOpenProfile: () => void; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
-  const initials = login.userName
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "U";
+  const initials =
+    login.userName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
 
   useEffect(() => {
     if (!open) return;
@@ -1037,20 +1090,16 @@ function ProfileMenu({ login, role, workspace, onOpenProfile, onLogout }: { logi
 
   return (
     <div className={`profileMenu ${open ? "isOpen" : ""}`}>
-      <button
-        aria-expanded={open}
-        aria-label="Profile menu"
-        className="profileMenuButton"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
+      <button aria-expanded={open} aria-label="Profile menu" className="profileMenuButton" onClick={() => setOpen((current) => !current)} type="button">
         {initials}
       </button>
       {open ? (
         <div className="profilePopover">
           <div className="profilePopoverHeader">
             <strong>{login.userName}</strong>
-            <span>{roleLabel(role)} · {workspace}</span>
+            <span>
+              {roleLabel(role)} · {workspace}
+            </span>
             <small>{login.email}</small>
           </div>
           <button
@@ -1063,7 +1112,9 @@ function ProfileMenu({ login, role, workspace, onOpenProfile, onLogout }: { logi
             View profile
           </button>
           <Link href="/change-password">Change password</Link>
-          <button onClick={onLogout} type="button">Logout</button>
+          <button onClick={onLogout} type="button">
+            Logout
+          </button>
         </div>
       ) : null}
     </div>
@@ -1087,25 +1138,43 @@ function ProfilePage({ login, role, workspace, onLogout, showTitle = false }: { 
       <section className="panel">
         <PanelTitle title="Account details" meta={roleLabel(role)} />
         <dl className="clientDetails">
-          <div><dt>Name</dt><dd>{login.userName}</dd></div>
-          <div><dt>Email / Login ID</dt><dd>{login.email}</dd></div>
-          <div><dt>Current property</dt><dd>{workspace}</dd></div>
-          <div><dt>Current role</dt><dd>{roleLabel(role)}</dd></div>
+          <div>
+            <dt>Name</dt>
+            <dd>{login.userName}</dd>
+          </div>
+          <div>
+            <dt>Email / Login ID</dt>
+            <dd>{login.email}</dd>
+          </div>
+          <div>
+            <dt>Current property</dt>
+            <dd>{workspace}</dd>
+          </div>
+          <div>
+            <dt>Current role</dt>
+            <dd>{roleLabel(role)}</dd>
+          </div>
         </dl>
       </section>
       <section className="panel">
         <PanelTitle title="Security" meta="Self-service" />
         <p className="mutedCopy">Keep this account secure because it controls how your role appears across the workspace.</p>
         <div className="profileActionRow">
-          <Link className="gradientButton" href="/change-password">Change password</Link>
-          <button className="outlineButton" onClick={onLogout} type="button">Logout</button>
+          <Link className="gradientButton" href="/change-password">
+            Change password
+          </Link>
+          <button className="outlineButton" onClick={onLogout} type="button">
+            Logout
+          </button>
         </div>
       </section>
       <section className="panel">
         <PanelTitle title="Workspace access" meta={`${roleAccess.length || 1} role${(roleAccess.length || 1) === 1 ? "" : "s"}`} />
         <div className="applyRoleList">
           {(roleAccess.length ? roleAccess : [{ role, workspace }]).map((item) => (
-            <span key={`${item.workspace}-${item.role}`}>{titleFromSlug(item.workspace)} · {roleLabel(item.role)}</span>
+            <span key={`${item.workspace}-${item.role}`}>
+              {titleFromSlug(item.workspace)} · {roleLabel(item.role)}
+            </span>
           ))}
         </div>
       </section>
@@ -1124,13 +1193,7 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch(`${apiBase}/rooms`, { headers }),
-      fetch(`${apiBase}/complaints`, { headers }),
-      fetch(`${apiBase}/gate-passes`, { headers }),
-      fetch(`${apiBase}/visitors`, { headers }),
-      fetch(`${apiBase}/documents`, { headers }),
-    ])
+    Promise.all([fetch(`${apiBase}/rooms`, { headers }), fetch(`${apiBase}/complaints`, { headers }), fetch(`${apiBase}/gate-passes`, { headers }), fetch(`${apiBase}/visitors`, { headers }), fetch(`${apiBase}/documents`, { headers })])
       .then(async (responses) => Promise.all(responses.map((response) => response.json().catch(() => ({})))))
       .then(([roomData, complaintData, passData, visitorData, documentData]) => {
         if (!active) return;
@@ -1142,10 +1205,16 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
       })
       .catch(() => {
         if (!active) return;
-        setRooms([]); setComplaints([]); setPasses([]); setVisitors([]); setDocuments([]);
+        setRooms([]);
+        setComplaints([]);
+        setPasses([]);
+        setVisitors([]);
+        setDocuments([]);
       })
       .finally(() => active && setIsLoading(false));
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, orgId]);
 
@@ -1159,9 +1228,7 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
   const currentVisitors = visitors.filter((item) => item.status === "approved");
   const lateReturns = passes.filter((item) => item.status === "approved" && new Date(item.expected_return_time) < now);
   const pendingDocuments = documents.filter((item) => !item.is_verified);
-  const urgentComplaints = openComplaints
-    .sort((a, b) => ["urgent", "high", "medium", "low"].indexOf(a.priority) - ["urgent", "high", "medium", "low"].indexOf(b.priority))
-    .slice(0, 4);
+  const urgentComplaints = openComplaints.sort((a, b) => ["urgent", "high", "medium", "low"].indexOf(a.priority) - ["urgent", "high", "medium", "low"].indexOf(b.priority)).slice(0, 4);
   const tasks: { label: string; count: number; action: string; target: SectionId }[] = [
     { label: "gate passes waiting for approval", count: pendingPasses.length, action: "Approve", target: "gate" },
     { label: "complaints needing attention", count: openComplaints.length, action: "Assign", target: "complaints" },
@@ -1170,20 +1237,115 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
     { label: "documents pending review", count: pendingDocuments.length, action: "Review", target: "documents" },
   ];
 
-  return <div aria-busy={isLoading} className="wardenDashboard">
-    <section className="panel wardenWelcome"><p className="sectionEyebrow">Warden dashboard</p><h2>Good morning, {userName.split(" ")[0]}</h2><p>{workspace} · Here is what needs attention today.</p></section>
-    {isLoading ? <section className="panel wardenLoading"><DirectorySkeleton /></section> : null}
-    <section className="wardenKpis" aria-label="Today’s operational summary">
-      {[["Available Beds", availableBeds, "rooms"], ["Pending Complaints", openComplaints.length, "complaints"], ["Gate Pass Requests", pendingPasses.length, "gate"], ["Visitors Today", visitorsToday.length, "visitors"], ["Late Returns", lateReturns.length, "gate"]].map(([label, value, target]) => <button className="panel" key={label} onClick={() => setActiveId(target as SectionId)} type="button"><span>{label}</span><strong>{value}</strong></button>)}
-    </section>
-    <section className="panel wardenTasks"><PanelTitle title="Today’s Tasks" meta={`${tasks.reduce((sum, task) => sum + task.count, 0)} actions`} /><div>{tasks.map((task) => <article key={task.label}><strong>{task.count}</strong><span>{task.label}</span><button onClick={() => setActiveId(task.target)} type="button">{task.action}</button></article>)}</div></section>
-    <div className="wardenOperationalGrid">
-      <section className="panel wardenRoomSnapshot"><PanelTitle title="Room Snapshot" meta={`${rooms.length} rooms`} /><div>{rooms.slice(0, 8).map((room) => <button className={getRoomState(room)} key={room.id} onClick={() => setActiveId("rooms")} type="button"><strong>{room.roomNumber}</strong><span>{room.status === "maintenance" ? "Maintenance" : room.currentOccupancy === 0 ? "Empty" : `${room.currentOccupancy}/${room.capacity}`}</span></button>)}</div><button className="textLink" onClick={() => setActiveId("rooms")} type="button">View all rooms →</button></section>
-      <section className="panel wardenQueue"><PanelTitle title="Pending Complaints" meta={`${openComplaints.length} open`} />{urgentComplaints.map((item) => <article key={item.id}><div><strong>{item.title || titleFromSlug(item.category)}</strong><small>{item.tenant?.full_name || "Resident"} · {titleFromSlug(item.priority)}</small></div><button onClick={() => setActiveId("complaints")} type="button">Resolve</button></article>)}{!urgentComplaints.length ? <EmptyPanel title="No pending complaints" copy="There is nothing urgent right now."/> : null}</section>
-      <section className="panel wardenQueue"><PanelTitle title="Gate Pass Requests" meta={`${pendingPasses.length} pending`} />{pendingPasses.slice(0, 4).map((pass) => <article key={pass.id}><div><strong>{pass.tenant?.full_name || "Tenant"}</strong><small>{pass.purpose || pass.reason} · {pass.destination}</small></div><button onClick={() => setActiveId("gate")} type="button">Approve</button></article>)}{!pendingPasses.length ? <EmptyPanel title="No pending passes" copy="New outing requests will appear here."/> : null}</section>
-      <section className="panel wardenQueue"><PanelTitle title="Visitors" meta={`${waitingVisitors.length} waiting · ${currentVisitors.length} inside`} />{[...waitingVisitors, ...currentVisitors].slice(0, 4).map((visitor) => <article key={visitor.id}><div><strong>{visitor.visitor_name}</strong><small>{visitor.status === "pending" ? "Waiting at gate" : "Currently inside"} · {visitor.tenant?.full_name || "Tenant"}</small></div><button onClick={() => setActiveId("visitors")} type="button">{visitor.status === "pending" ? "Review" : "Mark Exit"}</button></article>)}{!waitingVisitors.length && !currentVisitors.length ? <EmptyPanel title="No visitors needing attention" copy="Waiting and current visitors will appear here."/> : null}</section>
+  return (
+    <div aria-busy={isLoading} className="wardenDashboard">
+      <section className="panel wardenWelcome">
+        <p className="sectionEyebrow">Warden dashboard</p>
+        <h2>Good morning, {userName.split(" ")[0]}</h2>
+        <p>{workspace} · Here is what needs attention today.</p>
+      </section>
+      {isLoading ? (
+        <section className="panel wardenLoading">
+          <DirectorySkeleton />
+        </section>
+      ) : null}
+      <section className="wardenKpis" aria-label="Today’s operational summary">
+        {[
+          ["Available Beds", availableBeds, "rooms"],
+          ["Pending Complaints", openComplaints.length, "complaints"],
+          ["Gate Pass Requests", pendingPasses.length, "gate"],
+          ["Visitors Today", visitorsToday.length, "visitors"],
+          ["Late Returns", lateReturns.length, "gate"],
+        ].map(([label, value, target]) => (
+          <button className="panel" key={label} onClick={() => setActiveId(target as SectionId)} type="button">
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </button>
+        ))}
+      </section>
+      <section className="panel wardenTasks">
+        <PanelTitle title="Today’s Tasks" meta={`${tasks.reduce((sum, task) => sum + task.count, 0)} actions`} />
+        <div>
+          {tasks.map((task) => (
+            <article key={task.label}>
+              <strong>{task.count}</strong>
+              <span>{task.label}</span>
+              <button onClick={() => setActiveId(task.target)} type="button">
+                {task.action}
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+      <div className="wardenOperationalGrid">
+        <section className="panel wardenRoomSnapshot">
+          <PanelTitle title="Room Snapshot" meta={`${rooms.length} rooms`} />
+          <div>
+            {rooms.slice(0, 8).map((room) => (
+              <button className={getRoomState(room)} key={room.id} onClick={() => setActiveId("rooms")} type="button">
+                <strong>{room.roomNumber}</strong>
+                <span>{room.status === "maintenance" ? "Maintenance" : room.currentOccupancy === 0 ? "Empty" : `${room.currentOccupancy}/${room.capacity}`}</span>
+              </button>
+            ))}
+          </div>
+          <button className="textLink" onClick={() => setActiveId("rooms")} type="button">
+            View all rooms →
+          </button>
+        </section>
+        <section className="panel wardenQueue">
+          <PanelTitle title="Pending Complaints" meta={`${openComplaints.length} open`} />
+          {urgentComplaints.map((item) => (
+            <article key={item.id}>
+              <div>
+                <strong>{item.title || titleFromSlug(item.category)}</strong>
+                <small>
+                  {item.tenant?.full_name || "Resident"} · {titleFromSlug(item.priority)}
+                </small>
+              </div>
+              <button onClick={() => setActiveId("complaints")} type="button">
+                Resolve
+              </button>
+            </article>
+          ))}
+          {!urgentComplaints.length ? <EmptyPanel title="No pending complaints" copy="There is nothing urgent right now." /> : null}
+        </section>
+        <section className="panel wardenQueue">
+          <PanelTitle title="Gate Pass Requests" meta={`${pendingPasses.length} pending`} />
+          {pendingPasses.slice(0, 4).map((pass) => (
+            <article key={pass.id}>
+              <div>
+                <strong>{pass.tenant?.full_name || "Tenant"}</strong>
+                <small>
+                  {pass.purpose || pass.reason} · {pass.destination}
+                </small>
+              </div>
+              <button onClick={() => setActiveId("gate")} type="button">
+                Approve
+              </button>
+            </article>
+          ))}
+          {!pendingPasses.length ? <EmptyPanel title="No pending passes" copy="New outing requests will appear here." /> : null}
+        </section>
+        <section className="panel wardenQueue">
+          <PanelTitle title="Visitors" meta={`${waitingVisitors.length} waiting · ${currentVisitors.length} inside`} />
+          {[...waitingVisitors, ...currentVisitors].slice(0, 4).map((visitor) => (
+            <article key={visitor.id}>
+              <div>
+                <strong>{visitor.visitor_name}</strong>
+                <small>
+                  {visitor.status === "pending" ? "Waiting at gate" : "Currently inside"} · {visitor.tenant?.full_name || "Tenant"}
+                </small>
+              </div>
+              <button onClick={() => setActiveId("visitors")} type="button">
+                {visitor.status === "pending" ? "Review" : "Mark Exit"}
+              </button>
+            </article>
+          ))}
+          {!waitingVisitors.length && !currentVisitors.length ? <EmptyPanel title="No visitors needing attention" copy="Waiting and current visitors will appear here." /> : null}
+        </section>
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function DocumentsVault({ accessToken, orgId }: { accessToken: string; orgId: string }) {
@@ -1198,7 +1360,41 @@ function DocumentsVault({ accessToken, orgId }: { accessToken: string; orgId: st
       .finally(() => setIsLoading(false));
   }, [accessToken, orgId]);
   const filtered = documents.filter((document) => (document.tenant?.full_name ?? "").toLowerCase().includes(query.trim().toLowerCase()));
-  return <section className="panel"><PanelTitle title="Documents Vault" meta={`${documents.filter((document) => !document.is_verified).length} pending review`} /><div className="documentVaultToolbar"><label><span>Filter by student name</span><input aria-label="Filter documents by student name" onChange={(event) => setQuery(event.target.value)} placeholder="Search student..." type="search" value={query}/></label><small>{filtered.length} of {documents.length} documents</small></div>{isLoading ? <DirectorySkeleton/> : filtered.length ? <div className="documentCardGrid">{filtered.map((document) => <article key={document.id}><div><strong>{document.tenant?.full_name ?? "Student"}</strong><small>{document.tenant?.email}</small></div><span>{titleFromSlug(document.doc_type)}</span><a href={document.file_url} rel="noreferrer" target="_blank">{document.file_name}</a><span className={`statusPill ${document.is_verified ? "verified" : "pending"}`}>{document.is_verified ? "Verified" : "Pending"}</span></article>)}</div> : <EmptyPanel title="No matching documents" copy="Try another student name."/>}</section>;
+  return (
+    <section className="panel">
+      <PanelTitle title="Documents Vault" meta={`${documents.filter((document) => !document.is_verified).length} pending review`} />
+      <div className="documentVaultToolbar">
+        <label>
+          <span>Filter by student name</span>
+          <input aria-label="Filter documents by student name" onChange={(event) => setQuery(event.target.value)} placeholder="Search student..." type="search" value={query} />
+        </label>
+        <small>
+          {filtered.length} of {documents.length} documents
+        </small>
+      </div>
+      {isLoading ? (
+        <DirectorySkeleton />
+      ) : filtered.length ? (
+        <div className="documentCardGrid">
+          {filtered.map((document) => (
+            <article key={document.id}>
+              <div>
+                <strong>{document.tenant?.full_name ?? "Student"}</strong>
+                <small>{document.tenant?.email}</small>
+              </div>
+              <span>{titleFromSlug(document.doc_type)}</span>
+              <a href={document.file_url} rel="noreferrer" target="_blank">
+                {document.file_name}
+              </a>
+              <span className={`statusPill ${document.is_verified ? "verified" : "pending"}`}>{document.is_verified ? "Verified" : "Pending"}</span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyPanel title="No matching documents" copy="Try another student name." />
+      )}
+    </section>
+  );
 }
 
 function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { accessToken: string; orgId: string; view: SectionId; setActiveId: (id: SectionId) => void }) {
@@ -1264,21 +1460,42 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
     const response = await fetch(`${apiBase}/owner/requests`, {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ ...draft, title: draft.title || fallbackTitle, propertyName: draft.propertyName || dashboard?.properties[0]?.name }),
+      body: JSON.stringify({
+        ...draft,
+        title: draft.title || fallbackTitle,
+        propertyName: draft.propertyName || dashboard?.properties[0]?.name,
+      }),
     });
     const data = await response.json().catch(() => ({}));
     if (response.ok) {
       setMessage("Request submitted to 1Forge.");
       setIsRequestOpen(false);
-      setDraft((current) => ({ ...current, title: "", personName: "", department: "", reason: "", requiredAccess: "" }));
+      setDraft((current) => ({
+        ...current,
+        title: "",
+        personName: "",
+        department: "",
+        reason: "",
+        requiredAccess: "",
+      }));
       await loadOwnerDashboard();
     } else {
       setMessage(data.error ?? "Unable to submit request.");
     }
   }
 
-  if (isLoading) return <section className="panel"><DirectorySkeleton /></section>;
-  if (!dashboard) return <section className="panel"><EmptyPanel title="Owner dashboard unavailable" copy={message || "No owner data was returned."} /></section>;
+  if (isLoading)
+    return (
+      <section className="panel">
+        <DirectorySkeleton />
+      </section>
+    );
+  if (!dashboard)
+    return (
+      <section className="panel">
+        <EmptyPanel title="Owner dashboard unavailable" copy={message || "No owner data was returned."} />
+      </section>
+    );
 
   const requestTypes = ["credential_creation", "feature_request", "plan_upgrade", "new_property", "staff_addition", "document_verification", "support"];
   const requestModal = isRequestOpen ? (
@@ -1289,59 +1506,529 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
             <h3>{requestTitle}</h3>
             <p>Requests are sent to 1Forge for approval, credentialing, and workspace-level changes.</p>
           </div>
-          <button aria-label="Close request form" onClick={() => setIsRequestOpen(false)} type="button">×</button>
+          <button aria-label="Close request form" onClick={() => setIsRequestOpen(false)} type="button">
+            ×
+          </button>
         </div>
         <div className="platformControlGrid">
-          <label><span>Request type</span><select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value }))}>{requestTypes.map((type) => <option key={type} value={type}>{labelFromKey(type)}</option>)}</select></label>
-          <label><span>Title</span><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Night guard credential / Add parent app" /></label>
-          <label><span>Person name</span><input value={draft.personName} onChange={(event) => setDraft((current) => ({ ...current, personName: event.target.value }))} placeholder="Required for credential/staff requests" /></label>
-          <label><span>Role</span><select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value }))}>{["owner", "warden", "guard", "staff", "tenant", "parent"].map((role) => <option key={role} value={role}>{titleFromSlug(role)}</option>)}</select></label>
-          <label><span>Property</span><select value={draft.propertyName} onChange={(event) => setDraft((current) => ({ ...current, propertyName: event.target.value }))}><option value="">Current property</option>{dashboard.properties.map((property) => <option key={property.id} value={property.name}>{property.name}</option>)}</select></label>
-          <label><span>Department / room</span><input value={draft.department} onChange={(event) => setDraft((current) => ({ ...current, department: event.target.value }))} placeholder="Gate Security / Room 203" /></label>
+          <label>
+            <span>Request type</span>
+            <select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value }))}>
+              {requestTypes.map((type) => (
+                <option key={type} value={type}>
+                  {labelFromKey(type)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Title</span>
+            <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Night guard credential / Add parent app" />
+          </label>
+          <label>
+            <span>Person name</span>
+            <input value={draft.personName} onChange={(event) => setDraft((current) => ({ ...current, personName: event.target.value }))} placeholder="Required for credential/staff requests" />
+          </label>
+          <label>
+            <span>Role</span>
+            <select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value }))}>
+              {["owner", "warden", "guard", "staff", "tenant", "parent"].map((role) => (
+                <option key={role} value={role}>
+                  {titleFromSlug(role)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Property</span>
+            <select value={draft.propertyName} onChange={(event) => setDraft((current) => ({ ...current, propertyName: event.target.value }))}>
+              <option value="">Current property</option>
+              {dashboard.properties.map((property) => (
+                <option key={property.id} value={property.name}>
+                  {property.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Department / room</span>
+            <input value={draft.department} onChange={(event) => setDraft((current) => ({ ...current, department: event.target.value }))} placeholder="Gate Security / Room 203" />
+          </label>
         </div>
-        <label><span>Reason</span><textarea value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} placeholder="Explain why this is needed" /></label>
-        <label><span>Required access</span><textarea value={draft.requiredAccess} onChange={(event) => setDraft((current) => ({ ...current, requiredAccess: event.target.value }))} placeholder="Guard dashboard + visitor management, parent app, reports..." /></label>
-        <button className="gradientButton fullButton" type="submit">Submit request</button>
-        {message ? <p className="formMessage" role="status">{message}</p> : null}
+        <label>
+          <span>Reason</span>
+          <textarea value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} placeholder="Explain why this is needed" />
+        </label>
+        <label>
+          <span>Required access</span>
+          <textarea value={draft.requiredAccess} onChange={(event) => setDraft((current) => ({ ...current, requiredAccess: event.target.value }))} placeholder="Guard dashboard + visitor management, parent app, reports..." />
+        </label>
+        <button className="gradientButton fullButton" type="submit">
+          Submit request
+        </button>
+        {message ? (
+          <p className="formMessage" role="status">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   ) : null;
-  const withRequestModal = (content: ReactNode) => <>{content}{requestModal}</>;
+  const withRequestModal = (content: ReactNode) => (
+    <>
+      {content}
+      {requestModal}
+    </>
+  );
 
   if (view === "ownerProperties") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="ownerSectionHeader panel"><div><h3>My Properties</h3><p>Switch properties from the top bar. Additions and plan changes are approved through 1Forge.</p></div><button className="gradientButton" onClick={() => openRequest("Request New Property", { type: "new_property", title: "Add new property" })} type="button">Request New Property</button></section><section className="ownerPropertyGrid">{dashboard.properties.map((property) => <article className="panel ownerPropertyCard" key={property.id}><header><span className={`statusPill ${property.status}`}>{titleFromSlug(property.status)}</span><b>{property.planName}</b></header><h3>{property.name}</h3><p>{property.cityState} · {property.clientType || "PG / Hostel"}</p><div className="clientQuickStats"><span><b>{property.activeTenants}</b>Tenants</span><span><b>{property.availableBeds}</b>Available beds</span><span><b>{money(property.pendingRent)}</b>Pending rent</span><span><b>{property.openComplaints}</b>Complaints</span></div><footer><button onClick={() => setActiveId("rooms")} type="button">Manage rooms</button><button onClick={() => setActiveId("staff")} type="button">View staff</button><button onClick={() => setActiveId("ownerBilling")} type="button">View billing</button></footer></article>)}</section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="ownerSectionHeader panel">
+          <div>
+            <h3>My Properties</h3>
+            <p>Switch properties from the top bar. Additions and plan changes are approved through 1Forge.</p>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("Request New Property", { type: "new_property", title: "Add new property" })} type="button">
+            Request New Property
+          </button>
+        </section>
+        <section className="ownerPropertyGrid">
+          {dashboard.properties.map((property) => (
+            <article className="panel ownerPropertyCard" key={property.id}>
+              <header>
+                <span className={`statusPill ${property.status}`}>{titleFromSlug(property.status)}</span>
+                <b>{property.planName}</b>
+              </header>
+              <h3>{property.name}</h3>
+              <p>
+                {property.cityState} · {property.clientType || "PG / Hostel"}
+              </p>
+              <div className="clientQuickStats">
+                <span>
+                  <b>{property.activeTenants}</b>Tenants
+                </span>
+                <span>
+                  <b>{property.availableBeds}</b>Available beds
+                </span>
+                <span>
+                  <b>{money(property.pendingRent)}</b>Pending rent
+                </span>
+                <span>
+                  <b>{property.openComplaints}</b>Complaints
+                </span>
+              </div>
+              <footer>
+                <button onClick={() => setActiveId("rooms")} type="button">
+                  Manage rooms
+                </button>
+                <button onClick={() => setActiveId("staff")} type="button">
+                  View Mess Manager
+                </button>
+                <button onClick={() => setActiveId("ownerBilling")} type="button">
+                  View billing
+                </button>
+              </footer>
+            </article>
+          ))}
+        </section>
+      </div>
+    );
   }
 
   if (view === "ownerPeople") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="ownerSectionHeader panel"><div><h3>People & Roles</h3><p>View residents and staff from live workspace records. Request new access through 1Forge.</p></div><button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "staff_addition", title: "Add team member" })} type="button">Add Team Member</button></section><section className="panel"><PanelTitle title="People directory" meta={`${dashboard.people.length} people`} /><div className="controlTable ownerPeopleTable"><div><b>Name</b><b>Role</b><b>Property</b><b>Room / department</b><b>Account</b><b>Documents</b></div>{dashboard.people.map((person) => <div key={person.id}><span><strong>{person.name}</strong><small>{person.phone}</small></span><span>{titleFromSlug(person.role)}</span><span>{person.property}</span><span>{person.roomOrDepartment}</span><span className={`statusPill ${person.accountStatus}`}>{titleFromSlug(person.accountStatus)}</span><span>{titleFromSlug(person.documentStatus)}</span></div>)}</div></section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="ownerSectionHeader panel">
+          <div>
+            <h3>People & Roles</h3>
+            <p>View residents and staff from live workspace records. Request new access through 1Forge.</p>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "staff_addition", title: "Add team member" })} type="button">
+            Add Team Member
+          </button>
+        </section>
+        <section className="panel">
+          <PanelTitle title="People directory" meta={`${dashboard.people.length} people`} />
+          <div className="controlTable ownerPeopleTable">
+            <div>
+              <b>Name</b>
+              <b>Role</b>
+              <b>Property</b>
+              <b>Room / department</b>
+              <b>Account</b>
+              <b>Documents</b>
+            </div>
+            {dashboard.people.map((person) => (
+              <div key={person.id}>
+                <span>
+                  <strong>{person.name}</strong>
+                  <small>{person.phone}</small>
+                </span>
+                <span>{titleFromSlug(person.role)}</span>
+                <span>{person.property}</span>
+                <span>{person.roomOrDepartment}</span>
+                <span className={`statusPill ${person.accountStatus}`}>{titleFromSlug(person.accountStatus)}</span>
+                <span>{titleFromSlug(person.documentStatus)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   if (view === "ownerCredentials") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="ownerSectionHeader panel"><div><h3>Credentials</h3><p>Each login is shown as a separate account card so owner review stays compact and readable.</p></div><button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "credential_creation", title: "Create team member credential" })} type="button">Add Team Member</button></section><section className="ownerCredentialCards">{dashboard.credentials.map((credential) => <article className="panel ownerCredentialCard" key={`${credential.userId}-${credential.role}`}><header><div><h3>{credential.name}</h3><span>{credential.property}</span></div><span className={`statusPill ${credential.status}`}>{titleFromSlug(credential.status)}</span></header><dl><div><dt>Role</dt><dd>{titleFromSlug(credential.role)}</dd></div><div><dt>Login ID</dt><dd><code>{credential.loginId}</code></dd></div><div><dt>Last active</dt><dd>{credential.lastActive ? new Date(credential.lastActive).toLocaleDateString("en-IN") : "Never"}</dd></div></dl><footer><button onClick={() => openRequest("Request Credential Reset", { type: "credential_creation", title: `Reset credential for ${credential.name}`, personName: credential.name, role: credential.role, propertyName: credential.property })} type="button">Request reset</button><button onClick={() => openRequest("Request Role Change", { type: "feature_request", title: `Change access for ${credential.name}`, personName: credential.name, role: credential.role, propertyName: credential.property })} type="button">Request role change</button></footer></article>)}</section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="ownerSectionHeader panel">
+          <div>
+            <h3>Credentials</h3>
+            <p>Each login is shown as a separate account card so owner review stays compact and readable.</p>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "credential_creation", title: "Create team member credential" })} type="button">
+            Add Team Member
+          </button>
+        </section>
+        <section className="ownerCredentialCards">
+          {dashboard.credentials.map((credential) => (
+            <article className="panel ownerCredentialCard" key={`${credential.userId}-${credential.role}`}>
+              <header>
+                <div>
+                  <h3>{credential.name}</h3>
+                  <span>{credential.property}</span>
+                </div>
+                <span className={`statusPill ${credential.status}`}>{titleFromSlug(credential.status)}</span>
+              </header>
+              <dl>
+                <div>
+                  <dt>Role</dt>
+                  <dd>{titleFromSlug(credential.role)}</dd>
+                </div>
+                <div>
+                  <dt>Login ID</dt>
+                  <dd>
+                    <code>{credential.loginId}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Last active</dt>
+                  <dd>{credential.lastActive ? new Date(credential.lastActive).toLocaleDateString("en-IN") : "Never"}</dd>
+                </div>
+              </dl>
+              <footer>
+                <button
+                  onClick={() =>
+                    openRequest("Request Credential Reset", {
+                      type: "credential_creation",
+                      title: `Reset credential for ${credential.name}`,
+                      personName: credential.name,
+                      role: credential.role,
+                      propertyName: credential.property,
+                    })
+                  }
+                  type="button"
+                >
+                  Request reset
+                </button>
+                <button
+                  onClick={() =>
+                    openRequest("Request Role Change", {
+                      type: "feature_request",
+                      title: `Change access for ${credential.name}`,
+                      personName: credential.name,
+                      role: credential.role,
+                      propertyName: credential.property,
+                    })
+                  }
+                  type="button"
+                >
+                  Request role change
+                </button>
+              </footer>
+            </article>
+          ))}
+        </section>
+      </div>
+    );
   }
 
   if (view === "ownerRequests") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="ownerSectionHeader panel"><div><h3>Requests</h3><p>Track every credential, staffing, plan, property, feature, and support request submitted to 1Forge.</p></div><button className="gradientButton" onClick={() => openRequest("New Request", { type: "credential_creation", title: "" })} type="button">New Request</button></section><section className="panel"><PanelTitle title="Request history" meta={`${dashboard.requests.length} requests`} /><div className="ownerRequestList">{dashboard.requests.map((request) => <article key={request.id}><span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span><div><b>{request.title}</b><small>{labelFromKey(request.type)} · {request.property}</small><p>{request.reason || request.requiredAccess || "Awaiting 1Forge review."}</p></div><time>{new Date(request.createdAt).toLocaleDateString("en-IN")}</time></article>)}</div></section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="ownerSectionHeader panel">
+          <div>
+            <h3>Requests</h3>
+            <p>Track every credential, staffing, plan, property, feature, and support request submitted to 1Forge.</p>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("New Request", { type: "credential_creation", title: "" })} type="button">
+            New Request
+          </button>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Request history" meta={`${dashboard.requests.length} requests`} />
+          <div className="ownerRequestList">
+            {dashboard.requests.map((request) => (
+              <article key={request.id}>
+                <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
+                <div>
+                  <b>{request.title}</b>
+                  <small>
+                    {labelFromKey(request.type)} · {request.property}
+                  </small>
+                  <p>{request.reason || request.requiredAccess || "Awaiting 1Forge review."}</p>
+                </div>
+                <time>{new Date(request.createdAt).toLocaleDateString("en-IN")}</time>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   if (view === "documents") {
     const filteredDocuments = dashboard.documents.filter((document) => document.tenantName.toLowerCase().includes(documentQuery.trim().toLowerCase()));
-    return <section className="panel"><PanelTitle title="Documents Vault" meta={`${dashboard.documents.filter((document) => document.status === "pending").length} pending verification`} /><div className="documentVaultToolbar"><label><span>Filter by student name</span><input aria-label="Filter documents by student name" onChange={(event) => setDocumentQuery(event.target.value)} placeholder="Search student..." type="search" value={documentQuery}/></label><small>{filteredDocuments.length} of {dashboard.documents.length} documents</small></div><div className="controlTable ownerDocumentsTable"><div><b>Tenant</b><b>Document</b><b>File</b><b>Status</b><b>Uploaded</b></div>{filteredDocuments.map((document) => <div key={document.id}><span>{document.tenantName}</span><span>{titleFromSlug(document.type)}</span><span>{document.fileName}</span><span className={`statusPill ${document.status}`}>{titleFromSlug(document.status)}</span><span>{new Date(document.createdAt).toLocaleDateString("en-IN")}</span></div>)}</div>{!filteredDocuments.length ? <EmptyPanel title="No matching documents" copy="Try another student name."/> : null}</section>;
+    return (
+      <section className="panel">
+        <PanelTitle title="Documents Vault" meta={`${dashboard.documents.filter((document) => document.status === "pending").length} pending verification`} />
+        <div className="documentVaultToolbar">
+          <label>
+            <span>Filter by student name</span>
+            <input aria-label="Filter documents by student name" onChange={(event) => setDocumentQuery(event.target.value)} placeholder="Search student..." type="search" value={documentQuery} />
+          </label>
+          <small>
+            {filteredDocuments.length} of {dashboard.documents.length} documents
+          </small>
+        </div>
+        <div className="controlTable ownerDocumentsTable">
+          <div>
+            <b>Tenant</b>
+            <b>Document</b>
+            <b>File</b>
+            <b>Status</b>
+            <b>Uploaded</b>
+          </div>
+          {filteredDocuments.map((document) => (
+            <div key={document.id}>
+              <span>{document.tenantName}</span>
+              <span>{titleFromSlug(document.type)}</span>
+              <span>{document.fileName}</span>
+              <span className={`statusPill ${document.status}`}>{titleFromSlug(document.status)}</span>
+              <span>{new Date(document.createdAt).toLocaleDateString("en-IN")}</span>
+            </div>
+          ))}
+        </div>
+        {!filteredDocuments.length ? <EmptyPanel title="No matching documents" copy="Try another student name." /> : null}
+      </section>
+    );
   }
 
   if (view === "ownerBilling") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="ownerSectionHeader panel"><div><h3>Billing & Plans</h3><p>Plan limits and enabled features are controlled centrally by 1Forge.</p></div><button className="gradientButton" onClick={() => openRequest("Request Plan Change", { type: "plan_upgrade", title: "Upgrade or change plan" })} type="button">Request Plan Change</button></section><section className="ownerBillingGrid">{dashboard.billing.map((bill) => <article className="panel" key={bill.orgId}><PanelTitle title={bill.property} meta={titleFromSlug(bill.planStatus)} /><dl className="clientDetails"><div><dt>Current plan</dt><dd>{bill.planName}</dd></div><div><dt>Base monthly</dt><dd>{money(bill.baseMonthly)}</dd></div><div><dt>Included users</dt><dd>{bill.maxTenants}</dd></div><div><dt>Active users</dt><dd>{bill.activeUsers}</dd></div><div><dt>Capacity</dt><dd>{bill.totalCapacity} beds</dd></div><div><dt>Renewal</dt><dd>{bill.nextRenewal ? new Date(bill.nextRenewal).toLocaleDateString("en-IN") : "Not set"}</dd></div></dl><div className="applyRoleList">{bill.activeFeatures.map((feature) => <span key={feature}>{labelFromKey(feature)}</span>)}</div></article>)}</section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="ownerSectionHeader panel">
+          <div>
+            <h3>Billing & Plans</h3>
+            <p>Plan limits and enabled features are controlled centrally by 1Forge.</p>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("Request Plan Change", { type: "plan_upgrade", title: "Upgrade or change plan" })} type="button">
+            Request Plan Change
+          </button>
+        </section>
+        <section className="ownerBillingGrid">
+          {dashboard.billing.map((bill) => (
+            <article className="panel" key={bill.orgId}>
+              <PanelTitle title={bill.property} meta={titleFromSlug(bill.planStatus)} />
+              <dl className="clientDetails">
+                <div>
+                  <dt>Current plan</dt>
+                  <dd>{bill.planName}</dd>
+                </div>
+                <div>
+                  <dt>Base monthly</dt>
+                  <dd>{money(bill.baseMonthly)}</dd>
+                </div>
+                <div>
+                  <dt>Included users</dt>
+                  <dd>{bill.maxTenants}</dd>
+                </div>
+                <div>
+                  <dt>Active users</dt>
+                  <dd>{bill.activeUsers}</dd>
+                </div>
+                <div>
+                  <dt>Capacity</dt>
+                  <dd>{bill.totalCapacity} beds</dd>
+                </div>
+                <div>
+                  <dt>Renewal</dt>
+                  <dd>{bill.nextRenewal ? new Date(bill.nextRenewal).toLocaleDateString("en-IN") : "Not set"}</dd>
+                </div>
+              </dl>
+              <div className="applyRoleList">
+                {bill.activeFeatures.map((feature) => (
+                  <span key={feature}>{labelFromKey(feature)}</span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </section>
+      </div>
+    );
   }
 
   if (view === "ownerReports") {
-    return <div className="ownerPageGrid"><section className="panel"><PanelTitle title="Reports" meta="Live business summary" /><div className="platformMetrics"><Metric label="Properties" value={dashboard.summary.totalProperties} meta="managed" /><Metric label="Tenants" value={dashboard.summary.totalTenants} meta="active" /><Metric label="Monthly revenue" value={money(dashboard.summary.monthlyRevenue)} meta="collected" /><Metric label="Pending rent" value={money(dashboard.summary.pendingRent)} meta="due" /></div></section><section className="panel"><PanelTitle title="Operational mix" meta="Database-backed" /><div className="rolePermissionMatrix"><h3>Role distribution</h3>{Object.entries(dashboard.roleCounts).map(([role, count]) => <div key={role}><strong>{titleFromSlug(role)}</strong><span>{count} accounts</span></div>)}</div></section><section className="panel"><PanelTitle title="Recent activity" meta={`${dashboard.recentActivity.length} events`} /><div className="timeline">{dashboard.recentActivity.map((activity) => <div key={`${activity.type}-${activity.title}-${activity.date}`}><span>{labelFromKey(activity.type).slice(0, 1)}</span><p>{activity.title}<small>{new Date(activity.date).toLocaleDateString("en-IN")}</small></p></div>)}</div></section></div>;
+    return (
+      <div className="ownerPageGrid">
+        <section className="panel">
+          <PanelTitle title="Reports" meta="Live business summary" />
+          <div className="platformMetrics">
+            <Metric label="Properties" value={dashboard.summary.totalProperties} meta="managed" />
+            <Metric label="Tenants" value={dashboard.summary.totalTenants} meta="active" />
+            <Metric label="Monthly revenue" value={money(dashboard.summary.monthlyRevenue)} meta="collected" />
+            <Metric label="Pending rent" value={money(dashboard.summary.pendingRent)} meta="due" />
+          </div>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Operational mix" meta="Database-backed" />
+          <div className="rolePermissionMatrix">
+            <h3>Role distribution</h3>
+            {Object.entries(dashboard.roleCounts).map(([role, count]) => (
+              <div key={role}>
+                <strong>{titleFromSlug(role)}</strong>
+                <span>{count} accounts</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Recent activity" meta={`${dashboard.recentActivity.length} events`} />
+          <div className="timeline">
+            {dashboard.recentActivity.map((activity) => (
+              <div key={`${activity.type}-${activity.title}-${activity.date}`}>
+                <span>{labelFromKey(activity.type).slice(0, 1)}</span>
+                <p>
+                  {activity.title}
+                  <small>{new Date(activity.date).toLocaleDateString("en-IN")}</small>
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   if (view === "ownerSettings") {
-    return withRequestModal(<div className="ownerPageGrid"><section className="panel"><PanelTitle title="Settings" meta="1Forge managed" /><p className="mutedCopy">Theme colours, feature access, role apps, billing, and workspace-level policy are now controlled from the 1Forge admin dashboard so client apps stay consistent.</p><div className="settingsCardGrid"><div><b>Property switching</b><span>Use the top-bar dropdown to move between assigned PGs/properties.</span></div><div><b>Theme & branding</b><span>Managed centrally by 1Forge and applied across every role app.</span></div><div><b>Role app access</b><span>Request changes here; 1Forge reviews and applies them from admin controls.</span></div></div><button className="gradientButton" onClick={() => openRequest("Request Workspace Change", { type: "feature_request", title: "Workspace settings change" })} type="button">Request Workspace Change</button></section><section className="panel"><PanelTitle title="Current limits" meta={`${dashboard.billing.length} properties`} /><div className="clientDetails">{dashboard.billing.map((bill) => <div key={bill.orgId}><dt>{bill.property}</dt><dd>{bill.planName} · {bill.activeUsers}/{bill.maxTenants} users · {bill.totalCapacity} beds</dd></div>)}</div></section></div>);
+    return withRequestModal(
+      <div className="ownerPageGrid">
+        <section className="panel">
+          <PanelTitle title="Settings" meta="1Forge managed" />
+          <p className="mutedCopy">Theme colours, feature access, role apps, billing, and workspace-level policy are now controlled from the 1Forge admin dashboard so client apps stay consistent.</p>
+          <div className="settingsCardGrid">
+            <div>
+              <b>Property switching</b>
+              <span>Use the top-bar dropdown to move between assigned PGs/properties.</span>
+            </div>
+            <div>
+              <b>Theme & branding</b>
+              <span>Managed centrally by 1Forge and applied across every role app.</span>
+            </div>
+            <div>
+              <b>Role app access</b>
+              <span>Request changes here; 1Forge reviews and applies them from admin controls.</span>
+            </div>
+          </div>
+          <button className="gradientButton" onClick={() => openRequest("Request Workspace Change", { type: "feature_request", title: "Workspace settings change" })} type="button">
+            Request Workspace Change
+          </button>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Current limits" meta={`${dashboard.billing.length} properties`} />
+          <div className="clientDetails">
+            {dashboard.billing.map((bill) => (
+              <div key={bill.orgId}>
+                <dt>{bill.property}</dt>
+                <dd>
+                  {bill.planName} · {bill.activeUsers}/{bill.maxTenants} users · {bill.totalCapacity} beds
+                </dd>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   }
 
-  return <div className="ownerDashboardHome"><div className="ownerWelcome panel"><p className="sectionEyebrow">Owner dashboard</p><h2>Good morning, {dashboard.owner.name.split("@")[0]}</h2><p>Managing {dashboard.summary.totalProperties} {dashboard.summary.totalProperties === 1 ? "property" : "properties"} under {dashboard.owner.organizationName}.</p></div><div className="platformKpis"><PlatformKpi label="Total properties" value={dashboard.summary.totalProperties} note="Owner portfolio" /><PlatformKpi label="Total tenants" value={dashboard.summary.totalTenants} note={`${dashboard.summary.availableBeds}/${dashboard.summary.totalBeds} beds available`} /><PlatformKpi label="Monthly revenue" value={money(dashboard.summary.monthlyRevenue)} note="Successful payments this month" /><PlatformKpi label="Pending rent" value={money(dashboard.summary.pendingRent)} note="Unpaid, partial, and overdue" tone="warning" /><PlatformKpi label="Open complaints" value={dashboard.summary.openComplaints} note="Open or in progress" tone={dashboard.summary.openComplaints ? "warning" : undefined} /><PlatformKpi label="Staff active" value={dashboard.summary.staffActive} note="Owner, wardens, guards, staff, parents" /><PlatformKpi label="Pending requests" value={dashboard.summary.pendingRequests} note={`${dashboard.summary.pendingCredentialRequests} credentials`} tone={dashboard.summary.pendingRequests ? "warning" : undefined} /></div><div className="ownerPageGrid"><section className="panel"><PanelTitle title="Property health overview" meta={`${dashboard.properties.length} properties`} /><div className="ownerPropertyMiniList">{dashboard.properties.map((property) => <button key={property.id} onClick={() => setActiveId("ownerProperties")} type="button"><b>{property.name}</b><span>{property.activeTenants}/{property.totalBeds} tenants · {property.availableBeds} beds available</span><small>{money(property.pendingRent)} pending · {property.openComplaints} complaints</small></button>)}</div></section><section className="panel"><PanelTitle title="Today’s attention" meta="Needs owner action" /><div className="attentionList">{dashboard.attention.map((item) => <button key={item.key} onClick={() => item.key.includes("credential") ? setActiveId("ownerCredentials") : item.key.includes("document") ? setActiveId("documents") : item.key.includes("complaint") ? setActiveId("community") : setActiveId("ownerReports")} type="button"><strong>{item.count}</strong><span>{item.label}</span></button>)}</div></section><section className="panel"><PanelTitle title="Quick actions" meta="Requests go to 1Forge" /><div className="quickActionGrid">{[["Request New Credential", "ownerCredentials"], ["Add Team Member", "ownerCredentials"], ["Add New Property", "ownerProperties"], ["Request Plan Change", "ownerBilling"], ["Add Feature", "ownerBilling"], ["Create Announcement", "community"], ["Upload Document", "documents"], ["View Staff Directory", "staff"]].map(([label, id]) => <button key={label} onClick={() => setActiveId(id as SectionId)} type="button">{label}</button>)}</div></section></div></div>;
+  return (
+    <div className="ownerDashboardHome">
+      <div className="ownerWelcome panel">
+        <p className="sectionEyebrow">Owner dashboard</p>
+        <h2>Good morning, {dashboard.owner.name.split("@")[0]}</h2>
+        <p>
+          Managing {dashboard.summary.totalProperties} {dashboard.summary.totalProperties === 1 ? "property" : "properties"} under {dashboard.owner.organizationName}.
+        </p>
+      </div>
+      <div className="platformKpis">
+        <PlatformKpi label="Total properties" value={dashboard.summary.totalProperties} note="Owner portfolio" />
+        <PlatformKpi label="Total tenants" value={dashboard.summary.totalTenants} note={`${dashboard.summary.availableBeds}/${dashboard.summary.totalBeds} beds available`} />
+        <PlatformKpi label="Monthly revenue" value={money(dashboard.summary.monthlyRevenue)} note="Successful payments this month" />
+        <PlatformKpi label="Pending rent" value={money(dashboard.summary.pendingRent)} note="Unpaid, partial, and overdue" tone="warning" />
+        <PlatformKpi label="Open complaints" value={dashboard.summary.openComplaints} note="Open or in progress" tone={dashboard.summary.openComplaints ? "warning" : undefined} />
+        <PlatformKpi label="Mess Managers active" value={dashboard.summary.staffActive} note="Owner, wardens, guards, mess managers, parents" />
+        <PlatformKpi label="Pending requests" value={dashboard.summary.pendingRequests} note={`${dashboard.summary.pendingCredentialRequests} credentials`} tone={dashboard.summary.pendingRequests ? "warning" : undefined} />
+      </div>
+      <div className="ownerPageGrid">
+        <section className="panel">
+          <PanelTitle title="Property health overview" meta={`${dashboard.properties.length} properties`} />
+          <div className="ownerPropertyMiniList">
+            {dashboard.properties.map((property) => (
+              <button key={property.id} onClick={() => setActiveId("ownerProperties")} type="button">
+                <b>{property.name}</b>
+                <span>
+                  {property.activeTenants}/{property.totalBeds} tenants · {property.availableBeds} beds available
+                </span>
+                <small>
+                  {money(property.pendingRent)} pending · {property.openComplaints} complaints
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Today’s attention" meta="Needs owner action" />
+          <div className="attentionList">
+            {dashboard.attention.map((item) => (
+              <button key={item.key} onClick={() => (item.key.includes("credential") ? setActiveId("ownerCredentials") : item.key.includes("document") ? setActiveId("documents") : item.key.includes("complaint") ? setActiveId("complaints") : setActiveId("ownerReports"))} type="button">
+                <strong>{item.count}</strong>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <PanelTitle title="Quick actions" meta="Requests go to 1Forge" />
+          <div className="quickActionGrid">
+            {[
+              ["Request New Credential", "ownerCredentials"],
+              ["Add Team Member", "ownerCredentials"],
+              ["Add New Property", "ownerProperties"],
+              ["Request Plan Change", "ownerBilling"],
+              ["Add Feature", "ownerBilling"],
+              ["Create Announcement", "community"],
+              ["Upload Document", "documents"],
+              ["View Mess Manager Directory", "staff"],
+            ].map(([label, id]) => (
+              <button key={label} onClick={() => setActiveId(id as SectionId)} type="button">
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function PlatformSection({ accessToken, routeView }: { accessToken: string; routeView?: string }) {
@@ -1353,17 +2040,21 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   const [controlTab, setControlTab] = useState("overview");
   const [controlData, setControlData] = useState<PlatformControlData | null>(null);
   const [oneTimeCredential, setOneTimeCredential] = useState<{ loginId: string; temporaryPassword: string } | null>(null);
-  const [overrideDraft, setOverrideDraft] = useState({ userId: "", role: "tenant", featureKey: "community", decision: "block", reason: "", expiresAt: "" });
+  const [overrideDraft, setOverrideDraft] = useState({
+    userId: "",
+    role: "tenant",
+    featureKey: "community",
+    decision: "block",
+    reason: "",
+    expiresAt: "",
+  });
   const selected = organizations.find((organization) => organization.slug === routeView);
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   async function loadPlatform() {
     setIsLoading(true);
     try {
-      const [orgResponse, planResponse] = await Promise.all([
-        fetch(`${apiBase}/platform/organizations`, { headers }),
-        fetch(`${apiBase}/platform/plans`, { headers }),
-      ]);
+      const [orgResponse, planResponse] = await Promise.all([fetch(`${apiBase}/platform/organizations`, { headers }), fetch(`${apiBase}/platform/plans`, { headers })]);
       const [orgData, planData] = await Promise.all([orgResponse.json(), planResponse.json()]);
       setOrganizations(orgData.organizations ?? []);
       setPlans(planData.plans ?? []);
@@ -1406,50 +2097,66 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   }
   async function updateRoleDashboard(role: string, enabled: boolean) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-dashboards/${role}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ status: enabled ? "active" : "inactive" }) });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-dashboards/${role}`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ status: enabled ? "active" : "inactive" }),
+    });
     if (response.ok) await loadControl(selected.id);
   }
   async function updateRolePermission(role: string, featureKey: string, isAllowed: boolean) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-permissions/${role}/${featureKey}`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ isAllowed }) });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/role-permissions/${role}/${featureKey}`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ isAllowed }),
+    });
     if (response.ok) await loadControl(selected.id);
   }
   async function updateAccountStatus(userId: string, status: string) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/status`, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/status`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     if (response.ok) await loadControl(selected.id);
   }
   async function resetAccountPassword(userId: string) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/reset-password`, { method: "POST", headers });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/accounts/${userId}/reset-password`, {
+      method: "POST",
+      headers,
+    });
     const data = await response.json().catch(() => ({}));
-    if (response.ok) { setOneTimeCredential(data.account); await loadControl(selected.id); }
+    if (response.ok) {
+      setOneTimeCredential(data.account);
+      await loadControl(selected.id);
+    }
   }
   async function saveAccessOverride(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected || !overrideDraft.userId) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(overrideDraft) });
-    if (response.ok) { await loadControl(selected.id); setOverrideDraft((current) => ({ ...current, reason: "", expiresAt: "" })); }
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(overrideDraft),
+    });
+    if (response.ok) {
+      await loadControl(selected.id);
+      setOverrideDraft((current) => ({ ...current, reason: "", expiresAt: "" }));
+    }
   }
   async function deleteAccessOverride(overrideId: string) {
     if (!selected) return;
-    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides/${overrideId}`, { method: "DELETE", headers });
+    const response = await fetch(`${apiBase}/platform/organizations/${selected.id}/access-overrides/${overrideId}`, {
+      method: "DELETE",
+      headers,
+    });
     if (response.ok) await loadControl(selected.id);
   }
   const roleLabels = ["owner", "warden", "guard", "staff", "tenant", "parent"];
-  const featureKeys = Array.from(
-    new Set([
-      "rooms",
-      "dues",
-      "gate_pass",
-      "visitor_log",
-      "community",
-      "mess_menu",
-      "documents",
-      "parent_portal",
-      ...(selected?.features.map((feature) => feature.key).filter((key) => !key.startsWith("role_")) ?? []),
-    ])
-  );
+  const featureKeys = Array.from(new Set(["rooms", "dues", "gate_pass", "visitor_log", "community", "mess_menu", "documents", "parent_portal", ...(selected?.features.map((feature) => feature.key).filter((key) => !key.startsWith("role_")) ?? [])]));
 
   if (isLoading)
     return (
@@ -1485,60 +2192,653 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
       return { label: date.toLocaleDateString("en-IN", { month: "short" }), value };
     });
     const maxRevenue = Math.max(...months.map((month) => month.value), 1);
-    return <div className="platformPage">
-      <PlatformPageHeader eyebrow="1Forge / Analytics" title="Financial analytics" copy="Subscription revenue, client contribution, and portfolio health in one view." />
-      <div className="platformKpis">
-        <PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note={`${activeOrganizations.length} contributing clients`} />
-        <PlatformKpi label="Annual run rate" value={money(mrr * 12)} note="Based on current plans" />
-        <PlatformKpi label="Average revenue / client" value={money(activeOrganizations.length ? Math.round(mrr / activeOrganizations.length) : 0)} note="Active portfolio" />
-        <PlatformKpi label="Pending accounts" value={organizations.filter((item) => item.planStatus === "paused" || !item.isActive).length} note="Needs attention" tone="warning" />
-      </div>
-      <div className="analyticsGrid">
-        <section className="panel revenueChartPanel">
-          <PanelTitle title="Monthly recurring revenue" meta="Last 6 months" />
-          <div className="revenueBars" aria-label="Monthly recurring revenue chart">
-            {months.map((month) => <div key={month.label} className="revenueBarColumn"><strong>{money(month.value)}</strong><div><i style={{ height: `${Math.max(8, month.value / maxRevenue * 100)}%` }} /></div><span>{month.label}</span></div>)}
+    return (
+      <div className="platformPage">
+        <PlatformPageHeader eyebrow="1Forge / Analytics" title="Financial analytics" copy="Subscription revenue, client contribution, and portfolio health in one view." />
+        <div className="platformKpis">
+          <PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note={`${activeOrganizations.length} contributing clients`} />
+          <PlatformKpi label="Annual run rate" value={money(mrr * 12)} note="Based on current plans" />
+          <PlatformKpi label="Average revenue / client" value={money(activeOrganizations.length ? Math.round(mrr / activeOrganizations.length) : 0)} note="Active portfolio" />
+          <PlatformKpi label="Pending accounts" value={organizations.filter((item) => item.planStatus === "paused" || !item.isActive).length} note="Needs attention" tone="warning" />
+        </div>
+        <div className="analyticsGrid">
+          <section className="panel revenueChartPanel">
+            <PanelTitle title="Monthly recurring revenue" meta="Last 6 months" />
+            <div className="revenueBars" aria-label="Monthly recurring revenue chart">
+              {months.map((month) => (
+                <div key={month.label} className="revenueBarColumn">
+                  <strong>{money(month.value)}</strong>
+                  <div>
+                    <i style={{ height: `${Math.max(8, (month.value / maxRevenue) * 100)}%` }} />
+                  </div>
+                  <span>{month.label}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="panel revenueMixPanel">
+            <PanelTitle title="Revenue by client" meta={`${organizations.length} clients`} />
+            <div className="revenueClientList">
+              {[...organizations]
+                .sort((a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice))
+                .map((organization) => (
+                  <div key={organization.id}>
+                    <span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span>
+                    <p>
+                      <strong>{organization.name}</strong>
+                      <small>{organization.planName}</small>
+                    </p>
+                    <b>{money(organization.monthlyPrice)}</b>
+                    <i>
+                      <em
+                        style={{
+                          width: `${mrr ? Math.min(100, (Number(organization.monthlyPrice) / mrr) * 100) : 0}%`,
+                        }}
+                      />
+                    </i>
+                  </div>
+                ))}
+            </div>
+          </section>
+        </div>
+        <section className="panel analyticsTablePanel">
+          <PanelTitle title="Client subscription ledger" meta="Current monthly billing" />
+          <div className="analyticsTable">
+            <div className="analyticsTableHead">
+              <span>Client</span>
+              <span>Plan</span>
+              <span>Status</span>
+              <span>Monthly revenue</span>
+              <span>Annual value</span>
+            </div>
+            {organizations.map((organization) => (
+              <Link href={`/1forge/platform/${organization.slug}`} key={organization.id}>
+                <strong>{organization.name}</strong>
+                <span>{organization.planName}</span>
+                <span className={`statusPill ${organization.planStatus}`}>{organization.isActive ? organization.planStatus : "suspended"}</span>
+                <b>{money(organization.monthlyPrice)}</b>
+                <span>{money(Number(organization.monthlyPrice) * 12)}</span>
+              </Link>
+            ))}
           </div>
         </section>
-        <section className="panel revenueMixPanel">
-          <PanelTitle title="Revenue by client" meta={`${organizations.length} clients`} />
-          <div className="revenueClientList">{[...organizations].sort((a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice)).map((organization) => <div key={organization.id}><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><p><strong>{organization.name}</strong><small>{organization.planName}</small></p><b>{money(organization.monthlyPrice)}</b><i><em style={{ width: `${mrr ? Math.min(100, Number(organization.monthlyPrice) / mrr * 100) : 0}%` }} /></i></div>)}</div>
-        </section>
       </div>
-      <section className="panel analyticsTablePanel"><PanelTitle title="Client subscription ledger" meta="Current monthly billing" /><div className="analyticsTable"><div className="analyticsTableHead"><span>Client</span><span>Plan</span><span>Status</span><span>Monthly revenue</span><span>Annual value</span></div>{organizations.map((organization) => <Link href={`/1forge/platform/${organization.slug}`} key={organization.id}><strong>{organization.name}</strong><span>{organization.planName}</span><span className={`statusPill ${organization.planStatus}`}>{organization.isActive ? organization.planStatus : "suspended"}</span><b>{money(organization.monthlyPrice)}</b><span>{money(Number(organization.monthlyPrice) * 12)}</span></Link>)}</div></section>
-    </div>;
+    );
   }
 
   if (selected) {
     const tabs = ["overview", "setup", "people", "accounts", "rooms", "apps & roles", "features", "access overrides", "theme & branding", "billing"];
-    return <div className="platformPage">
-      <div className="clientControlHeader panel"><div className="clientAvatar large">{selected.name.slice(0, 2).toUpperCase()}</div><div><p className="sectionEyebrow">Client control</p><h2>{selected.name}</h2><span>{selected.cityState || selected.slug} · {selected.planName} · {money(selected.monthlyPrice)}/month</span></div><div className="clientHeaderActions">{selected.workspaceStatus === "active" ? <><a className="outlineButton" href={`/${selected.slug}/owner`}>Open client app</a><button className="dangerButton" onClick={() => updateOrganization({ isActive: false })} type="button">Suspend</button></> : <><span className={`statusPill ${selected.workspaceStatus}`}>{titleFromSlug(selected.workspaceStatus || "draft")}</span>{selected.workspaceStatus === "suspended" ? <button className="gradientButton" onClick={() => updateOrganization({ isActive: true })} type="button">Restore</button> : null}</>}</div></div>
-      <label className="clientControlSelect"><span>Client control section</span><select aria-label="Client control section" onChange={(event) => setControlTab(event.target.value)} value={controlTab}>{tabs.map((tab) => <option key={tab} value={tab}>{tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>)}</select></label>
-      <nav className="clientControlTabs" aria-label="Client control sections">{tabs.map((tab) => <button className={controlTab === tab ? "active" : ""} key={tab} onClick={() => setControlTab(tab)} type="button">{tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}</button>)}</nav>
-      {controlTab === "overview" ? <div className="clientOverviewGrid"><section className="panel"><PanelTitle title="Client details" meta={`/${selected.slug}`} /><dl className="clientDetails"><div><dt>Owner</dt><dd>{selected.ownerName}</dd></div><div><dt>Email</dt><dd>{selected.contactEmail || "Not added"}</dd></div><div><dt>Phone</dt><dd>{selected.contactPhone || "Not added"}</dd></div><div><dt>Location</dt><dd>{selected.cityState || "Not added"}</dd></div><div><dt>Joined</dt><dd>{selected.createdAt ? new Date(selected.createdAt).toLocaleDateString("en-IN") : "—"}</dd></div><div><dt>Capacity</dt><dd>{selected.totalCapacity} beds</dd></div></dl></section><section className="panel"><PanelTitle title="Client health" meta={selected.isActive ? "Operational" : "Attention"} /><div className="healthChecks">{[["Payment", selected.planStatus === "active" ? "Clear" : titleFromSlug(selected.planStatus)],["Usage", selected.memberCount ? "Active" : "Low usage"],["Setup", selected.totalCapacity ? "Complete" : "Incomplete"],["Occupancy", `${selected.occupancyRate}%`]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div></section><section className="panel overviewRoleStats"><PanelTitle title="Accounts & occupancy" meta={`${selected.memberCount} accounts`} /><div className="platformMetrics">{roleLabels.map((roleName) => <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active" />)}<Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity}`} /></div></section></div> : null}
-      {controlTab === "setup" ? <section className="panel setupControl"><PanelTitle title="Setup checklist" meta={titleFromSlug(selected.workspaceStatus || "active")} /><div className="setupChecklist">{[["Workspace created", true],["Rooms added", Boolean(controlData?.floors.some((floor) => floor.rooms.length))],["People imported", Boolean(controlData?.people.length)],["Accounts generated", Boolean(controlData?.accounts.length)],["Features selected", Boolean(selected.features.length)],["Branding applied", Boolean(selected.themeColor)],["Billing started", selected.planStatus === "active"]].map(([label, complete]) => <div key={String(label)}><span className={complete ? "complete" : "pending"}>{complete ? "✓" : "!"}</span><b>{label}</b><small>{complete ? "Complete" : "Still required"}</small></div>)}</div>{selected.workspaceStatus !== "active" ? <Link className="gradientButton" href={`/1forge/platform/new?org=${selected.id}`}>Continue setup wizard</Link> : null}</section> : null}
-      {controlTab === "people" ? <section className="panel"><PanelTitle title="People directory" meta={`${controlData?.people.length ?? 0} people`} /><div className="controlTable peopleControlTable"><div><b>Name</b><b>Type</b><b>Room</b><b>Status</b></div>{controlData?.people.map((person) => <div key={person.id}><span><strong>{person.full_name}</strong><small>{person.phone}</small></span><span>{titleFromSlug(person.person_type)}</span><span>{person.room_number || "—"}</span><span className={`statusPill ${person.status}`}>{person.status}</span></div>)}</div></section> : null}
-      {controlTab === "accounts" ? <section className="panel"><PanelTitle title="Accounts & credentials" meta={`${controlData?.accounts.length ?? 0} logins`} />{oneTimeCredential ? <div className="credentialNotice"><b>Temporary password—copy now</b><code>{oneTimeCredential.loginId}</code><code>{oneTimeCredential.temporaryPassword}</code><button onClick={() => setOneTimeCredential(null)} type="button">Done</button></div> : null}<div className="controlTable accountControlTable"><div><b>Person</b><b>Login ID</b><b>Roles</b><b>Status</b><b>Actions</b></div>{controlData?.accounts.map((account) => <div key={account.id}><span><strong>{account.full_name}</strong><small>{account.phone}</small></span><code>{account.email}</code><span>{account.roles.join(", ")}</span><span className={`statusPill ${account.account_status}`}>{account.force_password_change ? "Password reset required" : account.account_status}</span><span className="tableActions"><button onClick={() => resetAccountPassword(account.id)} type="button">Reset password</button><button onClick={() => updateAccountStatus(account.id, account.account_status === "active" ? "suspended" : "active")} type="button">{account.account_status === "active" ? "Suspend" : "Activate"}</button></span></div>)}</div></section> : null}
-      {controlTab === "rooms" ? <section className="panel"><PanelTitle title="Property structure" meta={`${controlData?.floors.reduce((sum, floor) => sum + floor.rooms.length, 0) ?? 0} rooms`} /><div className="controlFloorGrid">{controlData?.floors.map((floor) => <article key={floor.id}><h3>{floor.floor_name}</h3><div>{floor.rooms.map((room) => <span key={room.id}><b>{room.room_number}</b><small>{room.current_occupancy}/{room.capacity} occupied</small><em>₹{Number(room.monthly_rent).toLocaleString("en-IN")}</em></span>)}</div></article>)}</div></section> : null}
-      {controlTab === "apps & roles" ? <section className="roleAppGrid">{roleLabels.map((roleName) => { const dashboard = controlData?.roleDashboards.find((item) => item.role === roleName); const key = `role_${roleName}`; const saved = selected.features.find((feature) => feature.key === key); const enabled = dashboard ? dashboard.status === "active" : saved?.enabled ?? (selected.roleCounts[roleName] ?? 0) > 0; return <article className="panel roleAppCard" key={roleName}><div><span className="clientAvatar">{roleName.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${enabled ? "active" : "paused"}`}>{enabled ? "Enabled" : titleFromSlug(dashboard?.status || "Disabled")}</span></div><h3>{titleFromSlug(roleName)} App</h3><p>{roleName === "tenant" ? "Dues, passes, community and resident services." : roleName === "guard" ? "Visitor entry, gate passes and security workflows." : "Role-specific access to the client workspace."}</p><footer><small>{selected.roleCounts[roleName] ?? 0} active accounts</small><label className="switch"><input checked={enabled} onChange={(event) => updateRoleDashboard(roleName, event.target.checked)} type="checkbox"/><i /></label></footer></article>; })}</section> : null}
-      {controlTab === "features" ? <section className="panel"><PanelTitle title="Feature access" meta="Client and role-level policy" /><div className="featureManagementTable">{featureKeys.map((key) => { const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false; return <div key={key}><span><strong>{titleFromSlug(key)}</strong><small>Control this capability across the client workspace.</small></span><em>{enabled ? "In use" : "Not in use"}</em><b>{selected.planName}</b><label className="switch"><input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox"/><i /></label></div>; })}</div><div className="rolePermissionMatrix"><h3>Role feature permissions</h3><div className="permissionMatrixHead"><b>Feature</b>{roleLabels.map((role) => <b key={role}>{titleFromSlug(role)}</b>)}</div>{featureKeys.map((feature) => <div key={feature}><strong>{titleFromSlug(feature)}</strong>{roleLabels.map((role) => { const saved = controlData?.rolePermissions.find((permission) => permission.role === role && permission.feature_key === feature); const allowed = saved?.is_allowed !== false; return <label key={role}><input aria-label={`${titleFromSlug(role)} ${titleFromSlug(feature)}`} checked={allowed} onChange={(event) => updateRolePermission(role, feature, event.target.checked)} type="checkbox"/><span>{allowed ? "Allow" : "Block"}</span></label>; })}</div>)}</div></section> : null}
-      {controlTab === "access overrides" ? <div className="overrideControlGrid"><form className="panel overrideForm" onSubmit={saveAccessOverride}><PanelTitle title="Add access override" meta="Advanced control" /><label><span>User</span><select onChange={(event) => { const account = controlData?.accounts.find((item) => item.id === event.target.value); setOverrideDraft((current) => ({ ...current, userId: event.target.value, role: account?.roles[0] || current.role })); }} required value={overrideDraft.userId}><option value="">Select account</option>{controlData?.accounts.map((account) => <option key={account.id} value={account.id}>{account.full_name} · {account.email}</option>)}</select></label><label><span>Role</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, role: event.target.value }))} value={overrideDraft.role}>{(controlData?.accounts.find((item) => item.id === overrideDraft.userId)?.roles || roleLabels).map((role) => <option key={role}>{role}</option>)}</select></label><label><span>Feature</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, featureKey: event.target.value }))} value={overrideDraft.featureKey}>{featureKeys.map((feature) => <option key={feature} value={feature}>{titleFromSlug(feature)}</option>)}</select></label><label><span>Access</span><select onChange={(event) => setOverrideDraft((current) => ({ ...current, decision: event.target.value }))} value={overrideDraft.decision}><option value="block">Block</option><option value="allow">Allow</option></select></label><label><span>Reason</span><textarea onChange={(event) => setOverrideDraft((current) => ({ ...current, reason: event.target.value }))} value={overrideDraft.reason}/></label><label><span>Expiry date (optional)</span><input onChange={(event) => setOverrideDraft((current) => ({ ...current, expiresAt: event.target.value }))} type="date" value={overrideDraft.expiresAt}/></label><button className="gradientButton" type="submit">Save override</button></form><section className="panel"><PanelTitle title="Active overrides" meta={`${controlData?.accessOverrides.length ?? 0} rules`} /><div className="overrideList">{controlData?.accessOverrides.map((override) => <div key={override.id}><span className={`statusPill ${override.decision === "allow" ? "active" : "paused"}`}>{override.decision}</span><p><strong>{override.user.full_name}</strong><small>{titleFromSlug(override.role)} · {titleFromSlug(override.feature_key)}</small></p><span>{override.reason || "No reason supplied"}</span><button onClick={() => deleteAccessOverride(override.id)} type="button">Remove</button></div>)}</div></section></div> : null}
-      {controlTab === "theme & branding" ? <section className="brandingGrid"><div className="panel brandingControls"><PanelTitle title="Client theme" meta="Applies across all role apps" /><label><span>Primary theme colour</span><div className="brandColorField"><input type="color" value={selected.themeColor || "#0f766e"} onChange={(event) => updateOrganization({ themeColor: event.target.value })}/><strong>{selected.themeColor || "#0f766e"}</strong></div></label><p>The saved colour is loaded automatically whenever an owner, warden, guard, staff member, tenant, or parent signs into this client.</p><div className="applyRoleList">{roleLabels.map((roleName) => <span key={roleName}>✓ {titleFromSlug(roleName)} App</span>)}</div></div><div className="panel brandPreview" style={{ "--preview-accent": selected.themeColor || "#0f766e" } as CSSProperties}><PanelTitle title="Live preview" meta="Workspace shell" /><div className="brandPreviewWindow"><aside><b>{selected.name.slice(0, 1)}</b><i/><i/><i/></aside><main><small>{selected.name}</small><h3>Good morning, team.</h3><div><span/><span/><span/></div><button type="button">Primary action</button></main></div></div></section> : null}
-      {controlTab === "billing" ? <section className="panel"><PanelTitle title="Subscription & billing" meta={`${money(selected.monthlyPrice)}/month`} /><div className="platformControlGrid"><label><span>Plan</span><select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.price_monthly)}/mo</option>)}</select></label><label><span>Subscription status</span><select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>{["active", "trialing", "paused", "canceled", "expired"].map((status) => <option key={status} value={status}>{titleFromSlug(status)}</option>)}</select></label><label><span>Renewal / expiry date</span><input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""}/></label><label><span>Licensed capacity</span><input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity}/></label></div></section> : null}
-    </div>;
+    return (
+      <div className="platformPage">
+        <div className="clientControlHeader panel">
+          <div className="clientAvatar large">{selected.name.slice(0, 2).toUpperCase()}</div>
+          <div>
+            <p className="sectionEyebrow">Client control</p>
+            <h2>{selected.name}</h2>
+            <span>
+              {selected.cityState || selected.slug} · {selected.planName} · {money(selected.monthlyPrice)}/month
+            </span>
+          </div>
+          <div className="clientHeaderActions">
+            {selected.workspaceStatus === "active" ? (
+              <>
+                <a className="outlineButton" href={`/${selected.slug}/owner`}>
+                  Open client app
+                </a>
+                <button className="dangerButton" onClick={() => updateOrganization({ isActive: false })} type="button">
+                  Suspend
+                </button>
+              </>
+            ) : (
+              <>
+                <span className={`statusPill ${selected.workspaceStatus}`}>{titleFromSlug(selected.workspaceStatus || "draft")}</span>
+                {selected.workspaceStatus === "suspended" ? (
+                  <button className="gradientButton" onClick={() => updateOrganization({ isActive: true })} type="button">
+                    Restore
+                  </button>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+        <label className="clientControlSelect">
+          <span>Client control section</span>
+          <select aria-label="Client control section" onChange={(event) => setControlTab(event.target.value)} value={controlTab}>
+            {tabs.map((tab) => (
+              <option key={tab} value={tab}>
+                {tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}
+              </option>
+            ))}
+          </select>
+        </label>
+        <nav className="clientControlTabs" aria-label="Client control sections">
+          {tabs.map((tab) => (
+            <button className={controlTab === tab ? "active" : ""} key={tab} onClick={() => setControlTab(tab)} type="button">
+              {tab.replace(/\b\w/g, (letter) => letter.toUpperCase())}
+            </button>
+          ))}
+        </nav>
+        {controlTab === "overview" ? (
+          <div className="clientOverviewGrid">
+            <section className="panel">
+              <PanelTitle title="Client details" meta={`/${selected.slug}`} />
+              <dl className="clientDetails">
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{selected.ownerName}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{selected.contactEmail || "Not added"}</dd>
+                </div>
+                <div>
+                  <dt>Phone</dt>
+                  <dd>{selected.contactPhone || "Not added"}</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>{selected.cityState || "Not added"}</dd>
+                </div>
+                <div>
+                  <dt>Joined</dt>
+                  <dd>{selected.createdAt ? new Date(selected.createdAt).toLocaleDateString("en-IN") : "—"}</dd>
+                </div>
+                <div>
+                  <dt>Capacity</dt>
+                  <dd>{selected.totalCapacity} beds</dd>
+                </div>
+              </dl>
+            </section>
+            <section className="panel">
+              <PanelTitle title="Client health" meta={selected.isActive ? "Operational" : "Attention"} />
+              <div className="healthChecks">
+                {[
+                  ["Payment", selected.planStatus === "active" ? "Clear" : titleFromSlug(selected.planStatus)],
+                  ["Usage", selected.memberCount ? "Active" : "Low usage"],
+                  ["Setup", selected.totalCapacity ? "Complete" : "Incomplete"],
+                  ["Occupancy", `${selected.occupancyRate}%`],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <b>{value}</b>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="panel overviewRoleStats">
+              <PanelTitle title="Accounts & occupancy" meta={`${selected.memberCount} accounts`} />
+              <div className="platformMetrics">
+                {roleLabels.map((roleName) => (
+                  <Metric key={roleName} label={titleFromSlug(roleName)} value={selected.roleCounts[roleName] ?? 0} meta="active" />
+                ))}
+                <Metric label="Occupancy" value={`${selected.occupancyRate}%`} meta={`${selected.activeTenantsCount}/${selected.totalCapacity}`} />
+              </div>
+            </section>
+          </div>
+        ) : null}
+        {controlTab === "setup" ? (
+          <section className="panel setupControl">
+            <PanelTitle title="Setup checklist" meta={titleFromSlug(selected.workspaceStatus || "active")} />
+            <div className="setupChecklist">
+              {[
+                ["Workspace created", true],
+                ["Rooms added", Boolean(controlData?.floors.some((floor) => floor.rooms.length))],
+                ["People imported", Boolean(controlData?.people.length)],
+                ["Accounts generated", Boolean(controlData?.accounts.length)],
+                ["Features selected", Boolean(selected.features.length)],
+                ["Branding applied", Boolean(selected.themeColor)],
+                ["Billing started", selected.planStatus === "active"],
+              ].map(([label, complete]) => (
+                <div key={String(label)}>
+                  <span className={complete ? "complete" : "pending"}>{complete ? "✓" : "!"}</span>
+                  <b>{label}</b>
+                  <small>{complete ? "Complete" : "Still required"}</small>
+                </div>
+              ))}
+            </div>
+            {selected.workspaceStatus !== "active" ? (
+              <Link className="gradientButton" href={`/1forge/platform/new?org=${selected.id}`}>
+                Continue setup wizard
+              </Link>
+            ) : null}
+          </section>
+        ) : null}
+        {controlTab === "people" ? (
+          <section className="panel">
+            <PanelTitle title="People directory" meta={`${controlData?.people.length ?? 0} people`} />
+            <div className="controlTable peopleControlTable">
+              <div>
+                <b>Name</b>
+                <b>Type</b>
+                <b>Room</b>
+                <b>Status</b>
+              </div>
+              {controlData?.people.map((person) => (
+                <div key={person.id}>
+                  <span>
+                    <strong>{person.full_name}</strong>
+                    <small>{person.phone}</small>
+                  </span>
+                  <span>{titleFromSlug(person.person_type)}</span>
+                  <span>{person.room_number || "—"}</span>
+                  <span className={`statusPill ${person.status}`}>{person.status}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {controlTab === "accounts" ? (
+          <section className="panel">
+            <PanelTitle title="Accounts & credentials" meta={`${controlData?.accounts.length ?? 0} logins`} />
+            {oneTimeCredential ? (
+              <div className="credentialNotice">
+                <b>Temporary password—copy now</b>
+                <code>{oneTimeCredential.loginId}</code>
+                <code>{oneTimeCredential.temporaryPassword}</code>
+                <button onClick={() => setOneTimeCredential(null)} type="button">
+                  Done
+                </button>
+              </div>
+            ) : null}
+            <div className="controlTable accountControlTable">
+              <div>
+                <b>Person</b>
+                <b>Login ID</b>
+                <b>Roles</b>
+                <b>Status</b>
+                <b>Actions</b>
+              </div>
+              {controlData?.accounts.map((account) => (
+                <div key={account.id}>
+                  <span>
+                    <strong>{account.full_name}</strong>
+                    <small>{account.phone}</small>
+                  </span>
+                  <code>{account.email}</code>
+                  <span>{account.roles.join(", ")}</span>
+                  <span className={`statusPill ${account.account_status}`}>{account.force_password_change ? "Password reset required" : account.account_status}</span>
+                  <span className="tableActions">
+                    <button onClick={() => resetAccountPassword(account.id)} type="button">
+                      Reset password
+                    </button>
+                    <button onClick={() => updateAccountStatus(account.id, account.account_status === "active" ? "suspended" : "active")} type="button">
+                      {account.account_status === "active" ? "Suspend" : "Activate"}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {controlTab === "rooms" ? (
+          <section className="panel">
+            <PanelTitle title="Property structure" meta={`${controlData?.floors.reduce((sum, floor) => sum + floor.rooms.length, 0) ?? 0} rooms`} />
+            <div className="controlFloorGrid">
+              {controlData?.floors.map((floor) => (
+                <article key={floor.id}>
+                  <h3>{floor.floor_name}</h3>
+                  <div>
+                    {floor.rooms.map((room) => (
+                      <span key={room.id}>
+                        <b>{room.room_number}</b>
+                        <small>
+                          {room.current_occupancy}/{room.capacity} occupied
+                        </small>
+                        <em>₹{Number(room.monthly_rent).toLocaleString("en-IN")}</em>
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {controlTab === "apps & roles" ? (
+          <section className="roleAppGrid">
+            {roleLabels.map((roleName) => {
+              const dashboard = controlData?.roleDashboards.find((item) => item.role === roleName);
+              const key = `role_${roleName}`;
+              const saved = selected.features.find((feature) => feature.key === key);
+              const enabled = dashboard ? dashboard.status === "active" : (saved?.enabled ?? (selected.roleCounts[roleName] ?? 0) > 0);
+              return (
+                <article className="panel roleAppCard" key={roleName}>
+                  <div>
+                    <span className="clientAvatar">{roleName.slice(0, 2).toUpperCase()}</span>
+                    <span className={`statusPill ${enabled ? "active" : "paused"}`}>{enabled ? "Enabled" : titleFromSlug(dashboard?.status || "Disabled")}</span>
+                  </div>
+                  <h3>{titleFromSlug(roleName)} App</h3>
+                  <p>{roleName === "tenant" ? "Dues, passes, community and resident services." : roleName === "guard" ? "Visitor entry, gate passes and security workflows." : "Role-specific access to the client workspace."}</p>
+                  <footer>
+                    <small>{selected.roleCounts[roleName] ?? 0} active accounts</small>
+                    <label className="switch">
+                      <input checked={enabled} onChange={(event) => updateRoleDashboard(roleName, event.target.checked)} type="checkbox" />
+                      <i />
+                    </label>
+                  </footer>
+                </article>
+              );
+            })}
+          </section>
+        ) : null}
+        {controlTab === "features" ? (
+          <section className="panel">
+            <PanelTitle title="Feature access" meta="Client and role-level policy" />
+            <div className="featureManagementTable">
+              {featureKeys.map((key) => {
+                const enabled = selected.features.find((feature) => feature.key === key)?.enabled ?? false;
+                return (
+                  <div key={key}>
+                    <span>
+                      <strong>{titleFromSlug(key)}</strong>
+                      <small>Control this capability across the client workspace.</small>
+                    </span>
+                    <em>{enabled ? "In use" : "Not in use"}</em>
+                    <b>{selected.planName}</b>
+                    <label className="switch">
+                      <input checked={enabled} onChange={(event) => toggleFeature(key, event.target.checked)} type="checkbox" />
+                      <i />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="rolePermissionMatrix">
+              <h3>Role feature permissions</h3>
+              <div className="permissionMatrixHead">
+                <b>Feature</b>
+                {roleLabels.map((role) => (
+                  <b key={role}>{titleFromSlug(role)}</b>
+                ))}
+              </div>
+              {featureKeys.map((feature) => (
+                <div key={feature}>
+                  <strong>{titleFromSlug(feature)}</strong>
+                  {roleLabels.map((role) => {
+                    const saved = controlData?.rolePermissions.find((permission) => permission.role === role && permission.feature_key === feature);
+                    const allowed = saved?.is_allowed !== false;
+                    return (
+                      <label key={role}>
+                        <input aria-label={`${titleFromSlug(role)} ${titleFromSlug(feature)}`} checked={allowed} onChange={(event) => updateRolePermission(role, feature, event.target.checked)} type="checkbox" />
+                        <span>{allowed ? "Allow" : "Block"}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {controlTab === "access overrides" ? (
+          <div className="overrideControlGrid">
+            <form className="panel overrideForm" onSubmit={saveAccessOverride}>
+              <PanelTitle title="Add access override" meta="Advanced control" />
+              <label>
+                <span>User</span>
+                <select
+                  onChange={(event) => {
+                    const account = controlData?.accounts.find((item) => item.id === event.target.value);
+                    setOverrideDraft((current) => ({
+                      ...current,
+                      userId: event.target.value,
+                      role: account?.roles[0] || current.role,
+                    }));
+                  }}
+                  required
+                  value={overrideDraft.userId}
+                >
+                  <option value="">Select account</option>
+                  {controlData?.accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.full_name} · {account.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Role</span>
+                <select onChange={(event) => setOverrideDraft((current) => ({ ...current, role: event.target.value }))} value={overrideDraft.role}>
+                  {(controlData?.accounts.find((item) => item.id === overrideDraft.userId)?.roles || roleLabels).map((role) => (
+                    <option key={role}>{role}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Feature</span>
+                <select onChange={(event) => setOverrideDraft((current) => ({ ...current, featureKey: event.target.value }))} value={overrideDraft.featureKey}>
+                  {featureKeys.map((feature) => (
+                    <option key={feature} value={feature}>
+                      {titleFromSlug(feature)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Access</span>
+                <select onChange={(event) => setOverrideDraft((current) => ({ ...current, decision: event.target.value }))} value={overrideDraft.decision}>
+                  <option value="block">Block</option>
+                  <option value="allow">Allow</option>
+                </select>
+              </label>
+              <label>
+                <span>Reason</span>
+                <textarea onChange={(event) => setOverrideDraft((current) => ({ ...current, reason: event.target.value }))} value={overrideDraft.reason} />
+              </label>
+              <label>
+                <span>Expiry date (optional)</span>
+                <input onChange={(event) => setOverrideDraft((current) => ({ ...current, expiresAt: event.target.value }))} type="date" value={overrideDraft.expiresAt} />
+              </label>
+              <button className="gradientButton" type="submit">
+                Save override
+              </button>
+            </form>
+            <section className="panel">
+              <PanelTitle title="Active overrides" meta={`${controlData?.accessOverrides.length ?? 0} rules`} />
+              <div className="overrideList">
+                {controlData?.accessOverrides.map((override) => (
+                  <div key={override.id}>
+                    <span className={`statusPill ${override.decision === "allow" ? "active" : "paused"}`}>{override.decision}</span>
+                    <p>
+                      <strong>{override.user.full_name}</strong>
+                      <small>
+                        {titleFromSlug(override.role)} · {titleFromSlug(override.feature_key)}
+                      </small>
+                    </p>
+                    <span>{override.reason || "No reason supplied"}</span>
+                    <button onClick={() => deleteAccessOverride(override.id)} type="button">
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        ) : null}
+        {controlTab === "theme & branding" ? (
+          <section className="brandingGrid">
+            <div className="panel brandingControls">
+              <PanelTitle title="Client theme" meta="Applies across all role apps" />
+              <label>
+                <span>Primary theme colour</span>
+                <div className="brandColorField">
+                  <input type="color" value={selected.themeColor || "#0f766e"} onChange={(event) => updateOrganization({ themeColor: event.target.value })} />
+                  <strong>{selected.themeColor || "#0f766e"}</strong>
+                </div>
+              </label>
+              <p>The saved colour is loaded automatically whenever an owner, warden, guard, mess manager, tenant, or parent signs into this client.</p>
+              <div className="applyRoleList">
+                {roleLabels.map((roleName) => (
+                  <span key={roleName}>✓ {titleFromSlug(roleName)} App</span>
+                ))}
+              </div>
+            </div>
+            <div className="panel brandPreview" style={{ "--preview-accent": selected.themeColor || "#0f766e" } as CSSProperties}>
+              <PanelTitle title="Live preview" meta="Workspace shell" />
+              <div className="brandPreviewWindow">
+                <aside>
+                  <b>{selected.name.slice(0, 1)}</b>
+                  <i />
+                  <i />
+                  <i />
+                </aside>
+                <main>
+                  <small>{selected.name}</small>
+                  <h3>Good morning, team.</h3>
+                  <div>
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <button type="button">Primary action</button>
+                </main>
+              </div>
+            </div>
+          </section>
+        ) : null}
+        {controlTab === "billing" ? (
+          <section className="panel">
+            <PanelTitle title="Subscription & billing" meta={`${money(selected.monthlyPrice)}/month`} />
+            <div className="platformControlGrid">
+              <label>
+                <span>Plan</span>
+                <select value={plans.find((plan) => plan.name === selected.planName)?.id ?? ""} onChange={(event) => updateOrganization({ planId: event.target.value })}>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} · {money(plan.price_monthly)}/mo
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Subscription status</span>
+                <select value={selected.planStatus} onChange={(event) => updateOrganization({ planStatus: event.target.value })}>
+                  {["active", "trialing", "paused", "canceled", "expired"].map((status) => (
+                    <option key={status} value={status}>
+                      {titleFromSlug(status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Renewal / expiry date</span>
+                <input onChange={(event) => updateOrganization({ planExpiresAt: event.target.value || null })} type="date" value={selected.planExpiresAt?.slice(0, 10) ?? ""} />
+              </label>
+              <label>
+                <span>Licensed capacity</span>
+                <input min="0" onBlur={(event) => updateOrganization({ totalCapacity: event.target.value })} type="number" defaultValue={selected.totalCapacity} />
+              </label>
+            </div>
+          </section>
+        ) : null}
+      </div>
+    );
   }
 
-  return <div className="platformPage">
-    <PlatformPageHeader eyebrow="1Forge / Control center" title="Dashboard" copy="A focused view of every HostIn client and what needs your attention." action={<Link className="gradientButton" href="/1forge/platform/new">+ Add client</Link>} />
-    <div className="platformKpis"><PlatformKpi label="Total clients" value={organizations.length} note="Across all plans"/><PlatformKpi label="Active clients" value={activeOrganizations.length} note={`${organizations.length ? Math.round(activeOrganizations.length / organizations.length * 100) : 0}% active rate`}/><PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note="Current subscribed plans"/><PlatformKpi label="Pending payments" value={organizations.filter((item) => ["paused", "expired"].includes(item.planStatus)).length} note="Clients need action" tone="warning"/></div>
-    <section className="clientDirectory"><div className="clientDirectoryTools"><div><h3>Clients</h3><span>{filteredOrganizations.length} shown</span></div><input aria-label="Search clients" onChange={(event) => setQuery(event.target.value)} placeholder="Search by client, owner, city or plan" value={query}/><div className="clientFilters">{["all", "active", "trialing", "paused", "suspended", "setup"].map((item) => <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">{titleFromSlug(item)}</button>)}</div></div><div className="clientCardGrid">{filteredOrganizations.map((organization) => { const displayStatus = organization.workspaceStatus && organization.workspaceStatus !== "active" ? organization.workspaceStatus : organization.isActive ? organization.planStatus : "suspended"; return <Link className="panel platformClientCard" href={`/1forge/platform/${organization.slug}`} key={organization.id}><header><span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span><span className={`statusPill ${displayStatus}`}>{titleFromSlug(displayStatus)}</span></header><div><h3>{organization.name}</h3><p>{organization.cityState || organization.ownerName}</p></div><div className="clientPlanLine"><span>{organization.planName}</span><strong>{money(organization.monthlyPrice)}<small>/month</small></strong></div><div className="clientQuickStats"><span><b>{organization.activeTenantsCount}</b>Tenants</span><span><b>{organization.totalCapacity}</b>Capacity</span><span><b>{organization.memberCount}</b>Accounts</span><span><b>{organization.features.filter((item) => item.enabled).length}</b>Features</span></div><footer><span className={organization.workspaceStatus === "active" ? "healthy" : "attention"}>● {organization.workspaceStatus === "active" ? "Healthy" : "Setup needs attention"}</span><b>Manage client →</b></footer></Link>; })}</div></section>
-  </div>;
+  return (
+    <div className="platformPage">
+      <PlatformPageHeader
+        eyebrow="1Forge / Control center"
+        title="Dashboard"
+        copy="A focused view of every HostIn client and what needs your attention."
+        action={
+          <Link className="gradientButton" href="/1forge/platform/new">
+            + Add client
+          </Link>
+        }
+      />
+      <div className="platformKpis">
+        <PlatformKpi label="Total clients" value={organizations.length} note="Across all plans" />
+        <PlatformKpi label="Active clients" value={activeOrganizations.length} note={`${organizations.length ? Math.round((activeOrganizations.length / organizations.length) * 100) : 0}% active rate`} />
+        <PlatformKpi label="Monthly recurring revenue" value={money(mrr)} note="Current subscribed plans" />
+        <PlatformKpi label="Pending payments" value={organizations.filter((item) => ["paused", "expired"].includes(item.planStatus)).length} note="Clients need action" tone="warning" />
+      </div>
+      <section className="clientDirectory">
+        <div className="clientDirectoryTools">
+          <div>
+            <h3>Clients</h3>
+            <span>{filteredOrganizations.length} shown</span>
+          </div>
+          <input aria-label="Search clients" onChange={(event) => setQuery(event.target.value)} placeholder="Search by client, owner, city or plan" value={query} />
+          <div className="clientFilters">
+            {["all", "active", "trialing", "paused", "suspended", "setup"].map((item) => (
+              <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">
+                {titleFromSlug(item)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="clientCardGrid">
+          {filteredOrganizations.map((organization) => {
+            const displayStatus = organization.workspaceStatus && organization.workspaceStatus !== "active" ? organization.workspaceStatus : organization.isActive ? organization.planStatus : "suspended";
+            return (
+              <Link className="panel platformClientCard" href={`/1forge/platform/${organization.slug}`} key={organization.id}>
+                <header>
+                  <span className="clientAvatar">{organization.name.slice(0, 2).toUpperCase()}</span>
+                  <span className={`statusPill ${displayStatus}`}>{titleFromSlug(displayStatus)}</span>
+                </header>
+                <div>
+                  <h3>{organization.name}</h3>
+                  <p>{organization.cityState || organization.ownerName}</p>
+                </div>
+                <div className="clientPlanLine">
+                  <span>{organization.planName}</span>
+                  <strong>
+                    {money(organization.monthlyPrice)}
+                    <small>/month</small>
+                  </strong>
+                </div>
+                <div className="clientQuickStats">
+                  <span>
+                    <b>{organization.activeTenantsCount}</b>Tenants
+                  </span>
+                  <span>
+                    <b>{organization.totalCapacity}</b>Capacity
+                  </span>
+                  <span>
+                    <b>{organization.memberCount}</b>Accounts
+                  </span>
+                  <span>
+                    <b>{organization.features.filter((item) => item.enabled).length}</b>Features
+                  </span>
+                </div>
+                <footer>
+                  <span className={organization.workspaceStatus === "active" ? "healthy" : "attention"}>● {organization.workspaceStatus === "active" ? "Healthy" : "Setup needs attention"}</span>
+                  <b>Manage client →</b>
+                </footer>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function PlatformPageHeader({ eyebrow, title, copy, action }: { eyebrow: string; title: string; copy: string; action?: ReactNode }) { return <header className="platformPageHeader"><div><p className="crumb">{eyebrow}</p><h2>{title}</h2><p>{copy}</p></div><div className="platformHeaderAside"><span>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span>{action}</div></header>; }
-function PlatformKpi({ label, value, note, tone }: { label: string; value: string | number; note: string; tone?: string }) { return <article className="panel platformKpi"><span>{label}</span><strong>{value}</strong><small className={tone || ""}>{note}</small></article>; }
+function PlatformPageHeader({ eyebrow, title, copy, action }: { eyebrow: string; title: string; copy: string; action?: ReactNode }) {
+  return (
+    <header className="platformPageHeader">
+      <div>
+        <p className="crumb">{eyebrow}</p>
+        <h2>{title}</h2>
+        <p>{copy}</p>
+      </div>
+      <div className="platformHeaderAside">
+        <span>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</span>
+        {action}
+      </div>
+    </header>
+  );
+}
+function PlatformKpi({ label, value, note, tone }: { label: string; value: string | number; note: string; tone?: string }) {
+  return (
+    <article className="panel platformKpi">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small className={tone || ""}>{note}</small>
+    </article>
+  );
+}
 
-function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: string }) {
+function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessToken: string; orgId: string; isPlatform?: boolean }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -1547,8 +2847,8 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
   async function loadNotifications() {
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBase}/notifications`, {
-        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      const response = await fetch(`${apiBase}${isPlatform ? "/platform/notifications" : "/notifications"}`, {
+        headers: { Authorization: `Bearer ${accessToken}`, ...(isPlatform ? {} : { "x-org-id": orgId }) },
       });
       const data = await response.json().catch(() => ({}));
       setNotifications(data.notifications ?? []);
@@ -1558,7 +2858,7 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
   }
   useEffect(() => {
     loadNotifications(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [accessToken, orgId]);
+  }, [accessToken, isPlatform, orgId]);
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
@@ -1568,6 +2868,10 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
   async function markRead(id: string) {
+    if (isPlatform) {
+      setOpen(false);
+      return;
+    }
     await fetch(`${apiBase}/notifications/${id}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
@@ -1576,13 +2880,7 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
   }
   return (
     <div className={`notificationMenu ${open ? "isOpen" : ""}`}>
-      <button
-        aria-expanded={open}
-        aria-label="Notifications"
-        className="notificationIconButton"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
+      <button aria-expanded={open} aria-label="Notifications" className="notificationIconButton" onClick={() => setOpen((current) => !current)} type="button">
         {unread ? <span>{unread}</span> : null}
       </button>
       {open ? (
@@ -1595,12 +2893,7 @@ function NotificationMenu({ accessToken, orgId }: { accessToken: string; orgId: 
             <DirectorySkeleton />
           ) : notifications.length ? (
             notifications.map((item) => (
-              <button
-                className={item.status === "read" ? "notificationItem" : "notificationItem unread"}
-                key={item.id}
-                onClick={() => markRead(item.id)}
-                type="button"
-              >
+              <button className={item.status === "read" ? "notificationItem" : "notificationItem unread"} key={item.id} onClick={() => markRead(item.id)} type="button">
                 <strong>{item.title}</strong>
                 <p>{item.body}</p>
                 <small>{formatDateTime(item.created_at)}</small>
@@ -1639,9 +2932,7 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
       const data = await response.json().catch(() => ({}));
       const nextTenants = data.tenants ?? [];
       setTenants(nextTenants);
-      setSelectedUserId((current) =>
-        nextTenants.some((tenant: TenantRecord) => tenant.userId === current) ? current : ""
-      );
+      setSelectedUserId((current) => (nextTenants.some((tenant: TenantRecord) => tenant.userId === current) ? current : ""));
     } catch {
       console.info("Tenants could not load.");
       setTenants([]);
@@ -1709,11 +3000,7 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
     <div className="tenantExperience">
       <section className="panel tenantDirectoryPanel">
         <div className="roomsToolbar tenantToolbar">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search tenant name or room number..."
-          />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name or room number..." />
         </div>
         {isLoading ? (
           <DirectorySkeleton />
@@ -1721,12 +3008,7 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
           <div className="tenantDirectoryLayout">
             <div className="tenantList">
               {filteredTenants.map((tenant) => (
-                <button
-                  className={selectedTenant?.userId === tenant.userId ? "active tenantListItem" : "tenantListItem"}
-                  key={tenant.userId}
-                  onClick={() => setSelectedUserId((current) => (current === tenant.userId ? "" : tenant.userId))}
-                  type="button"
-                >
+                <button className={selectedTenant?.userId === tenant.userId ? "active tenantListItem" : "tenantListItem"} key={tenant.userId} onClick={() => setSelectedUserId((current) => (current === tenant.userId ? "" : tenant.userId))} type="button">
                   <span>{getInitials(tenant.fullName)}</span>
                   <div>
                     <strong>{tenant.fullName}</strong>
@@ -1736,26 +3018,15 @@ function TenantsSection({ accessToken, orgId, workspace }: { accessToken: string
                 </button>
               ))}
             </div>
-            <div className={`tenantDetailSlot ${selectedTenant ? "isVisible" : ""}`}>
-              {selectedTenant ? <TenantDetailCard tenant={selectedTenant} /> : null}
-            </div>
+            <div className={`tenantDetailSlot ${selectedTenant ? "isVisible" : ""}`}>{selectedTenant ? <TenantDetailCard tenant={selectedTenant} /> : null}</div>
           </div>
         ) : (
-          <EmptyPanel
-            title="No tenants found"
-            copy="Create a tenant account first, then assign rooms from the Rooms board."
-          />
+          <EmptyPanel title="No tenants found" copy="Create a tenant account first, then assign rooms from the Rooms board." />
         )}
       </section>
       {showCreate ? (
         <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)} role="presentation">
-          <section
-            aria-labelledby="add-tenant-title"
-            aria-modal="true"
-            className="panel tenantCreateModal"
-            onMouseDown={(event) => event.stopPropagation()}
-            role="dialog"
-          >
+          <section aria-labelledby="add-tenant-title" aria-modal="true" className="panel tenantCreateModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
             <div className="modalHeader">
               <div>
                 <h3 id="add-tenant-title">Add tenant</h3>
@@ -1830,19 +3101,10 @@ function TenantDetailCard({ tenant }: { tenant?: TenantRecord }) {
   );
 }
 
-function GatePassSection({
-  accessToken,
-  canModerate,
-  isTenant,
-  orgId,
-}: {
-  accessToken: string;
-  canModerate: boolean;
-  isTenant: boolean;
-  orgId: string;
-}) {
+function GatePassSection({ accessToken, canModerate, isTenant, orgId }: { accessToken: string; canModerate: boolean; isTenant: boolean; orgId: string }) {
   const [passes, setPasses] = useState<GatePassRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRequestForm, setShowRequestForm] = useState(false);
 
   async function loadPasses() {
     setIsLoading(true);
@@ -1863,6 +3125,19 @@ function GatePassSection({
     loadPasses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, orgId]);
+
+  useEffect(() => {
+    if (!showRequestForm) return;
+    const close = (event: KeyboardEvent) => event.key === "Escape" && setShowRequestForm(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [showRequestForm]);
+
+  useEffect(() => {
+    const open = () => setShowRequestForm(true);
+    window.addEventListener("hostin:request-gate-pass", open);
+    return () => window.removeEventListener("hostin:request-gate-pass", open);
+  }, []);
 
   async function updatePass(id: string, status: "approved" | "rejected") {
     const response = await fetch(`${apiBase}/gate-passes/${id}/approve`, {
@@ -1889,6 +3164,7 @@ function GatePassSection({
     });
     if (response.ok) {
       event.currentTarget.reset();
+      setShowRequestForm(false);
       await loadPasses();
     }
   }
@@ -1907,24 +3183,42 @@ function GatePassSection({
   if (isTenant)
     return (
       <div className="gateTenantExperience">
-        <section className="panel">
-          <PanelTitle title="Request gate pass" meta="Send for approval" />
-          <form className="gatePassForm" onSubmit={requestPass}>
-            <input name="purpose" placeholder="Purpose" required />
-            <input name="destination" placeholder="Destination" required />
-            <label>
-              <span>Leaving</span>
-              <input name="expectedOutTime" type="datetime-local" required />
-            </label>
-            <label>
-              <span>Expected return</span>
-              <input name="expectedReturnTime" type="datetime-local" required />
-            </label>
-            <button className="gradientButton" type="submit">
-              Request gate pass
-            </button>
-          </form>
-        </section>
+        {showRequestForm ? (
+          <div className="modalBackdrop" onMouseDown={() => setShowRequestForm(false)}>
+            <section aria-modal="true" className="panel gatePassModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+              <div className="modalHeader">
+                <div>
+                  <h3>Request Gate Pass</h3>
+                  <p>Share your destination and expected timings.</p>
+                </div>
+                <button aria-label="Close gate pass form" onClick={() => setShowRequestForm(false)} type="button">
+                  ×
+                </button>
+              </div>
+              <form className="gatePassForm" onSubmit={requestPass}>
+                <label>
+                  <span>Purpose</span>
+                  <input name="purpose" placeholder="Home leave, outing..." required />
+                </label>
+                <label>
+                  <span>Destination</span>
+                  <input name="destination" placeholder="Where are you going?" required />
+                </label>
+                <label>
+                  <span>Leaving</span>
+                  <input name="expectedOutTime" type="datetime-local" required />
+                </label>
+                <label>
+                  <span>Expected return</span>
+                  <input name="expectedReturnTime" type="datetime-local" required />
+                </label>
+                <button className="gradientButton fullButton" type="submit">
+                  Submit Request
+                </button>
+              </form>
+            </section>
+          </div>
+        ) : null}
         <section className="panel feedPanel">
           <PanelTitle title="Pending requests" meta={`${pendingPasses.length} awaiting review`} />
           {isLoading ? (
@@ -1950,10 +3244,7 @@ function GatePassSection({
               ))}
             </div>
           ) : (
-            <EmptyPanel
-              title="No history yet"
-              copy="Approved, rejected, cancelled, and completed passes will remain here."
-            />
+            <EmptyPanel title="No history yet" copy="Approved, rejected, cancelled, and completed passes will remain here." />
           )}
         </section>
       </div>
@@ -2014,17 +3305,7 @@ function GatePassRow({ children, pass }: { children?: ReactNode; pass: GatePassR
   );
 }
 
-function VisitorsSection({
-  accessToken,
-  canCreate,
-  canModerate,
-  orgId,
-}: {
-  accessToken: string;
-  canCreate: boolean;
-  canModerate: boolean;
-  orgId: string;
-}) {
+function VisitorsSection({ accessToken, canCreate, canModerate, orgId }: { accessToken: string; canCreate: boolean; canModerate: boolean; orgId: string }) {
   const [visitors, setVisitors] = useState<VisitorRecord[]>([]);
   const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
   const [filter, setFilter] = useState("");
@@ -2117,11 +3398,7 @@ function VisitorsSection({
         ) : null}
       </div>
       <div className="roomsToolbar visitorToolbar">
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder="Filter by visitor name..."
-        />
+        <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter by visitor name..." />
         <input value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} type="date" />
         <select onChange={(event) => setDateFilter(dayToDate(event.target.value))} defaultValue="">
           <option value="">Any day</option>
@@ -2131,12 +3408,7 @@ function VisitorsSection({
       </div>
       {showCreate ? (
         <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)}>
-          <section
-            aria-modal="true"
-            className="panel visitorCreateModal"
-            onMouseDown={(event) => event.stopPropagation()}
-            role="dialog"
-          >
+          <section aria-modal="true" className="panel visitorCreateModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
             <div className="modalHeader">
               <div>
                 <h3>Add visitor</h3>
@@ -2198,7 +3470,19 @@ function VisitorsSection({
                 </small>
                 <small>{formatDateTime(visitor.expected_visit_time)}</small>
               </div>
-              <div><span className={`statusPill ${visitor.status}`}>{titleFromSlug(visitor.status)}</span>{canModerate && visitor.status === "pending" ? <div className="inlineActions"><button onClick={() => updateVisitor(visitor.id, "approved")} type="button">Approve Entry</button><button onClick={() => updateVisitor(visitor.id, "rejected")} type="button">Reject</button></div> : null}</div>
+              <div>
+                <span className={`statusPill ${visitor.status}`}>{titleFromSlug(visitor.status)}</span>
+                {canModerate && visitor.status === "pending" ? (
+                  <div className="inlineActions">
+                    <button onClick={() => updateVisitor(visitor.id, "approved")} type="button">
+                      Approve Entry
+                    </button>
+                    <button onClick={() => updateVisitor(visitor.id, "rejected")} type="button">
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </article>
           ))}
         </div>
@@ -2209,28 +3493,14 @@ function VisitorsSection({
   );
 }
 
-function CommunitySection({
-  accessToken,
-  canCreate,
-  orgId,
-  role,
-  mode,
-}: {
-  accessToken: string;
-  canCreate: boolean;
-  orgId: string;
-  role: Role;
-  mode?: "complaints" | "announcements";
-}) {
+function CommunitySection({ accessToken, canCreate, orgId, role, mode }: { accessToken: string; canCreate: boolean; orgId: string; role: Role; mode?: "complaints" | "announcements" }) {
   const [tab, setTab] = useState<"announcements" | "complaints" | "lost">(mode ?? "announcements");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [lostPosts, setLostPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState("");
-  const visibleTabs = mode ? [mode] : role === "tenant" || role === "parent" || role === "guard"
-      ? ["announcements", "lost"]
-      : ["announcements", "complaints", "lost"];
+  const visibleTabs = mode ? [mode] : role === "tenant" ? ["announcements", "complaints", "lost"] : role === "parent" || role === "guard" ? ["announcements", "lost"] : ["announcements", "complaints", "lost"];
 
   async function loadCommunity() {
     setIsLoading(true);
@@ -2266,11 +3536,14 @@ function CommunitySection({
     if (mode) setTab(mode);
   }, [mode]);
 
-  async function updateComplaintStatus(id: string, status: "in_progress" | "resolved") {
+  async function updateComplaintStatus(id: string, status: "in_progress" | "resolved" | "closed") {
     const response = await fetch(`${apiBase}/complaints/${id}/status`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
-      body: JSON.stringify({ status, note: status === "resolved" ? "Resolved by warden" : "Warden started handling this complaint" }),
+      body: JSON.stringify({
+        status,
+        note: status === "closed" ? "Complaint closed" : status === "resolved" ? "Complaint resolved" : "Work started on this complaint",
+      }),
     });
     if (response.ok) await loadCommunity();
   }
@@ -2281,22 +3554,17 @@ function CommunitySection({
     <section className="panel feedPanel">
       <div className="communityHeader">
         <PanelTitle title={mode ? titleFromSlug(mode) : "Community"} meta={mode === "complaints" ? "Open · In progress · Resolved" : mode === "announcements" ? "Property updates" : "Announcements · Complaints · Lost/Found"} />
-        {!mode ? <div className="communityToggle">
-          {visibleTabs.map((item) => (
-            <button
-              className={tab === item ? "active" : ""}
-              key={item}
-              onClick={() => setTab(item as any)}
-              type="button"
-            >
-              {item === "lost" ? "Lost / Found" : titleFromSlug(item)}
-            </button>
-          ))}
-        </div> : null}
+        {!mode ? (
+          <div className="communityToggle">
+            {visibleTabs.map((item) => (
+              <button className={tab === item ? "active" : ""} key={item} onClick={() => setTab(item as any)} type="button">
+                {item === "lost" ? "Lost / Found" : titleFromSlug(item)}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {canCreate || (role === "tenant" && tab === "lost") ? (
-        <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} />
-      ) : null}
+      {canCreate || (role === "tenant" && ["complaints", "lost"].includes(tab)) ? <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} /> : null}
       {isLoading ? (
         <DirectorySkeleton />
       ) : feedItems.length ? (
@@ -2306,12 +3574,28 @@ function CommunitySection({
               <div>
                 <strong>{item.title ?? item.description ?? item.category}</strong>
                 <small>
-                  {item.publisherName ?? item.tenant?.full_name ?? "Community"} ·{" "}
-                  {formatDateTime(item.createdAt ?? item.created_at)}
+                  {item.publisherName ?? item.tenant?.full_name ?? "Community"} · {formatDateTime(item.createdAt ?? item.created_at)}
                 </small>
               </div>
               <p>{item.body ?? item.description ?? "No description added."}</p>
-              {role === "warden" && tab === "complaints" && !["resolved", "closed"].includes(item.status) ? <div className="inlineActions complaintActions">{item.status === "open" ? <button onClick={() => updateComplaintStatus(item.id, "in_progress")} type="button">Start work</button> : null}<button onClick={() => updateComplaintStatus(item.id, "resolved")} type="button">Resolve</button></div> : null}
+              {["owner", "warden"].includes(role) && tab === "complaints" && item.status !== "closed" ? (
+                <div className="inlineActions complaintActions">
+                  {item.status === "open" ? (
+                    <button onClick={() => updateComplaintStatus(item.id, "in_progress")} type="button">
+                      Start work
+                    </button>
+                  ) : null}
+                  {item.status !== "resolved" ? (
+                    <button onClick={() => updateComplaintStatus(item.id, "resolved")} type="button">
+                      Resolve
+                    </button>
+                  ) : (
+                    <button onClick={() => updateComplaintStatus(item.id, "closed")} type="button">
+                      Close
+                    </button>
+                  )}
+                </div>
+              ) : null}
               {item.imageUrls?.length ? (
                 <div className="postImages">
                   {item.imageUrls.map((url: string, index: number) => (
@@ -2324,10 +3608,7 @@ function CommunitySection({
                   <button onClick={() => interact(item.id, tab, "reaction", "like")} type="button">
                     Like <span>{item.reactionCount ?? 0}</span>
                   </button>
-                  <button
-                    onClick={() => setCommentsFor((current) => (current === item.id ? "" : item.id))}
-                    type="button"
-                  >
+                  <button onClick={() => setCommentsFor((current) => (current === item.id ? "" : item.id))} type="button">
                     Comment <span>{item.commentCount ?? 0}</span>
                   </button>
                 </div>
@@ -2369,17 +3650,7 @@ function CommunitySection({
   }
 }
 
-function CommunityComposer({
-  accessToken,
-  orgId,
-  onPosted,
-  tab,
-}: {
-  accessToken: string;
-  orgId: string;
-  onPosted: () => void;
-  tab: string;
-}) {
+function CommunityComposer({ accessToken, orgId, onPosted, tab }: { accessToken: string; orgId: string; onPosted: () => void; tab: string }) {
   async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -2390,6 +3661,23 @@ function CommunityComposer({
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
         body: JSON.stringify({ caption: form.get("body"), imageUrls }),
+      });
+      if (response.ok) {
+        event.currentTarget.reset();
+        onPosted();
+      }
+      return;
+    }
+    if (tab === "complaints") {
+      const response = await fetch(`${apiBase}/complaints`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+        body: JSON.stringify({
+          category: form.get("category"),
+          title: form.get("title"),
+          description: form.get("body"),
+          priority: form.get("priority"),
+        }),
       });
       if (response.ok) {
         event.currentTarget.reset();
@@ -2413,6 +3701,24 @@ function CommunityComposer({
   }
   return (
     <form className="communityComposer" onSubmit={submitPost}>
+      {tab === "complaints" ? (
+        <>
+          <select aria-label="Complaint category" defaultValue="maintenance" name="category">
+            <option value="maintenance">Maintenance</option>
+            <option value="cleanliness">Cleanliness</option>
+            <option value="food">Food</option>
+            <option value="security">Security</option>
+            <option value="noise">Noise</option>
+            <option value="other">Other</option>
+          </select>
+          <select aria-label="Complaint priority" defaultValue="medium" name="priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </>
+      ) : null}
       {tab !== "lost" ? <input name="title" placeholder={`Create ${tab} post`} required /> : null}
       <input name="body" placeholder="Write details..." required />
       {tab === "lost" ? (
@@ -2448,14 +3754,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
 
   useEffect(() => {
     setIsLoading(true);
-    Promise.all([
-      fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
-        (response) => response.json()
-      ),
-      fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
-        (response) => response.json()
-      ),
-    ])
+    Promise.all([fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json()), fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json())])
       .then(([dueData, paymentData]) => {
         setDues(dueData.dues ?? []);
         setPayments(paymentData.payments ?? []);
@@ -2467,10 +3766,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
   const visible = dues
     .filter((due) => {
       const paid = due.status === "paid";
-      return (
-        (status === "all" || (status === "paid" ? paid : !paid)) &&
-        due.tenant.full_name.toLowerCase().includes(search.toLowerCase())
-      );
+      return (status === "all" || (status === "paid" ? paid : !paid)) && due.tenant.full_name.toLowerCase().includes(search.toLowerCase());
     })
     .sort((a, b) => (Number(a.amount) - Number(b.amount)) * (sort === "asc" ? 1 : -1));
   const paidDues = dues.filter((due) => due.status === "paid");
@@ -2493,14 +3789,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
     });
     if (response.ok) {
       setCheckoutDue(null);
-      const [dueData, paymentData] = await Promise.all([
-        fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
-          (item) => item.json()
-        ),
-        fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then(
-          (item) => item.json()
-        ),
-      ]);
+      const [dueData, paymentData] = await Promise.all([fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json()), fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json())]);
       setDues(dueData.dues ?? []);
       setPayments(paymentData.payments ?? []);
     }
@@ -2592,9 +3881,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
               </div>
               <div className="checkoutTotal">
                 <span>Total payable</span>
-                <strong>
-                  ₹{(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid)).toLocaleString("en-IN")}
-                </strong>
+                <strong>₹{(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid)).toLocaleString("en-IN")}</strong>
               </div>
               <label>
                 <span>Payment method</span>
@@ -2607,9 +3894,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
               <button className="gradientButton fullButton" type="submit">
                 Pay securely
               </button>
-              <small className="checkoutNote">
-                Payment gateway integration will replace manual confirmation in production.
-              </small>
+              <small className="checkoutNote">Payment gateway integration will replace manual confirmation in production.</small>
             </form>
           </div>
         ) : null}
@@ -2624,11 +3909,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
       </div>
       <section className="panel feedPanel">
         <div className="roomsToolbar financeToolbar">
-          <input
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search tenant name..."
-            value={search}
-          />
+          <input onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name..." value={search} />
           <select onChange={(event) => setStatus(event.target.value)} value={status}>
             <option value="all">All payments</option>
             <option value="paid">Paid</option>
@@ -2659,10 +3940,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
             ))}
           </div>
         ) : (
-          <EmptyPanel
-            title="No dues found"
-            copy="Monthly rent dues appear automatically after a tenant is assigned a room."
-          />
+          <EmptyPanel title="No dues found" copy="Monthly rent dues appear automatically after a tenant is assigned a room." />
         )}
       </section>
     </section>
@@ -2745,19 +4023,7 @@ function MessSection({ accessToken, canManage, orgId }: { accessToken: string; c
                   <td>{dateForWeekDay(weekStart, dayIndex)}</td>
                   <th>{titleFromSlug(day)}</th>
                   {mealTypes.map((meal) => (
-                    <td key={meal}>
-                      {canManage ? (
-                        <textarea
-                          aria-label={`${day} ${meal}`}
-                          defaultValue={valueFor(day, meal)}
-                          key={`${weekStart}-${day}-${meal}-${valueFor(day, meal)}`}
-                          onBlur={(event) => saveCell(day, meal, event.target.value)}
-                          placeholder="Add meal"
-                        />
-                      ) : (
-                        <span>{valueFor(day, meal) || "Not planned"}</span>
-                      )}
-                    </td>
+                    <td key={meal}>{canManage ? <textarea aria-label={`${day} ${meal}`} defaultValue={valueFor(day, meal)} key={`${weekStart}-${day}-${meal}-${valueFor(day, meal)}`} onBlur={(event) => saveCell(day, meal, event.target.value)} placeholder="Add meal" /> : <span>{valueFor(day, meal) || "Not planned"}</span>}</td>
                   ))}
                 </tr>
               ))}
@@ -2805,9 +4071,7 @@ function StaffContactsSection({ accessToken, orgId }: { accessToken: string; org
 }
 
 function sumDues(dues: DueRecord[]) {
-  return dues
-    .reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0)
-    .toLocaleString("en-IN");
+  return dues.reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0).toLocaleString("en-IN");
 }
 function countDueTenants(dues: DueRecord[]) {
   return new Set(dues.map((due) => due.tenant.full_name)).size;
@@ -2824,19 +4088,7 @@ function dateForWeekDay(weekStart: string, offset: number) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
-function RoomsBoard({
-  accessToken,
-  canManage,
-  orgId,
-  role,
-  workspace,
-}: {
-  accessToken: string;
-  canManage: boolean;
-  orgId: string;
-  role: string;
-  workspace: string;
-}) {
+function RoomsBoard({ accessToken, canManage, orgId, role, workspace }: { accessToken: string; canManage: boolean; orgId: string; role: string; workspace: string }) {
   const [rooms, setRooms] = useState<RoomBoardRoom[]>([]);
   const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
@@ -2862,11 +4114,8 @@ function RoomsBoard({
       const matchesFloor = floorFilter === "all" || String(room.floorNumber) === floorFilter;
       const matchesType = typeFilter === "all" || room.roomType === typeFilter;
       const normalizedSearch = search.toLowerCase().trim();
-      const occupantMatch = room.occupants.some((occupant) =>
-        occupant.fullName.toLowerCase().includes(normalizedSearch)
-      );
-      const matchesSearch =
-        !normalizedSearch || room.roomNumber.toLowerCase().includes(normalizedSearch) || occupantMatch;
+      const occupantMatch = room.occupants.some((occupant) => occupant.fullName.toLowerCase().includes(normalizedSearch));
+      const matchesSearch = !normalizedSearch || room.roomNumber.toLowerCase().includes(normalizedSearch) || occupantMatch;
       return matchesFloor && matchesType && matchesSearch;
     });
 
@@ -2919,9 +4168,7 @@ function RoomsBoard({
       }));
 
       setRooms(mappedRooms);
-      setSelectedRoomId((current) =>
-        current && mappedRooms.some((room: RoomBoardRoom) => room.id === current) ? current : ""
-      );
+      setSelectedRoomId((current) => (current && mappedRooms.some((room: RoomBoardRoom) => room.id === current) ? current : ""));
       setTenantOptions(mappedTenants);
       setLoadFailed(false);
       console.info("Room board synced with database.");
@@ -2954,11 +4201,7 @@ function RoomsBoard({
         body: JSON.stringify({ tenantUserId: selectedTenantUserId }),
       });
 
-      console.info(
-        response.ok
-          ? "Tenant assigned. Refreshing board..."
-          : "Could not assign tenant. Check capacity and permissions."
-      );
+      console.info(response.ok ? "Tenant assigned. Refreshing board..." : "Could not assign tenant. Check capacity and permissions.");
       if (response.ok) await loadBoard();
     } catch {
       console.info("Server is not reachable. Assignment was not saved.");
@@ -3002,11 +4245,7 @@ function RoomsBoard({
 
       <section className="panel roomsPanel">
         <div className="roomsToolbar">
-          <select
-            value={floorFilter}
-            onChange={(event) => setFloorFilter(event.target.value)}
-            aria-label="Filter floor"
-          >
+          <select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)} aria-label="Filter floor">
             <option value="all">All floors</option>
             {Array.from(new Set(rooms.map((room) => room.floorNumber)))
               .sort((a, b) => b - a)
@@ -3016,11 +4255,7 @@ function RoomsBoard({
                 </option>
               ))}
           </select>
-          <select
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-            aria-label="Filter room type"
-          >
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filter room type">
             <option value="all">All room types</option>
             {Array.from(new Set(rooms.map((room) => room.roomType))).map((type) => (
               <option key={type} value={type}>
@@ -3028,11 +4263,7 @@ function RoomsBoard({
               </option>
             ))}
           </select>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search room or student..."
-          />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search room or student..." />
           <div className="roomLegend">
             <span>
               <i className="full" /> Full
@@ -3062,14 +4293,7 @@ function RoomsBoard({
                   </div>
                   <div className="roomCells">
                     {floor.rooms.map((room) => (
-                      <RoomCell
-                        isSelected={selectedRoom?.id === room.id}
-                        key={room.id}
-                        onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))}
-                        room={room}
-                        role={role}
-                        workspace={workspace}
-                      />
+                      <RoomCell isSelected={selectedRoom?.id === room.id} key={room.id} onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))} room={room} role={role} workspace={workspace} />
                     ))}
                   </div>
                 </div>
@@ -3078,11 +4302,7 @@ function RoomsBoard({
           ) : (
             <div className="roomEmptyState">
               <strong>{loadFailed ? "Rooms could not be loaded" : "No rooms created yet"}</strong>
-              <p>
-                {loadFailed
-                  ? "Check backend, login permissions, and seeded workspace data."
-                  : "Create floors and rooms during setup to generate this visual board."}
-              </p>
+              <p>{loadFailed ? "Check backend, login permissions, and seeded workspace data." : "Create floors and rooms during setup to generate this visual board."}</p>
             </div>
           )}
 
@@ -3145,10 +4365,7 @@ function RoomsBoard({
                   <div className="assignBox">
                     <label>
                       <span>Add or move student</span>
-                      <select
-                        value={selectedTenantUserId}
-                        onChange={(event) => setSelectedTenantUserId(event.target.value)}
-                      >
+                      <select value={selectedTenantUserId} onChange={(event) => setSelectedTenantUserId(event.target.value)}>
                         <option value="">Select tenant</option>
                         {tenantOptions.map((tenant) => (
                           <option key={tenant.userId} value={tenant.userId}>
@@ -3158,12 +4375,7 @@ function RoomsBoard({
                         ))}
                       </select>
                     </label>
-                    <button
-                      className="gradientButton fullButton"
-                      disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"}
-                      onClick={assignTenant}
-                      type="button"
-                    >
+                    <button className="gradientButton fullButton" disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"} onClick={assignTenant} type="button">
                       Assign to room
                     </button>
                   </div>
@@ -3257,19 +4469,7 @@ function Metric({ label, value, meta }: { label: string; value: number | string;
   );
 }
 
-function RoomCell({
-  isSelected,
-  onSelect,
-  room,
-  role,
-  workspace,
-}: {
-  isSelected: boolean;
-  onSelect: () => void;
-  room: RoomBoardRoom;
-  role: string;
-  workspace: string;
-}) {
+function RoomCell({ isSelected, onSelect, room, role, workspace }: { isSelected: boolean; onSelect: () => void; room: RoomBoardRoom; role: string; workspace: string }) {
   const state = getRoomState(room);
   const names = room.occupants.map((occupant) => occupant.fullName);
 
@@ -3280,13 +4480,7 @@ function RoomCell({
         {Array.from({ length: room.capacity }).map((_, index) => {
           const occupant = room.occupants[index];
           return occupant ? (
-            <a
-              className="bedIcon filled"
-              href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}
-              key={occupant.userId}
-              onClick={(event) => event.stopPropagation()}
-              title={occupant.fullName}
-            >
+            <a className="bedIcon filled" href={`/${workspace}/${role}/tenants?student=${occupant.userId}`} key={occupant.userId} onClick={(event) => event.stopPropagation()} title={occupant.fullName}>
               {getInitials(occupant.fullName).slice(0, 1)}
             </a>
           ) : (
