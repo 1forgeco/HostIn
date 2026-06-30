@@ -14,7 +14,7 @@ describe("client theme bootstrap", () => {
 
     await import("./instrumentation-client");
 
-    expect(document.documentElement.dataset.theme).toBe("hostin-coral");
+    expect(document.documentElement.dataset.theme).toBe("hostin-green");
     expect(window.localStorage.getItem("hostin-color-theme")).toBeNull();
     expect(window.localStorage.getItem("hostin-custom-color")).toBeNull();
   });

@@ -2,6 +2,7 @@ import { Response } from "express";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
 import { prisma } from "../../../../lib/prisma";
 import { PlanStatus } from "../../../../../generated/prisma/client";
+import { notifyRoles } from "../../../../lib/notifications";
 
 export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
@@ -75,6 +76,7 @@ export const handleUpdateOrganization = async (req: PlatformAuthenticatedRequest
     });
 
     await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "update_subscription", entity_type: "organization", entity_id: orgId, details: updateData } });
+    await notifyRoles(prisma, ["owner"], { orgId, title: "Workspace settings updated", body: "1Forge updated your workspace subscription, status, capacity, or branding settings.", type: "other", referenceId: orgId, referenceType: "organization" });
 
     return res.status(200).json({
       message: "Organization subscription updated successfully",

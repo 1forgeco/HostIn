@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { invalidateRuntimeCache } from "../../../lib/runtimeCache";
 
 export const handleUpdateParentPrivacy = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -40,6 +41,7 @@ export const handleUpdateParentPrivacy = async (req: AuthorizedRequest, res: Res
       },
       data: updateData,
     });
+    invalidateRuntimeCache(orgId);
 
     return res.status(200).json({
       message: "Parent contact sharing settings updated successfully",

@@ -66,6 +66,7 @@ enum PassStatus {
   rejected
   cancelled
   completed
+  expired
 }
 
 enum VisitStatus {
@@ -528,6 +529,7 @@ model UserOrgRole {
   @@unique([user_id, org_id, role])
   @@unique([org_id, account_slug])
   @@index([user_id, org_id])
+  @@index([org_id, role, is_active])
   @@map("user_org_roles")
 }
 
@@ -795,6 +797,7 @@ model ParentProfile {
   organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, tenant_id, org_id])
+  @@index([org_id, tenant_id])
   @@map("parent_profiles")
 }
 
@@ -958,6 +961,7 @@ model Payment {
   paid_by_user User         @relation("PaymentPaidBy", fields: [paid_by], references: [id])
 
   @@index([org_id, paid_at])
+  @@index([org_id, status, paid_at])
   @@index([tenant_id])
   @@map("payments")
 }
@@ -1115,6 +1119,7 @@ model Document {
   verified_by_user User?        @relation("DocumentVerifiedBy", fields: [verified_by], references: [id])
 
   @@index([tenant_id])
+  @@index([org_id, is_verified, created_at])
   @@map("documents")
 }
 
@@ -1164,6 +1169,7 @@ model Notification {
 
   @@index([user_id, status])
   @@index([org_id, type])
+  @@index([org_id, user_id, created_at])
   @@map("notifications")
 }
 

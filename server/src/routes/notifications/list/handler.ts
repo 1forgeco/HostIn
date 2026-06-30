@@ -2,11 +2,13 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { NotificationStatus } from "../../../../generated/prisma/client";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListNotifications = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const userId = req.user?.userId;
   const statusQuery = req.query.status as string;
+  const { limit, page, skip } = getPagination(req.query, 50, 100);
 
   try {
     const whereClause: any = {
@@ -29,10 +31,13 @@ export const handleListNotifications = async (req: AuthorizedRequest, res: Respo
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
     return res.status(200).json({
       notifications,
+      pagination: paginationMeta(page, limit, notifications.length),
     });
   } catch (error) {
     console.error("List notifications error:", error);

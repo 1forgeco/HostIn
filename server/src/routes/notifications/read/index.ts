@@ -8,7 +8,7 @@ const router = Router();
 router.post(
   "/:id/read",
   authenticateJWT as any,
-  checkOrgAccess(["owner", "warden", "guard", "staff", "tenant"]) as any,
+  checkOrgAccess(["owner", "warden", "guard", "staff", "tenant", "parent"]) as any,
   handleReadNotification as any
 );
 

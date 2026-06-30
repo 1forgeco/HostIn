@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleCheckOut = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -40,6 +41,7 @@ export const handleCheckOut = async (req: AuthorizedRequest, res: Response) => {
         checked_by: userId,
       },
     });
+    await notifyTenantCircle(prisma, gatePass.tenant_id, { orgId, title: "Tenant checked out", body: `${gatePass.purpose} · Expected back ${gatePass.expected_return_time.toLocaleString("en-IN")}`, type: "gate_pass", referenceId: id, referenceType: "gate_pass" }, userId);
 
     return res.status(200).json({
       message: "Tenant checked out successfully",

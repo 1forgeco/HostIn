@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { RoomType } from "../../../../generated/prisma/client";
+import { invalidateRuntimeCache } from "../../../lib/runtimeCache";
 
 export const handleCreateRoom = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -73,6 +74,7 @@ export const handleCreateRoom = async (req: AuthorizedRequest, res: Response) =>
         is_active: true,
       },
     });
+    invalidateRuntimeCache(orgId);
 
     return res.status(201).json({
       message: "Room created successfully",

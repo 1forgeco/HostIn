@@ -5,6 +5,7 @@ import { z } from "zod";
 import { AccountStatus, AccessDecision, OrgRole, RoleDashboardStatus } from "../../../../../generated/prisma/client";
 import { prisma } from "../../../../lib/prisma";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
+import { notifyRoles, notifyUsers } from "../../../../lib/notifications";
 
 export const handleGetOrganizationControl = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
@@ -31,6 +32,7 @@ export const handleUpdateRoleDashboard = async (req: PlatformAuthenticatedReques
   const status = req.body.status as RoleDashboardStatus;
   if (!Object.values(OrgRole).includes(role) || !Object.values(RoleDashboardStatus).includes(status)) return res.status(400).json({ error: "Invalid role dashboard status" });
   const dashboard = await prisma.roleDashboard.upsert({ where: { org_id_role: { org_id: orgId, role } }, create: { org_id: orgId, role, status }, update: { status } });
+  await notifyRoles(prisma, ["owner", role], { orgId, title: "Dashboard access changed", body: `${role === "staff" ? "Mess Manager" : role} dashboard is now ${status}.`, type: "other", referenceId: dashboard.id, referenceType: "role_dashboard" });
   await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "update_role_dashboard", entity_type: "organization", entity_id: orgId, details: { role, status } } });
   return res.json({ dashboard });
 };
@@ -41,6 +43,7 @@ export const handleUpdateRolePermission = async (req: PlatformAuthenticatedReque
   const featureKey = req.params.featureKey as string;
   if (!Object.values(OrgRole).includes(role) || !featureKey) return res.status(400).json({ error: "Invalid role or feature" });
   const permission = await prisma.roleFeaturePermission.upsert({ where: { org_id_role_feature_key: { org_id: orgId, role, feature_key: featureKey } }, create: { org_id: orgId, role, feature_key: featureKey, is_allowed: req.body.isAllowed !== false, permissions: req.body.permissions }, update: { is_allowed: req.body.isAllowed !== false, permissions: req.body.permissions } });
+  await notifyRoles(prisma, ["owner", role], { orgId, title: "Feature access changed", body: `${featureKey} access was ${permission.is_allowed ? "enabled" : "disabled"}.`, type: "other", referenceId: permission.id, referenceType: "role_permission" });
   return res.json({ permission });
 };
 
@@ -52,6 +55,8 @@ export const handleUpdateAccountStatus = async (req: PlatformAuthenticatedReques
   const membership = await prisma.userOrgRole.findFirst({ where: { org_id: orgId, user_id: userId } });
   if (!membership) return res.status(404).json({ error: "Account not found in this workspace" });
   const user = await prisma.user.update({ where: { id: userId }, data: { account_status: status, is_active: !["archived", "left"].includes(status) } });
+  await notifyUsers(prisma, [userId], { orgId, title: "Account status changed", body: `Your account status is now ${status}.`, type: "other", referenceId: userId, referenceType: "user" });
+  await notifyRoles(prisma, ["owner"], { orgId, title: "Member account status changed", body: `${user.full_name}'s account is now ${status}.`, type: "other", referenceId: userId, referenceType: "user" }, userId);
   await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "update_account_status", entity_type: "user", entity_id: userId, details: { orgId, status } } });
   return res.json({ account: { id: user.id, status: user.account_status } });
 };
@@ -65,6 +70,7 @@ export const handleResetAccountPassword = async (req: PlatformAuthenticatedReque
   const temporaryPassword = `${firstName}@${crypto.randomInt(1000, 9999)}`;
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
   await prisma.user.update({ where: { id: userId }, data: { password_hash: passwordHash, force_password_change: true, account_status: "active", is_active: true } });
+  await notifyUsers(prisma, [userId], { orgId, title: "Password reset required", body: "1Forge reset your password. Sign in with the temporary password and choose a new one.", type: "other", referenceId: userId, referenceType: "user" });
   await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "reset_password", entity_type: "user", entity_id: userId, details: { orgId } } });
   return res.json({ account: { userId, loginId: membership.user.email, temporaryPassword } });
 };
@@ -78,6 +84,7 @@ export const handleUpsertAccessOverride = async (req: PlatformAuthenticatedReque
   const membership = await prisma.userOrgRole.findFirst({ where: { org_id: orgId, user_id: value.userId, role: value.role } });
   if (!membership) return res.status(404).json({ error: "The selected user does not have this role" });
   const override = await prisma.accessOverride.upsert({ where: { org_id_user_id_role_feature_key: { org_id: orgId, user_id: value.userId, role: value.role, feature_key: value.featureKey } }, create: { org_id: orgId, user_id: value.userId, role: value.role, feature_key: value.featureKey, decision: value.decision, reason: value.reason, expires_at: value.expiresAt ? new Date(value.expiresAt) : null }, update: { decision: value.decision, reason: value.reason, expires_at: value.expiresAt ? new Date(value.expiresAt) : null } });
+  await notifyUsers(prisma, [value.userId], { orgId, title: "Access permission changed", body: `${value.featureKey} access is now ${value.decision}.`, type: "other", referenceId: override.id, referenceType: "access_override" });
   return res.json({ override });
 };
 

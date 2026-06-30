@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { ComplaintCategory, ComplaintStatus, ComplaintPriority } from "../../../../generated/prisma/client";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListComplaints = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -9,6 +10,7 @@ export const handleListComplaints = async (req: AuthorizedRequest, res: Response
   const userRole = req.userOrgRole;
 
   const { status, category, priority } = req.query;
+  const { limit, page, skip } = getPagination(req.query);
 
   const whereClause: any = {
     org_id: orgId,
@@ -61,6 +63,8 @@ export const handleListComplaints = async (req: AuthorizedRequest, res: Response
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
     const interactions = await prisma.communityInteraction.findMany({
@@ -76,7 +80,7 @@ export const handleListComplaints = async (req: AuthorizedRequest, res: Response
       comments: interactions.filter((item) => item.post_id === complaint.id && item.kind === "comment").map((item) => ({ id: item.id, body: item.body, authorName: item.user.full_name })),
     }));
 
-    return res.status(200).json({ complaints: formattedComplaints });
+    return res.status(200).json({ complaints: formattedComplaints, pagination: paginationMeta(page, limit, formattedComplaints.length) });
   } catch (error) {
     console.error("List complaints error:", error);
     return res.status(500).json({ error: "An error occurred fetching complaints list" });

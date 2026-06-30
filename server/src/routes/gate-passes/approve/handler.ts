@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { PassStatus } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleApprovePass = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -33,12 +34,13 @@ export const handleApprovePass = async (req: AuthorizedRequest, res: Response) =
       return res.status(400).json({ error: `Cannot change status. Gate pass is currently '${gatePass.status}'` });
     }
 
-    const updatedPass = await prisma.gatePass.update({
-      where: { id },
-      data: {
+    const updatedPass = await prisma.$transaction(async (tx) => {
+      const updated = await tx.gatePass.update({ where: { id }, data: {
         status: status as PassStatus,
         approved_by: userId,
-      },
+      } });
+      await notifyTenantCircle(tx, gatePass.tenant_id, { orgId, title: `Gate pass ${status}`, body: `${gatePass.purpose} · ${gatePass.destination}`, type: "gate_pass", referenceId: id, referenceType: "gate_pass" }, userId);
+      return updated;
     });
 
     return res.status(200).json({

@@ -9,7 +9,7 @@ const demoAccounts = [
   { role: "Owner", email: "owner@city-complex.hostin.local", detail: "Business, occupancy, dues, and reports" },
   { role: "Warden", email: "warden@city-complex.hostin.local", detail: "Rooms, residents, passes, and operations" },
   { role: "Guard", email: "security@city-complex.hostin.local", detail: "Gate passes, visitors, and entry logs" },
-  { role: "Staff", email: "staff@city-complex.hostin.local", detail: "Assigned work and resident support" },
+  { role: "Mess Manager", email: "staff@city-complex.hostin.local", detail: "Meals, menus, feedback, and resident support" },
   { role: "Tenant", email: "tenant@city-complex.hostin.local", detail: "Dues, requests, community, and mess" },
   { role: "Parent", email: "parent@city-complex.hostin.local", detail: "Ward updates, dues, and announcements" },
 ];

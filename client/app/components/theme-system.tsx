@@ -35,7 +35,7 @@ export function applyCustomColor(hex: string) {
 
 export function applyDefaultTheme() {
   clearCustomVariables();
-  document.documentElement.dataset.theme = "hostin-coral";
+  document.documentElement.dataset.theme = "hostin-green";
   window.localStorage.removeItem("hostin-color-theme");
   window.localStorage.removeItem("hostin-custom-color");
 }

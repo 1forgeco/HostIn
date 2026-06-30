@@ -20,7 +20,7 @@ describe("admin-applied client theme", () => {
     applyCustomColor("#123456");
     applyDefaultTheme();
 
-    expect(document.documentElement).toHaveAttribute("data-theme", "hostin-coral");
+    expect(document.documentElement).toHaveAttribute("data-theme", "hostin-green");
     expect(document.documentElement.style.getPropertyValue("--accent")).toBe("");
   });
 });

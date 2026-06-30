@@ -2,12 +2,13 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { ComplaintCategory, ComplaintPriority } from "../../../../generated/prisma/client";
+import { notifyRoles } from "../../../lib/notifications";
 
 export const handleCreateComplaint = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const userId = req.user?.userId;
 
-  const { category, title, description, priority, photoUrls } = req.body;
+  const { category, title, description, priority, photoUrls, tenantId } = req.body;
 
   if (!category || !title || !description) {
     return res.status(400).json({
@@ -30,10 +31,14 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
   }
 
   try {
-    // Verify user is an active tenant in the organization
+    const complaintTenantId = req.userOrgRole === "parent" ? tenantId : userId;
+    if (req.userOrgRole === "parent") {
+      const linked = await prisma.parentProfile.findUnique({ where: { user_id_tenant_id_org_id: { user_id: userId as string, tenant_id: String(tenantId), org_id: orgId } } });
+      if (!linked) return res.status(403).json({ error: "Parents can only raise concerns for a linked child" });
+    }
     const tenant = await prisma.tenantProfile.findFirst({
       where: {
-        user_id: userId,
+        user_id: complaintTenantId,
         org_id: orgId,
         is_active: true,
       },
@@ -43,18 +48,19 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
       return res.status(403).json({ error: "Only active tenants can file complaints" });
     }
 
-    // Create Complaint
-    const complaint = await prisma.complaint.create({
-      data: {
+    const complaint = await prisma.$transaction(async (tx) => {
+      const created = await tx.complaint.create({ data: {
         org_id: orgId,
-        tenant_id: userId as string,
+        tenant_id: complaintTenantId as string,
         category: category as ComplaintCategory,
         title,
         description,
         priority: (priority as ComplaintPriority) || "medium",
         photo_urls: photoUrls || [],
         status: "open",
-      },
+      } });
+      await notifyRoles(tx, ["owner", "warden"], { orgId, title: `New ${category} complaint`, body: title, type: "complaint", referenceId: created.id, referenceType: "complaint" }, userId);
+      return created;
     });
 
     return res.status(201).json({

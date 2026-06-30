@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { prisma } from "../../../lib/prisma";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
+import { getCachedValue, setCachedValue } from "../../../lib/runtimeCache";
 
 const moneyNumber = (value: unknown) => Number(value ?? 0);
 const activeRequestStatuses = ["submitted", "under_review", "need_more_info", "approved"] as const;
@@ -10,8 +11,11 @@ export const handleGetOwnerDashboard = async (req: AuthorizedRequest, res: Respo
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const staleComplaintDate = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const cacheKey = `org:${orgId}:owner-dashboard:${req.user?.userId}`;
 
   try {
+    const cached = await getCachedValue<{ dashboard: unknown }>(cacheKey);
+    if (cached) return res.status(200).json(cached);
     const currentOrganization = await prisma.organization.findUnique({
       where: { id: orgId },
       include: { plan: true, group: true },
@@ -188,7 +192,9 @@ export const handleGetOwnerDashboard = async (req: AuthorizedRequest, res: Respo
       roleCounts,
     };
 
-    return res.status(200).json({ dashboard });
+    const response = { dashboard };
+    setCachedValue(cacheKey, response, 5_000);
+    return res.status(200).json(response);
   } catch (error) {
     console.error("Owner dashboard error:", error);
     return res.status(500).json({ error: "An error occurred while compiling owner dashboard" });

@@ -1,0 +1,1 @@
+ALTER TYPE "PassStatus" ADD VALUE IF NOT EXISTS 'expired';

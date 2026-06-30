@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { syncCurrentRentDue } from "../../../lib/rentBilling";
 
 export const handleAssignTenantToRoom = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -145,7 +146,9 @@ export const handleAssignTenantToRoom = async (req: AuthorizedRequest, res: Resp
         },
       });
 
-      return { tenantProfile, room: updatedRoom };
+      const rentDue = await syncCurrentRentDue(tx, { orgId, tenantId: tenantUserId, room: updatedRoom, actorUserId: req.user?.userId as string });
+
+      return { tenantProfile, room: updatedRoom, rentDue };
     });
 
     return res.status(200).json({

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleVacateTenant = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -79,6 +80,10 @@ export const handleVacateTenant = async (req: AuthorizedRequest, res: Response) 
           is_active: false,
         },
       });
+
+      const notice = { orgId, title: "Tenant checkout completed", body: `The tenant has vacated${room ? ` room ${room.room_number}` : " the property"}.`, type: "other" as const, referenceId: tenantProfile.user_id, referenceType: "tenant" };
+      await notifyTenantCircle(tx, tenantProfile.user_id, notice, req.user?.userId);
+      await notifyRoles(tx, ["owner", "warden"], notice, req.user?.userId);
     });
 
     return res.status(200).json({

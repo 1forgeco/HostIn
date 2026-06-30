@@ -2,6 +2,7 @@ import { Response } from "express";
 import bcrypt from "bcryptjs";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyRoles, notifyUsers } from "../../../lib/notifications";
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
@@ -64,6 +65,9 @@ export const handleCreateTenant = async (req: AuthorizedRequest, res: Response) 
           is_active: true,
         },
       });
+
+      await notifyUsers(tx, [user.id], { orgId, title: "Welcome to HostIn", body: "Your tenant account is ready. Complete your profile and room assignment with the property team.", type: "other", referenceType: "tenant_account" }, req.user?.userId);
+      await notifyRoles(tx, ["owner", "warden"], { orgId, title: "Tenant account created", body: `${fullName} is ready for room assignment.`, type: "other", referenceId: user.id, referenceType: "tenant_account" }, req.user?.userId);
 
       return user;
     });

@@ -26,6 +26,7 @@ describe("API protection", () => {
     expect(response.status).toBe(204);
     expect(response.headers["access-control-allow-origin"]).toBe(origin);
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers["access-control-max-age"]).toBe("86400");
   });
 
   it("rejects malformed unified login input before querying credentials", async () => {
@@ -85,6 +86,106 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect([403, 404]).toContain(foreignOrgAttempt.status);
   });
 
+  it("allows only one open gate pass and lets a guard resolve an early return", async () => {
+    const tenantLogin = await request(app).post("/api/auth/resolve-login").send({ email: "tenant@city-complex.hostin.local", password: "city-complex@123" });
+    const orgId = tenantLogin.body.session.orgId as string;
+    const tenantAuthorization = { Authorization: `Bearer ${tenantLogin.body.accessToken}`, "x-org-id": orgId };
+    const createdIds: string[] = [];
+    const expectedOutTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const expectedReturnTime = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+    const payload = { purpose: `Lifecycle test ${Date.now()}`, destination: "Test destination", expectedOutTime, expectedReturnTime };
+
+    try {
+      const first = await request(app).post("/api/gate-passes").set(tenantAuthorization).send(payload);
+      expect(first.status).toBe(201);
+      createdIds.push(first.body.gatePass.id);
+
+      const duplicate = await request(app).post("/api/gate-passes").set(tenantAuthorization).send({ ...payload, purpose: `${payload.purpose} duplicate` });
+      expect(duplicate.status).toBe(409);
+      expect(duplicate.body.activeGatePass.id).toBe(first.body.gatePass.id);
+
+      const wardenLogin = await request(app).post("/api/auth/resolve-login").send({ email: "warden@city-complex.hostin.local", password: "city-complex@123" });
+      const wardenAuthorization = { Authorization: `Bearer ${wardenLogin.body.accessToken}`, "x-org-id": orgId };
+      expect((await request(app).post(`/api/gate-passes/${first.body.gatePass.id}/approve`).set(wardenAuthorization).send({ status: "approved" })).status).toBe(200);
+
+      const guardLogin = await request(app).post("/api/auth/resolve-login").send({ email: "security@city-complex.hostin.local", password: "city-complex@123" });
+      const guardAuthorization = { Authorization: `Bearer ${guardLogin.body.accessToken}`, "x-org-id": orgId };
+      expect((await request(app).post(`/api/gate-passes/${first.body.gatePass.id}/check-out`).set(guardAuthorization)).status).toBe(200);
+      const resolved = await request(app).post(`/api/gate-passes/${first.body.gatePass.id}/check-in`).set(guardAuthorization);
+      expect(resolved.status).toBe(200);
+      expect(resolved.body.gatePass.status).toBe("completed");
+      expect(resolved.body.gatePass.actual_in_time).toBeTruthy();
+
+      const next = await request(app).post("/api/gate-passes").set(tenantAuthorization).send({ ...payload, purpose: `${payload.purpose} next` });
+      expect(next.status).toBe(201);
+      createdIds.push(next.body.gatePass.id);
+      expect((await request(app).post(`/api/gate-passes/${next.body.gatePass.id}/cancel`).set(tenantAuthorization)).status).toBe(200);
+    } finally {
+      if (createdIds.length) {
+        await prisma.notification.deleteMany({ where: { reference_id: { in: createdIds } } });
+        await prisma.gatePass.deleteMany({ where: { id: { in: createdIds } } });
+      }
+    }
+  });
+
+  it("returns only linked-child data for the parent workspace", async () => {
+    const login = await request(app).post("/api/auth/resolve-login").send({ email: "parent@city-complex.hostin.local", password: "city-complex@123" });
+    const response = await request(app).get("/api/parents/ward").set("Authorization", `Bearer ${login.body.accessToken}`).set("x-org-id", login.body.session.orgId);
+    expect(response.status).toBe(200);
+    expect(response.body.wards).toHaveLength(1);
+    expect(response.body.wards[0].ward.name).toBe("Aarav Mehta");
+    expect(response.body.wards[0]).toHaveProperty("gatePasses");
+    expect(response.body.wards[0]).toHaveProperty("payments");
+    expect(response.body.wards[0]).toHaveProperty("documents");
+    expect(response.body).toHaveProperty("announcements");
+    expect(response.body).toHaveProperty("contacts");
+    const title = `Parent safety concern ${Date.now()}`;
+    let complaintId = "";
+    try {
+      const concern = await request(app).post("/api/complaints").set("Authorization", `Bearer ${login.body.accessToken}`).set("x-org-id", login.body.session.orgId).send({ tenantId: response.body.wards[0].ward.userId, category: "security", title, description: "Please confirm the updated entry timing.", priority: "high" });
+      expect(concern.status).toBe(201);
+      expect(concern.body.complaint.status).toBe("open");
+      complaintId = concern.body.complaint.id;
+      const reviewerNotification = await prisma.notification.findFirst({
+        where: {
+          org_id: login.body.session.orgId,
+          reference_id: complaintId,
+          user: { user_org_roles: { some: { org_id: login.body.session.orgId, role: { in: ["owner", "warden"] }, is_active: true } } },
+        },
+      });
+      expect(reviewerNotification?.title).toMatch(/new security complaint/i);
+    } finally {
+      if (complaintId) {
+        await prisma.notification.deleteMany({ where: { reference_id: complaintId } });
+        await prisma.complaint.delete({ where: { id: complaintId } });
+      }
+    }
+  });
+
+  it("updates the tenant's current rent bill when a warden changes rooms", async () => {
+    const startedAt = new Date();
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { slug: "city-complex" } });
+    const tenant = await prisma.user.findUniqueOrThrow({ where: { email: "tenant@city-complex.hostin.local" } });
+    const profile = await prisma.tenantProfile.findUniqueOrThrow({ where: { user_id_org_id: { user_id: tenant.id, org_id: organization.id } }, include: { room: true } });
+    const targetRoom = await prisma.room.findFirstOrThrow({ where: { org_id: organization.id, id: { not: profile.room_id }, is_active: true, current_occupancy: 0 } });
+    const login = await request(app).post("/api/auth/resolve-login").send({ email: "warden@city-complex.hostin.local", password: "city-complex@123" });
+    const authorization = { Authorization: `Bearer ${login.body.accessToken}`, "x-org-id": organization.id };
+    let moved = false;
+    try {
+      const assignment = await request(app).post(`/api/rooms/${targetRoom.id}/assign-tenant`).set(authorization).send({ tenantUserId: tenant.id });
+      expect(assignment.status).toBe(200);
+      moved = true;
+      expect(Number(assignment.body.rentDue.amount)).toBe(Number(targetRoom.monthly_rent));
+      expect(assignment.body.rentDue.description).toContain(targetRoom.room_number);
+      const notification = await prisma.notification.findFirst({ where: { org_id: organization.id, user_id: tenant.id, title: "Room rent updated", created_at: { gte: startedAt } } });
+      expect(notification?.body).toContain(targetRoom.room_number);
+    } finally {
+      if (moved) await request(app).post(`/api/rooms/${profile.room_id}/assign-tenant`).set(authorization).send({ tenantUserId: tenant.id });
+      await prisma.roomAssignmentHistory.deleteMany({ where: { org_id: organization.id, tenant_id: tenant.id, assigned_at: { gte: startedAt } } });
+      await prisma.notification.deleteMany({ where: { org_id: organization.id, title: "Room rent updated", created_at: { gte: startedAt } } });
+    }
+  });
+
   it("serves owner business dashboard data and accepts 1Forge-bound owner requests", async () => {
     const ownerRole = await prisma.userOrgRole.findFirst({
       where: { role: "owner", organization: { slug: "city-complex" }, user: { email: "owner@city-complex.hostin.local" } },
@@ -129,6 +230,9 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect(organizations.status).toBe(200);
     expect(organizations.body.organizations[0]).toHaveProperty("themeColor");
     expect(organizations.body.organizations[0]).toHaveProperty("cityState");
+    const notifications = await request(app).get("/api/platform/notifications").set("Authorization", `Bearer ${login.body.accessToken}`);
+    expect(notifications.status).toBe(200);
+    expect(Array.isArray(notifications.body.notifications)).toBe(true);
   });
 
   it("materializes an onboarding draft and enforces its role dashboard", async () => {

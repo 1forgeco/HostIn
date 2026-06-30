@@ -2,5 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "express",
   "installCommand": "npm ci && npx prisma generate",
+  "regions": ["sin1"],
   "fluid": true
 }

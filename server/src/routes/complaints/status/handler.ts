@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { ComplaintStatus } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleUpdateComplaintStatus = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -67,6 +68,7 @@ export const handleUpdateComplaintStatus = async (req: AuthorizedRequest, res: R
           note: note || null,
         },
       });
+      await notifyTenantCircle(tx, complaint.tenant_id, { orgId, title: `Complaint ${String(status).replaceAll("_", " ")}`, body: note || `Your complaint is now ${String(status).replaceAll("_", " ")}.`, type: "complaint", referenceId: id, referenceType: "complaint" }, userId);
 
       return updatedComplaint;
     });

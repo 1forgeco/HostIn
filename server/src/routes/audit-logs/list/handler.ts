@@ -1,10 +1,12 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListAuditLogs = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const { userId, entityType } = req.query;
+  const { limit, page, skip } = getPagination(req.query, 50, 100);
 
   try {
     const whereClause: any = {
@@ -33,10 +35,13 @@ export const handleListAuditLogs = async (req: AuthorizedRequest, res: Response)
           },
         },
       },
+      take: limit,
+      skip,
     });
 
     return res.status(200).json({
       auditLogs,
+      pagination: paginationMeta(page, limit, auditLogs.length),
     });
   } catch (error) {
     console.error("List audit logs error:", error);

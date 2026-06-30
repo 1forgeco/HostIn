@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyRoles } from "../../../lib/notifications";
 
 export const handlePublishMessMenu = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -26,6 +27,7 @@ export const handlePublishMessMenu = async (req: AuthorizedRequest, res: Respons
         is_published: true,
       },
     });
+    await notifyRoles(prisma, ["tenant", "parent", "owner", "warden"], { orgId, title: "New mess menu published", body: `Menu for the week of ${updatedMenu.week_start_date.toLocaleDateString("en-IN")} is available.`, type: "announcement", referenceId: menuId, referenceType: "mess_menu" }, req.user?.userId);
 
     return res.status(200).json({
       message: "Mess menu published successfully",

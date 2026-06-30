@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { DocType } from "../../../../generated/prisma/client";
+import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleUploadDocument = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -67,6 +68,9 @@ export const handleUploadDocument = async (req: AuthorizedRequest, res: Response
         is_verified: false,
       },
     });
+    const notice = { orgId, title: "Document uploaded", body: `${fileName} is awaiting verification.`, type: "other" as const, referenceId: document.id, referenceType: "document" };
+    await notifyTenantCircle(prisma, targetTenantId as string, notice, loggedInUserId);
+    await notifyRoles(prisma, ["owner", "warden"], notice, loggedInUserId);
 
     return res.status(201).json({
       message: "Document uploaded successfully",

@@ -4,6 +4,7 @@ import { OrgRole } from "../../../../../generated/prisma/client";
 import { prisma } from "../../../../lib/prisma";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
 import { z } from "zod";
+import { notifyRoles, notifyUsers } from "../../../../lib/notifications";
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const accountSchema = z.object({ fullName: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().email(), phone: z.string().trim().min(7).max(20), password: z.string().min(12).max(128), role: z.nativeEnum(OrgRole), accountSlug: z.string().trim().max(120).optional() });
@@ -24,6 +25,9 @@ export const handleCreateOrganizationAccount = async (req: PlatformAuthenticated
       const existing = await tx.user.findFirst({ where: { OR: [{ email }, { phone }] } });
       const user = existing ? await tx.user.update({ where: { id: existing.id }, data: { full_name: fullName, password_hash: passwordHash, is_active: true, account_status: "active", force_password_change: true } }) : await tx.user.create({ data: { full_name: fullName, email, phone, password_hash: passwordHash, is_active: true, account_status: "active", force_password_change: true } });
       const membership = await tx.userOrgRole.upsert({ where: { user_id_org_id_role: { user_id: user.id, org_id: orgId, role: role as OrgRole } }, update: { is_active: true, is_primary: true, account_slug: baseSlug }, create: { user_id: user.id, org_id: orgId, role: role as OrgRole, account_slug: baseSlug, is_primary: true, is_active: true } });
+      const notice = { orgId, title: "Workspace account created", body: `${fullName} now has ${role === "staff" ? "Mess Manager" : role} access.`, type: "other" as const, referenceId: membership.id, referenceType: "workspace_account" };
+      await notifyUsers(tx, [user.id], { ...notice, title: "Your workspace account is ready", body: `Your ${role === "staff" ? "Mess Manager" : role} access is ready.` });
+      await notifyRoles(tx, ["owner", "warden"], notice, user.id);
       await tx.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "create_account", entity_type: "organization_account", entity_id: membership.id, details: { orgId, email, role, accountSlug: baseSlug } } });
       return { user, membership };
     });

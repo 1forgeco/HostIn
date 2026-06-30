@@ -535,8 +535,11 @@ async function main() {
         destination: "Indiranagar",
         expected_out_time: new Date("2026-06-26T11:30:00.000Z"),
         expected_return_time: new Date("2026-06-26T16:00:00.000Z"),
-        status: "approved",
+        status: "completed",
         approved_by: warden.id,
+        actual_out_time: new Date("2026-06-26T11:35:00.000Z"),
+        actual_in_time: new Date("2026-06-26T15:45:00.000Z"),
+        checked_by: guard.id,
         qr_code: "CITY-COMPLEX-GP-001",
       },
     });

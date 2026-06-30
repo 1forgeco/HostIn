@@ -5,7 +5,6 @@ import { rateLimit } from "express-rate-limit";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
-import { checkFeatureAccess } from "./middleware/featureAccess";
 import { allowedOrigins, env } from "./config/env";
 import { prisma } from "./lib/prisma";
 
@@ -64,6 +63,7 @@ import listDocumentRoutes from "./routes/documents/list";
 import verifyDocumentRoutes from "./routes/documents/verify";
 import listNotificationRoutes from "./routes/notifications/list";
 import readNotificationRoutes from "./routes/notifications/read";
+import streamNotificationRoutes from "./routes/notifications/stream";
 import getDueReminderConfigRoutes from "./routes/dues/reminder-config/get";
 import updateDueReminderConfigRoutes from "./routes/dues/reminder-config/update";
 import linkParentRoutes from "./routes/parents/link";
@@ -83,6 +83,8 @@ import featuresOrgRoutes from "./routes/platform/organizations/features";
 import accountOrgRoutes from "./routes/platform/organizations/accounts";
 import controlOrgRoutes from "./routes/platform/organizations/control";
 import platformOnboardingRoutes from "./routes/platform/onboarding";
+import platformNotificationRoutes from "./routes/platform/notifications";
+import wardenDashboardRoutes from "./routes/warden/dashboard";
 
 
 
@@ -91,14 +93,20 @@ import platformOnboardingRoutes from "./routes/platform/onboarding";
 
 export const app = express();
 const logger = pino({ level: env.LOG_LEVEL, redact: ["req.headers.authorization", "req.body.password", "req.body.refreshToken"] });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Too many login attempts. Try again later." } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: env.NODE_ENV === "test" ? 1000 : 10, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Too many login attempts. Try again later." } });
 const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: "draft-8", legacyHeaders: false });
 
 // Middlewares
 app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
 app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("Origin is not allowed by CORS")); }, credentials: true }));
+app.use(cors({
+  origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("Origin is not allowed by CORS")); },
+  credentials: true,
+  maxAge: 86_400,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Authorization", "Content-Type", "x-org-id"],
+}));
 app.use(express.json({ limit: "8mb" }));
 app.use(cookieParser());
 app.use(pinoHttp({ logger }));
@@ -114,18 +122,6 @@ app.get("/ready", async (req, res) => {
   try { await prisma.$queryRaw`SELECT 1`; return res.status(200).json({ status: "ready", time: new Date() }); }
   catch { return res.status(503).json({ status: "not_ready" }); }
 });
-
-app.use("/api/rooms", checkFeatureAccess("rooms"));
-app.use("/api/dues", checkFeatureAccess("dues"));
-app.use("/api/payments", checkFeatureAccess("dues"));
-app.use("/api/gate-passes", checkFeatureAccess("gate_pass"));
-app.use("/api/visitors", checkFeatureAccess("visitor_log"));
-app.use("/api/announcements", checkFeatureAccess("community"));
-app.use("/api/complaints", checkFeatureAccess("community"));
-app.use("/api/community", checkFeatureAccess("community"));
-app.use("/api/mess-menus", checkFeatureAccess("mess_menu"));
-app.use("/api/mess-feedback", checkFeatureAccess("mess_menu"));
-app.use("/api/documents", checkFeatureAccess("documents"));
 
 // Register API Routes
 app.use("/api/auth/login", loginRoutes);
@@ -182,6 +178,7 @@ app.use("/api/documents", listDocumentRoutes);
 app.use("/api/documents", verifyDocumentRoutes);
 app.use("/api/notifications", listNotificationRoutes);
 app.use("/api/notifications", readNotificationRoutes);
+app.use("/api/notifications", streamNotificationRoutes);
 app.use("/api/dues", getDueReminderConfigRoutes);
 app.use("/api/dues", updateDueReminderConfigRoutes);
 app.use("/api/parents", linkParentRoutes);
@@ -191,6 +188,7 @@ app.use("/api/audit-logs", listAuditLogsRoutes);
 app.use("/api/rooms", roomHistoryRoutes);
 app.use("/api/metrics", getMetricsRoutes);
 app.use("/api/owner/dashboard", ownerDashboardRoutes);
+app.use("/api/warden/dashboard", wardenDashboardRoutes);
 app.use("/api/owner/requests", ownerRequestRoutes);
 app.use("/api/platform/auth", platformAuthRoutes);
 app.use("/api/platform/plans", createPlanRoutes);
@@ -201,6 +199,7 @@ app.use("/api/platform/organizations", featuresOrgRoutes);
 app.use("/api/platform/organizations", accountOrgRoutes);
 app.use("/api/platform/organizations", controlOrgRoutes);
 app.use("/api/platform/onboarding", platformOnboardingRoutes);
+app.use("/api/platform/notifications", platformNotificationRoutes);
 
 
 

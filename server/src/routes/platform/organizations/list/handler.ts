@@ -1,9 +1,15 @@
 import { Response } from "express";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
 import { prisma } from "../../../../lib/prisma";
+import { getCachedValue, setCachedValue } from "../../../../lib/runtimeCache";
+import { getPagination, paginationMeta } from "../../../../lib/pagination";
 
 export const handleListOrganizations = async (req: PlatformAuthenticatedRequest, res: Response) => {
+  const { limit, page, skip } = getPagination(req.query, 100, 200);
   try {
+    const cacheKey = `platform:organizations:${page}:${limit}`;
+    const cached = await getCachedValue<{ organizations: unknown[]; pagination: unknown }>(cacheKey);
+    if (cached) return res.status(200).json(cached);
     const organizations = await prisma.organization.findMany({
       include: {
         plan: true,
@@ -25,6 +31,8 @@ export const handleListOrganizations = async (req: PlatformAuthenticatedRequest,
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
     // Format output to include occupancy stats
@@ -65,9 +73,12 @@ export const handleListOrganizations = async (req: PlatformAuthenticatedRequest,
       };
     });
 
-    return res.status(200).json({
+    const response = {
       organizations: formattedOrgs,
-    });
+      pagination: paginationMeta(page, limit, formattedOrgs.length),
+    };
+    setCachedValue(cacheKey, response, 10_000);
+    return res.status(200).json(response);
   } catch (error) {
     console.error("List organizations error:", error);
     return res.status(500).json({ error: "An error occurred while listing organizations" });

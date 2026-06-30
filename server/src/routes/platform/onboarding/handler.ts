@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { OrgRole, RoomType } from "../../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma";
+import { syncCurrentRentDue } from "../../../lib/rentBilling";
 import { PlatformAuthenticatedRequest } from "../../../middleware/platformAuth";
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -202,6 +203,8 @@ export const handleActivateOnboarding = async (req: PlatformAuthenticatedRequest
       }
       const ownerUser = await tx.userOrgRole.findFirst({ where: { org_id: orgId, role: "owner", is_active: true } });
       if (!ownerUser) throw new Error("Owner account was not created");
+      const activeTenantProfiles = await tx.tenantProfile.findMany({ where: { org_id: orgId, is_active: true }, include: { room: true } });
+      for (const profile of activeTenantProfiles) await syncCurrentRentDue(tx, { orgId, tenantId: profile.user_id, room: profile.room, actorUserId: ownerUser.user_id });
       const featureFlags = jsonObject(featuresData.features);
       for (const [featureKey, enabled] of Object.entries(featureFlags)) {
         await tx.orgFeature.upsert({ where: { org_id_feature_key: { org_id: orgId, feature_key: featureKey } }, create: { org_id: orgId, feature_key: featureKey, is_enabled: Boolean(enabled), updated_by: ownerUser.user_id }, update: { is_enabled: Boolean(enabled), updated_by: ownerUser.user_id } });
