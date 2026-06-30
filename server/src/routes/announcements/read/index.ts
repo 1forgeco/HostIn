@@ -8,7 +8,7 @@ const router = Router({ mergeParams: true });
 router.post(
   "/:id/read",
   authenticateJWT as any,
-  checkOrgAccess(["owner", "warden", "staff", "guard", "tenant"]) as any,
+  checkOrgAccess(["owner", "warden", "staff", "guard", "tenant", "parent"]) as any,
   handleReadAnnouncement as any
 );
 

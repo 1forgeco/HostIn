@@ -8,7 +8,7 @@ const router = Router();
 router.post(
   "/",
   authenticateJWT as any,
-  checkOrgAccess(["tenant"]) as any,
+  checkOrgAccess(["tenant", "parent"]) as any,
   handleCreateComplaint as any
 );
 

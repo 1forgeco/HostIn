@@ -7,7 +7,7 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
   const orgId = req.headers["x-org-id"] as string;
   const userId = req.user?.userId;
 
-  const { category, title, description, priority, photoUrls } = req.body;
+  const { category, title, description, priority, photoUrls, tenantId } = req.body;
 
   if (!category || !title || !description) {
     return res.status(400).json({
@@ -30,10 +30,14 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
   }
 
   try {
-    // Verify user is an active tenant in the organization
+    const complaintTenantId = req.userOrgRole === "parent" ? tenantId : userId;
+    if (req.userOrgRole === "parent") {
+      const linked = await prisma.parentProfile.findUnique({ where: { user_id_tenant_id_org_id: { user_id: userId as string, tenant_id: String(tenantId), org_id: orgId } } });
+      if (!linked) return res.status(403).json({ error: "Parents can only raise concerns for a linked child" });
+    }
     const tenant = await prisma.tenantProfile.findFirst({
       where: {
-        user_id: userId,
+        user_id: complaintTenantId,
         org_id: orgId,
         is_active: true,
       },
@@ -46,7 +50,7 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
     const complaint = await prisma.$transaction(async (tx) => {
       const created = await tx.complaint.create({ data: {
         org_id: orgId,
-        tenant_id: userId as string,
+        tenant_id: complaintTenantId as string,
         category: category as ComplaintCategory,
         title,
         description,

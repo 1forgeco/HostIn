@@ -85,6 +85,32 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     expect([403, 404]).toContain(foreignOrgAttempt.status);
   });
 
+  it("returns only linked-child data for the parent workspace", async () => {
+    const login = await request(app).post("/api/auth/resolve-login").send({ email: "parent@city-complex.hostin.local", password: "city-complex@123" });
+    const response = await request(app).get("/api/parents/ward").set("Authorization", `Bearer ${login.body.accessToken}`).set("x-org-id", login.body.session.orgId);
+    expect(response.status).toBe(200);
+    expect(response.body.wards).toHaveLength(1);
+    expect(response.body.wards[0].ward.name).toBe("Aarav Mehta");
+    expect(response.body.wards[0]).toHaveProperty("gatePasses");
+    expect(response.body.wards[0]).toHaveProperty("payments");
+    expect(response.body.wards[0]).toHaveProperty("documents");
+    expect(response.body).toHaveProperty("announcements");
+    expect(response.body).toHaveProperty("contacts");
+    const title = `Parent safety concern ${Date.now()}`;
+    let complaintId = "";
+    try {
+      const concern = await request(app).post("/api/complaints").set("Authorization", `Bearer ${login.body.accessToken}`).set("x-org-id", login.body.session.orgId).send({ tenantId: response.body.wards[0].ward.userId, category: "security", title, description: "Please confirm the updated entry timing.", priority: "high" });
+      expect(concern.status).toBe(201);
+      expect(concern.body.complaint.status).toBe("open");
+      complaintId = concern.body.complaint.id;
+    } finally {
+      if (complaintId) {
+        await prisma.notification.deleteMany({ where: { reference_id: complaintId } });
+        await prisma.complaint.delete({ where: { id: complaintId } });
+      }
+    }
+  });
+
   it("updates the tenant's current rent bill when a warden changes rooms", async () => {
     const startedAt = new Date();
     const organization = await prisma.organization.findUniqueOrThrow({ where: { slug: "city-complex" } });

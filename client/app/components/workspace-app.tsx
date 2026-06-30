@@ -1,13 +1,13 @@
 "use client";
 
-import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { applyCustomColor, applyDefaultTheme } from "./theme-system";
 import { ClientOnboardingWizard } from "./client-onboarding-wizard";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
-type SectionId = "profile" | "overview" | "ownerProperties" | "ownerPeople" | "ownerCredentials" | "ownerRequests" | "ownerBilling" | "ownerReports" | "ownerSettings" | "rooms" | "tenants" | "gate" | "visitors" | "finance" | "community" | "complaints" | "announcements" | "mess" | "documents" | "staff" | "parents" | "platform";
+type SectionId = "profile" | "overview" | "ownerProperties" | "ownerPeople" | "ownerCredentials" | "ownerRequests" | "ownerBilling" | "ownerReports" | "ownerSettings" | "rooms" | "tenants" | "gate" | "visitors" | "finance" | "community" | "complaints" | "announcements" | "mess" | "documents" | "staff" | "parents" | "parentChild" | "parentGate" | "parentBilling" | "parentMess" | "parentAnnouncements" | "parentContacts" | "parentHelp" | "parentDocuments" | "platform";
 
 type Module = {
   id: SectionId;
@@ -337,7 +337,7 @@ const modules: Module[] = [
     description: "Floors, room capacity, availability, and room history.",
     stat: "42",
     meta: "rooms",
-    roles: ["owner", "warden", "parent"],
+    roles: ["owner", "warden"],
     action: "Create room",
     endpoint: "/rooms",
     method: "POST",
@@ -436,7 +436,7 @@ const modules: Module[] = [
     description: "Raise dues, collect payments, and set reminders.",
     stat: "₹2.4L",
     meta: "due",
-    roles: ["owner", "tenant", "parent"],
+    roles: ["owner", "tenant"],
     action: "Create due",
     endpoint: "/dues",
     method: "POST",
@@ -447,7 +447,7 @@ const modules: Module[] = [
     description: "Announcements, complaints, and lost/found discussion feed.",
     stat: "3",
     meta: "threads",
-    roles: ["owner", "staff", "tenant", "parent"],
+    roles: ["owner", "staff", "tenant"],
     action: "Create post",
     endpoint: "/announcements",
     method: "POST",
@@ -520,8 +520,8 @@ const modules: Module[] = [
   },
   {
     id: "parents",
-    title: "Parent Portal",
-    description: "Ward details, privacy, dues, and movement visibility.",
+    title: "Home",
+    description: "Your child’s stay, fee, movement, meal, and notice summary.",
     stat: "64",
     meta: "linked",
     roles: ["parent"],
@@ -529,6 +529,14 @@ const modules: Module[] = [
     endpoint: "/parents/ward",
     method: "GET",
   },
+  { id: "parentChild", title: "My Child", description: "Stay profile, room, assigned warden, and linked guardian details.", stat: "1", meta: "linked", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentGate", title: "Gate Pass", description: "Active movement status and complete gate-pass history.", stat: "0", meta: "active", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentBilling", title: "Billing", description: "Current dues, fee breakdown, payments, and receipts.", stat: "₹0", meta: "pending", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentMess", title: "Mess Menu", description: "Today’s meals and the published weekly food schedule.", stat: "4", meta: "meals", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentAnnouncements", title: "Announcements", description: "Official property notices and acknowledgements.", stat: "0", meta: "unread", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentContacts", title: "Contacts", description: "Warden, gate, management, mess, maintenance, and emergency contacts.", stat: "0", meta: "contacts", roles: ["parent"], action: "Call", endpoint: "/parents/ward", method: "GET" },
+  { id: "parentHelp", title: "Help & Concerns", description: "Raise and track a billing, food, room, or safety concern.", stat: "0", meta: "open", roles: ["parent"], action: "Raise concern", endpoint: "/complaints", method: "POST" },
+  { id: "parentDocuments", title: "Documents", description: "Review your child’s document verification status.", stat: "0", meta: "files", roles: ["parent"], action: "View", endpoint: "/parents/ward", method: "GET" },
   {
     id: "platform",
     title: "Platform",
@@ -674,8 +682,12 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
   }, [normalizedRole, workspace]);
 
   const allowedModules = useMemo(() => {
-    const available = modules.filter((module) => module.roles.includes(normalizedRole));
-    if (normalizedRole !== "warden") return available;
+      const available = modules.filter((module) => module.roles.includes(normalizedRole));
+      if (normalizedRole === "parent") {
+        const order: SectionId[] = ["parents", "parentChild", "parentGate", "parentBilling", "parentMess", "parentAnnouncements", "parentContacts", "parentHelp", "parentDocuments"];
+        return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      }
+      if (normalizedRole !== "warden") return available;
     const order: SectionId[] = ["overview", "rooms", "tenants", "complaints", "gate", "visitors", "announcements", "staff", "documents"];
     return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }, [normalizedRole]);
@@ -978,7 +990,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
                   <button className="gradientButton" onClick={() => window.dispatchEvent(new Event("hostin:request-gate-pass"))} type="button">
                     Request Gate Pass
                   </button>
-                ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "visitors", "gate", "community", "complaints", "announcements", "documents", "platform"].includes(activeModule.id) ? (
+                ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "visitors", "gate", "community", "complaints", "announcements", "documents", "parents", "parentChild", "parentGate", "parentBilling", "parentMess", "parentAnnouncements", "parentContacts", "parentHelp", "parentDocuments", "platform"].includes(activeModule.id) ? (
                   <button className="gradientButton" onClick={syncModule} type="button">
                     {activeModule.action}
                   </button>
@@ -996,6 +1008,8 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
                 <OwnerWorkspaceSection accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} view={activeModule.id} />
               ) : normalizedRole === "warden" && activeModule.id === "overview" ? (
                 <WardenDashboard accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} userName={login.userName} workspace={propertyName} />
+              ) : normalizedRole === "parent" ? (
+                <ParentWorkspace accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} view={activeModule.id} />
               ) : activeModule.id === "rooms" && ["owner", "warden"].includes(normalizedRole) ? (
                 <RoomsBoard accessToken={login.accessToken} canManage={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={role} workspace={workspace} />
               ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
@@ -1180,6 +1194,51 @@ function ProfilePage({ login, role, workspace, onLogout, showTitle = false }: { 
       </section>
     </div>
   );
+}
+
+function ParentWorkspace({ accessToken, orgId, view, setActiveId }: { accessToken: string; orgId: string; view: SectionId; setActiveId: (id: SectionId) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [selectedWardId, setSelectedWardId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const headers = { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId };
+  const loadParentWorkspace = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/parents/ward`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+      const next = await response.json().catch(() => ({}));
+      if (response.ok) { setData(next); setSelectedWardId((current) => current || next.wards?.[0]?.ward.userId || ""); }
+    } finally { setIsLoading(false); }
+  }, [accessToken, orgId]);
+  useEffect(() => { loadParentWorkspace(); }, [loadParentWorkspace]);
+  if (isLoading) return <section className="panel"><DirectorySkeleton /></section>;
+  const ward = data?.wards?.find((item: any) => item.ward.userId === selectedWardId) ?? data?.wards?.[0];
+  if (!ward) return <section className="panel"><EmptyPanel title="No linked child" copy="Ask the property team to link your parent profile." /></section>;
+  const money = (value: unknown) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
+  const activePass = ward.summary.activePass;
+  const latestPass = ward.gatePasses[0];
+  const todayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date().getDay()];
+  const todayMeals = data.menu?.items?.filter((item: any) => item.day_of_week === todayKey) ?? [];
+  const dinner = todayMeals.find((item: any) => item.meal_type === "dinner");
+  const latestNotice = data.announcements?.[0];
+  const childSwitcher = data.wards.length > 1 ? <label className="parentChildSwitcher"><span>Child</span><select aria-label="Select child" onChange={(event) => setSelectedWardId(event.target.value)} value={ward.ward.userId}>{data.wards.map((item: any) => <option key={item.ward.userId} value={item.ward.userId}>{item.ward.name}</option>)}</select></label> : null;
+
+  if (view === "parentChild") return <div className="parentPageGrid">{childSwitcher}<section className="panel parentChildHero"><div className="profileAvatarLarge">{ward.ward.name.slice(0, 1)}</div><div><p className="sectionEyebrow">My child</p><h3>{ward.ward.name}</h3><p>{data.organization?.name} · Room {ward.ward.room.roomNumber} · {ward.ward.room.floorName}</p><span className="statusPill active">{ward.ward.stayStatus}</span></div></section><section className="panel"><PanelTitle title="Stay details" meta={titleFromSlug(ward.ward.status)} /><dl className="clientDetails"><div><dt>Phone</dt><dd>{ward.ward.phone}</dd></div><div><dt>Room</dt><dd>{ward.ward.room.roomNumber} · {titleFromSlug(ward.ward.room.roomType)}</dd></div><div><dt>Floor</dt><dd>{ward.ward.room.floorName}</dd></div><div><dt>Joining date</dt><dd>{new Date(ward.ward.admissionDate).toLocaleDateString("en-IN")}</dd></div><div><dt>Assigned warden</dt><dd>{data.assignedWarden?.full_name ?? "Property warden"}</dd></div><div><dt>Documents</dt><dd>{ward.summary.documentsVerified ? "Verified" : "Review pending"}</dd></div></dl></section><section className="panel"><PanelTitle title="Linked guardian" meta={titleFromSlug(ward.relation)} /><dl className="clientDetails"><div><dt>Name</dt><dd>{data.parent.full_name}</dd></div><div><dt>Phone</dt><dd>{data.parent.phone}</dd></div><div><dt>Email</dt><dd>{data.parent.email}</dd></div></dl></section>{ward.roommates.length ? <section className="panel"><PanelTitle title="Roommates" meta={`${ward.roommates.length} visible`} />{ward.roommates.map((roommate: any) => <div className="parentContactLine" key={roommate.phone}><span><b>{roommate.name}</b><small>Roommate</small></span><a href={`tel:${roommate.phone}`}>Call</a></div>)}</section> : null}</div>;
+
+  if (view === "parentGate") return <div className="parentPageGrid">{childSwitcher}<section className="panel parentStatusCard"><PanelTitle title="Current movement status" meta={ward.ward.stayStatus} />{activePass ? <div className="activeParentPass"><span className="statusPill approved">Active pass</span><h3>{activePass.purpose}</h3><p>{activePass.destination}</p><dl className="clientDetails"><div><dt>Out time</dt><dd>{formatDateTime(activePass.actual_out_time || activePass.expected_out_time)}</dd></div><div><dt>Expected return</dt><dd>{formatDateTime(activePass.expected_return_time)}</dd></div></dl></div> : <EmptyPanel title="Inside PG" copy="There is no active gate pass." />}</section><section className="panel"><PanelTitle title="Gate pass history" meta={`${ward.gatePasses.length} records`} /><div className="parentHistoryList">{ward.gatePasses.map((pass: any) => { const late = pass.actual_in_time && new Date(pass.actual_in_time) > new Date(pass.expected_return_time); return <article key={pass.id}><div><b>{pass.purpose}</b><small>{pass.destination} · {new Date(pass.created_at).toLocaleDateString("en-IN")}</small></div><span>{formatDateTime(pass.expected_return_time)}</span><span>{pass.approved_by_user?.full_name ?? "Awaiting approval"}</span><span className={`statusPill ${late ? "overdue" : pass.status}`}>{late ? "Late return" : titleFromSlug(pass.status)}</span></article>; })}</div></section></div>;
+
+  if (view === "parentBilling") return <div className="parentPageGrid">{childSwitcher}<section className="parentSummaryCards"><article className="panel"><span>Monthly room fee</span><strong>{money(ward.ward.room.monthlyRent)}</strong></article><article className="panel"><span>Pending</span><strong>{money(ward.summary.pendingAmount)}</strong></article><article className="panel"><span>Payments recorded</span><strong>{ward.payments.length}</strong></article></section><section className="panel"><PanelTitle title="Current dues" meta={`${ward.dues.filter((due: any) => due.status !== "paid").length} open`} /><div className="parentHistoryList">{ward.dues.map((due: any) => <article key={due.id}><div><b>{titleFromSlug(due.due_type)}</b><small>{due.description || "Property charge"}</small></div><span>{money(due.amount)}</span><span>Due {new Date(due.due_date).toLocaleDateString("en-IN")}</span><span className={`statusPill ${due.status}`}>{titleFromSlug(due.status)}</span></article>)}</div></section><section className="panel"><PanelTitle title="Payment history" meta={`${ward.payments.length} receipts`} /><div className="parentHistoryList">{ward.payments.map((payment: any) => <article key={payment.id}><div><b>{money(payment.amount)}</b><small>{titleFromSlug(payment.payment_method)}</small></div><span>{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString("en-IN") : "Processing"}</span>{payment.receipt_url ? <a href={payment.receipt_url} target="_blank" rel="noreferrer">Receipt</a> : <span>No receipt</span>}<span className={`statusPill ${payment.status}`}>{titleFromSlug(payment.status)}</span></article>)}</div><button className="outlineButton" onClick={() => setActiveId("parentHelp")} type="button">Raise Billing Query</button></section></div>;
+
+  if (view === "parentMess") return <div className="parentPageGrid"><section className="panel"><PanelTitle title="Today’s Menu" meta={new Date().toLocaleDateString("en-IN", { weekday: "long" })} /><div className="parentMealGrid">{todayMeals.map((meal: any) => <article key={meal.id}><span>{titleFromSlug(meal.meal_type)}</span><strong>{meal.items.join(", ")}</strong></article>)}</div>{!todayMeals.length ? <EmptyPanel title="Menu not published" copy="The mess manager has not published today’s meals yet."/> : null}</section><section className="panel"><PanelTitle title="Weekly Menu" meta={data.menu ? `Week of ${new Date(data.menu.week_start_date).toLocaleDateString("en-IN")}` : "Not published"} /><div className="weeklyMealList">{data.menu?.items?.map((meal: any) => <div key={meal.id}><b>{titleFromSlug(meal.day_of_week)}</b><span>{titleFromSlug(meal.meal_type)}</span><small>{meal.items.join(", ")}</small></div>)}</div></section></div>;
+
+  if (view === "parentAnnouncements") return <section className="panel"><PanelTitle title="Official Announcements" meta={`${data.announcements.filter((item: any) => !item.acknowledged).length} unread`} /><div className="parentNoticeList">{data.announcements.map((notice: any) => <article key={notice.id}><div><span className="sectionEyebrow">{new Date(notice.created_at).toLocaleDateString("en-IN")}</span><h3>{notice.title}</h3><p>{notice.body}</p><small>Posted by {notice.created_by_user.full_name}</small></div>{notice.acknowledged ? <span className="statusPill active">Acknowledged</span> : <button onClick={async () => { await fetch(`${apiBase}/announcements/${notice.id}/read`, { method: "POST", headers }); await loadParentWorkspace(); }} type="button">Acknowledge</button>}</article>)}</div></section>;
+
+  if (view === "parentContacts") { const contacts = [...data.contacts].sort((a: any, b: any) => Number(b.is_emergency) - Number(a.is_emergency)); return <div className="parentPageGrid"><section className="panel"><PanelTitle title="Quick Contacts" meta="Tap to call" /><div className="parentContactGrid">{data.assignedWarden ? <article><span className="statusPill active">Assigned warden</span><h3>{data.assignedWarden.full_name}</h3><p>Warden</p><div><a href={`tel:${data.assignedWarden.phone}`}>Call</a><a href={`https://wa.me/${data.assignedWarden.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a></div></article> : null}{contacts.map((contact: any) => <article key={contact.id}><span className={`statusPill ${contact.is_emergency ? "overdue" : "active"}`}>{contact.is_emergency ? "Emergency" : titleFromSlug(contact.role_type)}</span><h3>{contact.name}</h3><p>{titleFromSlug(contact.role_type)}</p><div><a href={`tel:${contact.phone}`}>Call</a><a href={`https://wa.me/${contact.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a></div></article>)}</div></section></div>; }
+
+  if (view === "parentDocuments") return <section className="panel"><PanelTitle title="Child Documents" meta={`${ward.documents.filter((item: any) => item.is_verified).length}/${ward.documents.length} verified`} /><div className="documentCardGrid">{ward.documents.map((document: any) => <article key={document.id}><div><strong>{titleFromSlug(document.doc_type)}</strong><small>{document.file_name}</small></div><span>{new Date(document.created_at).toLocaleDateString("en-IN")}</span><a href={document.file_url} target="_blank" rel="noreferrer">View document</a><span className={`statusPill ${document.is_verified ? "verified" : "pending"}`}>{document.is_verified ? "Verified" : "Under review"}</span></article>)}</div>{!ward.documents.length ? <EmptyPanel title="No documents uploaded" copy="The property team will add verified child documents here."/> : null}</section>;
+
+  if (view === "parentHelp") return <div className="parentPageGrid"><form className="panel parentConcernForm" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const response = await fetch(`${apiBase}/complaints`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ tenantId: ward.ward.userId, category: form.get("category"), title: form.get("title"), description: form.get("description"), priority: form.get("priority") }) }); if (response.ok) { event.currentTarget.reset(); await loadParentWorkspace(); } }}><PanelTitle title="Raise a Concern" meta={ward.ward.name} /><label><span>Concern type</span><select name="category" defaultValue="other"><option value="other">General help</option><option value="maintenance">Room concern</option><option value="food">Food concern</option><option value="security">Safety concern</option><option value="cleanliness">Cleanliness</option></select></label><label><span>Subject</span><input name="title" required placeholder="How can we help?"/></label><label><span>Message</span><textarea name="description" required placeholder="Share the details with the property team."/></label><label><span>Priority</span><select name="priority" defaultValue="medium"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><button className="gradientButton" type="submit">Submit Concern</button></form><section className="panel"><PanelTitle title="Concern History" meta={`${ward.complaints.length} raised`} /><div className="parentNoticeList">{ward.complaints.map((complaint: any) => <article key={complaint.id}><div><h3>{complaint.title}</h3><p>{complaint.description}</p><small>{complaint.updates?.[0]?.note || "Submitted to the property team"}</small></div><span className={`statusPill ${complaint.status}`}>{titleFromSlug(complaint.status)}</span></article>)}</div></section></div>;
+
+  return <div className="parentDashboard">{childSwitcher}<section className="panel parentHero"><div><p className="sectionEyebrow">Parent home</p><h2>{ward.ward.name}</h2><p>{data.organization?.name} · Room {ward.ward.room.roomNumber} · {ward.ward.room.floorName}</p></div><span className="statusPill active">{ward.ward.stayStatus}</span></section><section className="parentSummaryCards"><button className="panel" onClick={() => setActiveId("parentBilling")} type="button"><span>Fee Status</span><strong>{ward.summary.pendingAmount ? `${money(ward.summary.pendingAmount)} pending` : "All clear"}</strong></button><button className="panel" onClick={() => setActiveId("parentGate")} type="button"><span>Gate Pass</span><strong>{activePass ? "Active now" : latestPass ? titleFromSlug(latestPass.status) : "No active pass"}</strong></button><button className="panel" onClick={() => setActiveId("parentMess")} type="button"><span>Mess Today</span><strong>{dinner ? `Dinner: ${dinner.items.join(", ")}` : "Menu pending"}</strong></button><button className="panel" onClick={() => setActiveId("parentAnnouncements")} type="button"><span>Latest Notice</span><strong>{latestNotice?.title ?? "No new notices"}</strong></button></section><div className="parentHomeGrid"><section className="panel"><PanelTitle title="Child Safety Summary" meta="Live workspace data" /><dl className="clientDetails"><div><dt>Current status</dt><dd>{ward.ward.stayStatus}</dd></div><div><dt>Assigned warden</dt><dd>{data.assignedWarden?.full_name ?? "Property warden"}</dd></div><div><dt>Latest gate pass</dt><dd>{latestPass ? titleFromSlug(latestPass.status) : "None"}</dd></div><div><dt>Documents</dt><dd>{ward.summary.documentsVerified ? "Verified" : "Review pending"}</dd></div></dl></section><section className="panel"><PanelTitle title="Quick Contacts" meta="Help is one tap away" />{data.assignedWarden ? <div className="parentContactLine"><span><b>{data.assignedWarden.full_name}</b><small>Assigned warden</small></span><a href={`tel:${data.assignedWarden.phone}`}>Call</a></div> : null}{data.contacts.slice(0, 3).map((contact: any) => <div className="parentContactLine" key={contact.id}><span><b>{contact.name}</b><small>{titleFromSlug(contact.role_type)}</small></span><a href={`tel:${contact.phone}`}>Call</a></div>)}</section></div></div>;
 }
 
 function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace }: { accessToken: string; orgId: string; setActiveId: (id: SectionId) => void; userName: string; workspace: string }) {

@@ -98,6 +98,38 @@ test("warden account opens a minimal daily operations dashboard", async ({ page 
   await expect(page.getByText("No matching documents", { exact: true })).toBeVisible();
 });
 
+test("parent account opens a privacy-safe child assurance workspace", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Use Parent demo account" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/city-complex\/parent\/meena-mehta$/);
+  await expect(page.getByRole("heading", { name: "Aarav Mehta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Child Safety Summary" })).toBeVisible();
+  await expect(page.getByText("Inside PG", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible();
+  await expect(page.getByLabel("Switch property")).toHaveCount(0);
+
+  const sidebar = page.getByRole("complementary");
+  for (const item of ["Home", "My Child", "Gate Pass", "Billing", "Mess Menu", "Announcements", "Contacts", "Help & Concerns", "Documents"]) {
+    await expect(sidebar.getByRole("button", { name: item, exact: true })).toBeVisible();
+  }
+  for (const item of ["Rooms", "Tenants", "Complaints", "Billing & Plans", "Analytics"]) {
+    await expect(sidebar.getByRole("button", { name: item, exact: true })).toHaveCount(0);
+  }
+
+  await sidebar.getByRole("button", { name: "Gate Pass", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Gate pass history" })).toBeVisible();
+  await sidebar.getByRole("button", { name: "Billing", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Current dues" })).toBeVisible();
+  await sidebar.getByRole("button", { name: "Mess Menu", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Today’s Menu" })).toBeVisible();
+  await sidebar.getByRole("button", { name: "Contacts", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Quick Contacts" })).toBeVisible();
+  await sidebar.getByRole("button", { name: "Help & Concerns", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Raise a Concern" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Submit Concern" })).toBeVisible();
+});
+
 test("owner account opens the database-backed business dashboard", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByLabel("Email address")).toBeEnabled();
