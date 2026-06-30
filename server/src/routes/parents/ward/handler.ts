@@ -1,11 +1,15 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { getCachedValue, setCachedValue } from "../../../lib/runtimeCache";
 
 export const handleGetWardDetails = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const parentUserId = req.user?.userId as string;
+  const cacheKey = `org:${orgId}:parent-dashboard:${parentUserId}`;
   try {
+    const cached = await getCachedValue<Record<string, unknown>>(cacheKey);
+    if (cached) return res.json(cached);
     const [organization, parentProfiles, warden, announcements, contacts, menu] = await Promise.all([
       prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, address: true, contact_phone: true } }),
       prisma.parentProfile.findMany({ where: { user_id: parentUserId, org_id: orgId }, include: { user: { select: { full_name: true, email: true, phone: true } }, tenant: { include: { tenant_profiles: { where: { org_id: orgId, is_active: true }, include: { room: { include: { floor: true } } } } } } } }),
@@ -21,12 +25,12 @@ export const handleGetWardDetails = async (req: AuthorizedRequest, res: Response
       const tenantProfile = profile.tenant.tenant_profiles[0];
       if (!tenantProfile) continue;
       const [dues, payments, gatePasses, visitors, documents, complaints] = await Promise.all([
-        prisma.due.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { due_date: "desc" } }),
-        prisma.payment.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { created_at: "desc" } }),
-        prisma.gatePass.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, include: { approved_by_user: { select: { full_name: true } } }, orderBy: { created_at: "desc" } }),
+        prisma.due.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { due_date: "desc" }, take: 50 }),
+        prisma.payment.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { created_at: "desc" }, take: 50 }),
+        prisma.gatePass.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, include: { approved_by_user: { select: { full_name: true } } }, orderBy: { created_at: "desc" }, take: 50 }),
         prisma.visitor.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId, status: { in: ["pending", "approved"] } }, orderBy: { expected_visit_time: "asc" } }),
-        prisma.document.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { created_at: "desc" } }),
-        prisma.complaint.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, include: { updates: { orderBy: { created_at: "desc" }, take: 1 } }, orderBy: { created_at: "desc" } }),
+        prisma.document.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, orderBy: { created_at: "desc" }, take: 50 }),
+        prisma.complaint.findMany({ where: { tenant_id: profile.tenant_id, org_id: orgId }, include: { updates: { orderBy: { created_at: "desc" }, take: 1 } }, orderBy: { created_at: "desc" }, take: 50 }),
       ]);
       const activePass = gatePasses.find((pass) => pass.status === "approved" && pass.actual_out_time && !pass.actual_in_time);
       const pendingAmount = dues.filter((due) => due.status !== "paid" && due.status !== "waived").reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0);
@@ -46,7 +50,9 @@ export const handleGetWardDetails = async (req: AuthorizedRequest, res: Response
         dues, payments, gatePasses, visitors, documents, complaints, roommates,
       });
     }
-    return res.json({ parent: parentProfiles[0]?.user, organization, assignedWarden: warden?.user ?? null, wards, announcements: announcements.map((item) => ({ ...item, acknowledged: item.reads.length > 0 })), contacts, menu });
+    const response = { parent: parentProfiles[0]?.user, organization, assignedWarden: warden?.user ?? null, wards, announcements: announcements.map((item) => ({ ...item, acknowledged: item.reads.length > 0 })), contacts, menu };
+    setCachedValue(cacheKey, response, 5_000);
+    return res.json(response);
   } catch (error) {
     console.error("Get parent workspace error:", error);
     return res.status(500).json({ error: "An error occurred while fetching the parent workspace" });

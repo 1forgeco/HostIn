@@ -3,6 +3,7 @@ import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { PassStatus } from "../../../../generated/prisma/client";
 import { expireUnusedGatePasses } from "../../../lib/gatePassLifecycle";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListPasses = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -10,6 +11,7 @@ export const handleListPasses = async (req: AuthorizedRequest, res: Response) =>
   const userRole = req.userOrgRole;
 
   const { status, tenantId } = req.query;
+  const { limit, page, skip } = getPagination(req.query);
 
   // Build filter dynamically
   const whereClause: any = {
@@ -59,9 +61,11 @@ export const handleListPasses = async (req: AuthorizedRequest, res: Response) =>
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
-    return res.status(200).json({ gatePasses });
+    return res.status(200).json({ gatePasses, pagination: paginationMeta(page, limit, gatePasses.length) });
   } catch (error) {
     console.error("List gate passes error:", error);
     return res.status(500).json({ error: "An error occurred fetching gate passes list" });

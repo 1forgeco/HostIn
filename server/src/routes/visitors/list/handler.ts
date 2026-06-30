@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { VisitStatus } from "../../../../generated/prisma/client";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListVisitors = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -9,6 +10,7 @@ export const handleListVisitors = async (req: AuthorizedRequest, res: Response) 
   const userRole = req.userOrgRole;
 
   const { status, tenantId } = req.query;
+  const { limit, page, skip } = getPagination(req.query);
 
   const whereClause: any = {
     org_id: orgId,
@@ -49,9 +51,11 @@ export const handleListVisitors = async (req: AuthorizedRequest, res: Response) 
       orderBy: {
         expected_visit_time: "desc",
       },
+      take: limit,
+      skip,
     });
 
-    return res.status(200).json({ visitors });
+    return res.status(200).json({ visitors, pagination: paginationMeta(page, limit, visitors.length) });
   } catch (error) {
     console.error("List visitors error:", error);
     return res.status(500).json({ error: "An error occurred fetching visitor logs" });

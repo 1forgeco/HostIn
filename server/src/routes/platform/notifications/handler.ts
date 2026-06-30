@@ -1,16 +1,19 @@
 import { Response } from "express";
 import { prisma } from "../../../lib/prisma";
 import { PlatformAuthenticatedRequest } from "../../../middleware/platformAuth";
+import { cachedRead } from "../../../lib/runtimeCache";
 
 export async function getPlatformNotifications() {
-  const [requests, organizations] = await Promise.all([
+  return cachedRead("platform:notifications", 5_000, async () => {
+    const [requests, organizations] = await Promise.all([
       prisma.ownerRequest.findMany({ where: { status: { in: ["submitted", "under_review", "need_more_info"] } }, include: { organization: { select: { name: true } } }, orderBy: { created_at: "desc" }, take: 20 }),
       prisma.organization.findMany({ where: { OR: [{ workspace_status: { not: "active" } }, { is_active: false }, { plan_status: { in: ["paused", "expired"] } }] }, orderBy: { updated_at: "desc" }, take: 10 }),
     ]);
-  return [
+    return [
       ...requests.map((request) => ({ id: request.id, title: request.title, body: `${request.organization.name} · ${request.type.replaceAll("_", " ")}`, status: "pending", created_at: request.created_at })),
       ...organizations.map((organization) => ({ id: organization.id, title: `${organization.name} needs attention`, body: `Workspace: ${organization.workspace_status} · Plan: ${organization.plan_status}`, status: "pending", created_at: organization.updated_at })),
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  });
 }
 
 export async function handlePlatformNotifications(_req: PlatformAuthenticatedRequest, res: Response) {
@@ -41,7 +44,7 @@ export async function handlePlatformNotificationStream(req: PlatformAuthenticate
     } catch { res.write(`event: error\ndata: {"retry":true}\n\n`); }
   };
   await send();
-  const interval = setInterval(send, 3000);
+  const interval = setInterval(send, 15_000);
   const lifetime = setTimeout(() => { if (!closed) { res.write(`event: reconnect\ndata: {}\n\n`); res.end(); } }, 55_000);
   req.on("close", () => { closed = true; clearInterval(interval); clearTimeout(lifetime); });
 }

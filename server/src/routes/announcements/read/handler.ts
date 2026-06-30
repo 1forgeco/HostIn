@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { invalidateRuntimeCache } from "../../../lib/runtimeCache";
 
 export const handleReadAnnouncement = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -38,6 +39,7 @@ export const handleReadAnnouncement = async (req: AuthorizedRequest, res: Respon
         user_id: userId as string,
       },
     });
+    invalidateRuntimeCache(orgId);
 
     return res.status(200).json({
       message: "Announcement marked as read",

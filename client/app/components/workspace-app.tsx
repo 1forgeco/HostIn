@@ -1256,15 +1256,15 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
 
   useEffect(() => {
     let active = true;
-    Promise.all([fetch(`${apiBase}/rooms`, { headers }), fetch(`${apiBase}/complaints`, { headers }), fetch(`${apiBase}/gate-passes`, { headers }), fetch(`${apiBase}/visitors`, { headers }), fetch(`${apiBase}/documents`, { headers })])
-      .then(async (responses) => Promise.all(responses.map((response) => response.json().catch(() => ({})))))
-      .then(([roomData, complaintData, passData, visitorData, documentData]) => {
+    fetch(`${apiBase}/warden/dashboard`, { headers })
+      .then((response) => response.json().catch(() => ({})))
+      .then((data) => {
         if (!active) return;
-        setRooms((roomData.rooms ?? []).map(mapApiRoom));
-        setComplaints(complaintData.complaints ?? []);
-        setPasses(passData.gatePasses ?? []);
-        setVisitors(visitorData.visitors ?? []);
-        setDocuments(documentData.documents ?? []);
+        setRooms((data.dashboard?.rooms ?? []).map(mapApiRoom));
+        setComplaints(data.dashboard?.complaints ?? []);
+        setPasses(data.dashboard?.gatePasses ?? []);
+        setVisitors(data.dashboard?.visitors ?? []);
+        setDocuments(data.dashboard?.documents ?? []);
       })
       .catch(() => {
         if (!active) return;
@@ -2907,6 +2907,7 @@ function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessTo
   const [isLoading, setIsLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const hasLoaded = useRef(false);
+  const isLiveRef = useRef(false);
   const unread = notifications.filter((item) => item.status !== "read").length;
 
   const loadNotifications = useCallback(async () => {
@@ -2927,9 +2928,17 @@ function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessTo
   }, [accessToken, isPlatform, orgId]);
 
   useEffect(() => {
+    isLiveRef.current = isLive;
+  }, [isLive]);
+
+  useEffect(() => {
     hasLoaded.current = false;
-    void loadNotifications();
-    const poll = window.setInterval(() => void loadNotifications(), 15_000);
+    const initialFallback = window.setTimeout(() => {
+      if (!hasLoaded.current) void loadNotifications();
+    }, 1_500);
+    const poll = window.setInterval(() => {
+      if (!isLiveRef.current) void loadNotifications();
+    }, 30_000);
     const refresh = () => {
       if (document.visibilityState === "visible") void loadNotifications();
     };
@@ -2937,6 +2946,7 @@ function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessTo
     document.addEventListener("visibilitychange", refresh);
     return () => {
       window.clearInterval(poll);
+      window.clearTimeout(initialFallback);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };

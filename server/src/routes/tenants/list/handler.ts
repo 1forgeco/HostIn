@@ -2,10 +2,12 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { TenantStatus } from "../../../../generated/prisma/client";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListTenants = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const { status } = req.query;
+  const { limit, page, skip } = getPagination(req.query, 250, 500);
 
   const whereClause: any = {
     org_id: orgId,
@@ -41,6 +43,8 @@ export const handleListTenants = async (req: AuthorizedRequest, res: Response) =
       orderBy: {
         admission_date: "desc",
       },
+      take: limit,
+      skip,
     });
 
     const assignedUserIds = tenantProfiles.map((tenant) => tenant.user_id);
@@ -66,6 +70,7 @@ export const handleListTenants = async (req: AuthorizedRequest, res: Response) =
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
     });
 
     const formattedTenants = tenantProfiles.map((t) => ({
@@ -107,11 +112,11 @@ export const handleListTenants = async (req: AuthorizedRequest, res: Response) =
       assignmentStatus: "unassigned",
     }));
 
-    const tenants = [...unassignedTenants, ...formattedTenants];
+    const tenants = [...unassignedTenants, ...formattedTenants].slice(0, limit);
     if (req.userOrgRole === "guard") {
-      return res.status(200).json({ tenants: tenants.map((tenant) => ({ userId: tenant.userId, fullName: tenant.fullName, room: tenant.room ? { roomNumber: tenant.room.roomNumber } : null })) });
+      return res.status(200).json({ tenants: tenants.map((tenant) => ({ userId: tenant.userId, fullName: tenant.fullName, room: tenant.room ? { roomNumber: tenant.room.roomNumber } : null })), pagination: paginationMeta(page, limit, tenants.length) });
     }
-    return res.status(200).json({ tenants });
+    return res.status(200).json({ tenants, pagination: paginationMeta(page, limit, tenants.length) });
   } catch (error) {
     console.error("List tenants error:", error);
     return res.status(500).json({ error: "An error occurred fetching tenants list" });

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListPayments = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -8,6 +9,7 @@ export const handleListPayments = async (req: AuthorizedRequest, res: Response) 
   const userRole = req.userOrgRole;
 
   const { tenantId, dueId } = req.query;
+  const { limit, page, skip } = getPagination(req.query);
 
   const whereClause: any = {
     org_id: orgId,
@@ -55,9 +57,11 @@ export const handleListPayments = async (req: AuthorizedRequest, res: Response) 
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
-    return res.status(200).json({ payments });
+    return res.status(200).json({ payments, pagination: paginationMeta(page, limit, payments.length) });
   } catch (error) {
     console.error("List payments error:", error);
     return res.status(500).json({ error: "An error occurred fetching payments list" });

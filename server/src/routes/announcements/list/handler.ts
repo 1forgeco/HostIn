@@ -2,11 +2,13 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { AnnouncementTargetType } from "../../../../generated/prisma/client";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListAnnouncements = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const userId = req.user?.userId;
   const userRole = req.userOrgRole;
+  const { limit, page, skip } = getPagination(req.query, 50, 100);
 
   try {
     const whereClause: any = {
@@ -69,6 +71,8 @@ export const handleListAnnouncements = async (req: AuthorizedRequest, res: Respo
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
     const interactions = await prisma.communityInteraction.findMany({
@@ -95,6 +99,7 @@ export const handleListAnnouncements = async (req: AuthorizedRequest, res: Respo
 
     return res.status(200).json({
       announcements: formattedAnnouncements,
+      pagination: paginationMeta(page, limit, formattedAnnouncements.length),
     });
   } catch (error) {
     console.error("List announcements error:", error);

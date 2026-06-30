@@ -1,12 +1,14 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { getPagination, paginationMeta } from "../../../lib/pagination";
 
 export const handleListDocuments = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const loggedInUserId = req.user?.userId;
   const queryTenantId = req.query.tenantId as string;
   const tenantName = (req.query.tenantName as string | undefined)?.trim();
+  const { limit, page, skip } = getPagination(req.query);
 
   try {
     const whereClause: any = {
@@ -34,10 +36,13 @@ export const handleListDocuments = async (req: AuthorizedRequest, res: Response)
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip,
     });
 
     return res.status(200).json({
       documents,
+      pagination: paginationMeta(page, limit, documents.length),
     });
   } catch (error) {
     console.error("List documents error:", error);

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { invalidateRuntimeCache } from "../../../lib/runtimeCache";
 
 export const handleCreateFloor = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -40,6 +41,7 @@ export const handleCreateFloor = async (req: AuthorizedRequest, res: Response) =
         floor_name: floorName,
       },
     });
+    invalidateRuntimeCache(orgId);
 
     return res.status(201).json({
       message: "Floor created successfully",

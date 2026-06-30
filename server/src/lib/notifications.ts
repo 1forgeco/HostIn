@@ -1,4 +1,6 @@
 import { NotificationType, OrgRole } from "../../generated/prisma/client";
+import { invalidateRuntimeCache } from "./runtimeCache";
+import { EventEmitter } from "node:events";
 
 type DbClient = any;
 type Notice = {
@@ -11,8 +13,19 @@ type Notice = {
 };
 
 const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter(Boolean) as string[])];
+const notificationEvents = new EventEmitter();
+notificationEvents.setMaxListeners(1_000);
+
+const eventKey = (orgId: string, userId: string) => `${orgId}:${userId}`;
+
+export function subscribeToNotifications(orgId: string, userId: string, listener: () => void) {
+  const key = eventKey(orgId, userId);
+  notificationEvents.on(key, listener);
+  return () => notificationEvents.off(key, listener);
+}
 
 export async function notifyUsers(db: DbClient, userIds: Array<string | null | undefined>, notice: Notice, excludeUserId?: string) {
+  invalidateRuntimeCache(notice.orgId);
   const recipients = unique(userIds).filter((id) => id !== excludeUserId);
   if (!recipients.length) return 0;
   const result = await db.notification.createMany({
@@ -26,6 +39,8 @@ export async function notifyUsers(db: DbClient, userIds: Array<string | null | u
       reference_type: notice.referenceType ?? null,
     })),
   });
+  const timer = setTimeout(() => recipients.forEach((userId) => notificationEvents.emit(eventKey(notice.orgId, userId))), 100);
+  timer.unref?.();
   return result.count;
 }
 

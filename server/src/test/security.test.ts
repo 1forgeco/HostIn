@@ -26,6 +26,7 @@ describe("API protection", () => {
     expect(response.status).toBe(204);
     expect(response.headers["access-control-allow-origin"]).toBe(origin);
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers["access-control-max-age"]).toBe("86400");
   });
 
   it("rejects malformed unified login input before querying credentials", async () => {

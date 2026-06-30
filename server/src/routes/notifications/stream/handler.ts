@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { subscribeToNotifications } from "../../../lib/notifications";
 
 export async function handleNotificationStream(req: AuthorizedRequest, res: Response) {
   const orgId = req.headers["x-org-id"] as string;
@@ -25,7 +26,12 @@ export async function handleNotificationStream(req: AuthorizedRequest, res: Resp
     } catch { res.write(`event: error\ndata: {"retry":true}\n\n`); }
   };
   await send();
-  const interval = setInterval(send, 3000);
+  let debounce: ReturnType<typeof setTimeout> | null = null;
+  const unsubscribe = subscribeToNotifications(orgId, userId, () => {
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(() => void send(), 75);
+  });
+  const interval = setInterval(send, 15_000);
   const lifetime = setTimeout(() => { if (!closed) { res.write(`event: reconnect\ndata: {}\n\n`); res.end(); } }, 55_000);
-  req.on("close", () => { closed = true; clearInterval(interval); clearTimeout(lifetime); });
+  req.on("close", () => { closed = true; unsubscribe(); if (debounce) clearTimeout(debounce); clearInterval(interval); clearTimeout(lifetime); });
 }

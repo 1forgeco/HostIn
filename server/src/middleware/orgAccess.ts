@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "./auth";
-import { prisma } from "../lib/prisma";
 import { OrgRole } from "../../generated/prisma/client";
+import { getAccessSnapshot } from "../lib/accessSnapshot";
 
 export interface AuthorizedRequest extends AuthenticatedRequest {
   userOrgRole?: OrgRole;
@@ -39,22 +39,13 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
     }
 
     try {
-      // Look up user role in this organization
-      const userOrgRole = await prisma.userOrgRole.findFirst({
-        where: {
-          user_id: userId,
-          org_id: orgId,
-          is_active: true,
-        },
-        include: {
-          user: { select: { is_active: true, account_status: true } },
-          organization: { select: { is_active: true, workspace_status: true, plan_status: true, plan_expires_at: true } },
-        },
-      });
+      const featureKey = featureForRequest(req.originalUrl);
+      const access = await getAccessSnapshot(userId, orgId);
 
-      if (!userOrgRole) {
+      if (!access) {
         return res.status(403).json({ error: "Access denied. You do not belong to this organization." });
       }
+      const { membership: userOrgRole, dashboard, permissions, overrides } = access;
 
       if (!userOrgRole.user.is_active || userOrgRole.user.account_status !== "active") {
         return res.status(403).json({ error: "This user account is not active", code: "ACCOUNT_INACTIVE" });
@@ -64,6 +55,13 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
       const subscriptionExpired = userOrgRole.organization.plan_expires_at && userOrgRole.organization.plan_expires_at < new Date();
       if (subscriptionBlocked || subscriptionExpired) return res.status(402).json({ error: "Workspace subscription is inactive", code: "SUBSCRIPTION_INACTIVE" });
 
+      if (featureKey) {
+        const planFeatures = (userOrgRole.organization.plan.features ?? {}) as Record<string, unknown>;
+        const featureOverride = userOrgRole.organization.org_features.find((feature) => feature.feature_key === featureKey);
+        const featureEnabled = featureOverride ? featureOverride.is_enabled : planFeatures[featureKey] !== false;
+        if (!featureEnabled) return res.status(403).json({ error: `${featureKey} is disabled for this workspace`, code: "FEATURE_DISABLED" });
+      }
+
       // Check if user's role is allowed
       if (!allowedRoles.includes(userOrgRole.role)) {
         return res.status(403).json({
@@ -71,20 +69,14 @@ export const checkOrgAccess = (allowedRoles: OrgRole[]) => {
         });
       }
 
-      const [dashboard, legacyRoleToggle] = await Promise.all([
-        prisma.roleDashboard.findUnique({ where: { org_id_role: { org_id: orgId, role: userOrgRole.role } } }),
-        prisma.orgFeature.findUnique({ where: { org_id_feature_key: { org_id: orgId, feature_key: `role_${userOrgRole.role}` } } }),
-      ]);
+      const legacyRoleToggle = userOrgRole.organization.org_features.find((feature) => feature.feature_key === `role_${userOrgRole.role}`);
       if ((dashboard && dashboard.status !== "active") || (!dashboard && legacyRoleToggle?.is_enabled === false)) {
         return res.status(403).json({ error: `${userOrgRole.role} dashboard is inactive`, code: "ROLE_DASHBOARD_INACTIVE" });
       }
 
-      const featureKey = featureForRequest(req.originalUrl);
       if (featureKey) {
-        const [permission, override] = await Promise.all([
-          prisma.roleFeaturePermission.findUnique({ where: { org_id_role_feature_key: { org_id: orgId, role: userOrgRole.role, feature_key: featureKey } } }),
-          prisma.accessOverride.findFirst({ where: { org_id: orgId, user_id: userId, role: userOrgRole.role, feature_key: featureKey, OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }] }, orderBy: { updated_at: "desc" } }),
-        ]);
+        const permission = permissions.find((item) => item.feature_key === featureKey);
+        const override = overrides.find((item) => item.feature_key === featureKey);
         if (override?.decision === "block") return res.status(403).json({ error: `${featureKey} is blocked for this account`, code: "USER_FEATURE_BLOCKED" });
         if (permission?.is_allowed === false && override?.decision !== "allow") return res.status(403).json({ error: `${featureKey} is not allowed for the ${userOrgRole.role} role`, code: "ROLE_FEATURE_DISABLED" });
       }

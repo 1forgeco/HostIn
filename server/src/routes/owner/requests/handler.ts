@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { OrgRole, OwnerRequestType, Prisma } from "../../../../generated/prisma/client";
+import { invalidateRuntimeCache } from "../../../lib/runtimeCache";
 
 const requestSchema = z.object({
   type: z.nativeEnum(OwnerRequestType),
@@ -58,6 +59,7 @@ export const handleCreateOwnerRequest = async (req: AuthorizedRequest, res: Resp
         details: parsed.data.details ? (parsed.data.details as Prisma.InputJsonObject) : undefined,
       },
     });
+    invalidateRuntimeCache(orgId);
 
     await prisma.auditLog.create({
       data: {

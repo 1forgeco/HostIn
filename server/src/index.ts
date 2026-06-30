@@ -5,7 +5,6 @@ import { rateLimit } from "express-rate-limit";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
-import { checkFeatureAccess } from "./middleware/featureAccess";
 import { allowedOrigins, env } from "./config/env";
 import { prisma } from "./lib/prisma";
 
@@ -85,6 +84,7 @@ import accountOrgRoutes from "./routes/platform/organizations/accounts";
 import controlOrgRoutes from "./routes/platform/organizations/control";
 import platformOnboardingRoutes from "./routes/platform/onboarding";
 import platformNotificationRoutes from "./routes/platform/notifications";
+import wardenDashboardRoutes from "./routes/warden/dashboard";
 
 
 
@@ -100,7 +100,13 @@ const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders:
 app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
 app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("Origin is not allowed by CORS")); }, credentials: true }));
+app.use(cors({
+  origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("Origin is not allowed by CORS")); },
+  credentials: true,
+  maxAge: 86_400,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Authorization", "Content-Type", "x-org-id"],
+}));
 app.use(express.json({ limit: "8mb" }));
 app.use(cookieParser());
 app.use(pinoHttp({ logger }));
@@ -116,18 +122,6 @@ app.get("/ready", async (req, res) => {
   try { await prisma.$queryRaw`SELECT 1`; return res.status(200).json({ status: "ready", time: new Date() }); }
   catch { return res.status(503).json({ status: "not_ready" }); }
 });
-
-app.use("/api/rooms", checkFeatureAccess("rooms"));
-app.use("/api/dues", checkFeatureAccess("dues"));
-app.use("/api/payments", checkFeatureAccess("dues"));
-app.use("/api/gate-passes", checkFeatureAccess("gate_pass"));
-app.use("/api/visitors", checkFeatureAccess("visitor_log"));
-app.use("/api/announcements", checkFeatureAccess("community"));
-app.use("/api/complaints", checkFeatureAccess("community"));
-app.use("/api/community", checkFeatureAccess("community"));
-app.use("/api/mess-menus", checkFeatureAccess("mess_menu"));
-app.use("/api/mess-feedback", checkFeatureAccess("mess_menu"));
-app.use("/api/documents", checkFeatureAccess("documents"));
 
 // Register API Routes
 app.use("/api/auth/login", loginRoutes);
@@ -194,6 +188,7 @@ app.use("/api/audit-logs", listAuditLogsRoutes);
 app.use("/api/rooms", roomHistoryRoutes);
 app.use("/api/metrics", getMetricsRoutes);
 app.use("/api/owner/dashboard", ownerDashboardRoutes);
+app.use("/api/warden/dashboard", wardenDashboardRoutes);
 app.use("/api/owner/requests", ownerRequestRoutes);
 app.use("/api/platform/auth", platformAuthRoutes);
 app.use("/api/platform/plans", createPlanRoutes);
