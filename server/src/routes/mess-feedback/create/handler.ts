@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { FeedbackRating } from "../../../../generated/prisma/client";
+import { notifyRoles } from "../../../lib/notifications";
 
 export const handleCreateMessFeedback = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -58,6 +59,8 @@ export const handleCreateMessFeedback = async (req: AuthorizedRequest, res: Resp
         note: note || null,
       },
     });
+
+    await notifyRoles(prisma, ["staff", "owner", "warden"], { orgId, title: "New mess feedback", body: `A tenant rated the ${menuItem.meal_type} menu as ${rating}.`, type: "other", referenceId: feedback.id, referenceType: "mess_feedback" }, tenantId);
 
     return res.status(200).json({
       message: "Feedback submitted successfully",

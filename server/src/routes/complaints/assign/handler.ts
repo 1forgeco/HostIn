@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyUsers } from "../../../lib/notifications";
 
 export const handleAssignComplaint = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -48,6 +49,7 @@ export const handleAssignComplaint = async (req: AuthorizedRequest, res: Respons
         assigned_to: assignedToUserId,
       },
     });
+    await notifyUsers(prisma, [assignedToUserId], { orgId, title: "Complaint assigned to you", body: "Open the complaint queue to review and update it.", type: "complaint", referenceId: id, referenceType: "complaint" }, req.user?.userId);
 
     return res.status(200).json({
       message: "Complaint successfully assigned",

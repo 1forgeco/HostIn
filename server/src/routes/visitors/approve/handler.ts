@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { VisitStatus } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleApproveVisitor = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -50,6 +51,7 @@ export const handleApproveVisitor = async (req: AuthorizedRequest, res: Response
         approved_by: userId,
       },
     });
+    await notifyTenantCircle(prisma, visitor.tenant_id, { orgId, title: `Visitor ${status}`, body: `${visitor.visitor_name} · ${visitor.purpose}`, type: "visitor", referenceId: id, referenceType: "visitor" }, userId);
 
     return res.status(200).json({
       message: `Visitor successfully ${status}`,

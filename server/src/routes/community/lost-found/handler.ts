@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyAllMembers } from "../../../lib/notifications";
 
 export const handleListLostFound = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -16,5 +17,6 @@ export const handleCreateLostFound = async (req: AuthorizedRequest, res: Respons
   if (!Array.isArray(imageUrls) || imageUrls.length > 4) return res.status(400).json({ error: "Up to four images are allowed" });
   if (imageUrls.some((image) => typeof image !== "string" || image.length > 2_500_000 || !image.startsWith("data:image/"))) return res.status(400).json({ error: "Images must be valid and under 2 MB each" });
   const post = await prisma.lostFoundPost.create({ data: { org_id: orgId, author_id: req.user?.userId as string, caption: String(caption).trim(), image_urls: imageUrls } });
+  await notifyAllMembers(prisma, { orgId, title: "New lost & found post", body: String(caption).trim(), type: "other", referenceId: post.id, referenceType: "lost" }, req.user?.userId);
   return res.status(201).json({ post });
 };

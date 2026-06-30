@@ -2,6 +2,7 @@ import { Response } from "express";
 import { PlatformAuthenticatedRequest } from "../../../../middleware/platformAuth";
 import { prisma } from "../../../../lib/prisma";
 import { OrgRole } from "../../../../../generated/prisma/client";
+import { notifyRoles } from "../../../../lib/notifications";
 
 export const handleToggleOrgFeatures = async (req: PlatformAuthenticatedRequest, res: Response) => {
   const orgId = req.params.id as string;
@@ -68,6 +69,7 @@ export const handleToggleOrgFeatures = async (req: PlatformAuthenticatedRequest,
     }
 
     await prisma.platformAuditLog.create({ data: { platform_user_id: req.platformUser?.id as string, action: "toggle_feature", entity_type: "organization", entity_id: orgId, details: { featureKey, isEnabled: !!isEnabled } } });
+    await notifyRoles(prisma, ["owner"], { orgId, title: "Workspace feature changed", body: `${featureKey} was ${isEnabled ? "enabled" : "disabled"} by 1Forge.`, type: "other", referenceId: orgFeature.id, referenceType: "org_feature" });
 
     return res.status(200).json({
       message: "Organization feature toggled successfully",

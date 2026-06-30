@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { applyCustomColor, applyDefaultTheme } from "./theme-system";
@@ -2901,22 +2901,91 @@ function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessTo
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const hasLoaded = useRef(false);
   const unread = notifications.filter((item) => item.status !== "read").length;
 
-  async function loadNotifications() {
-    setIsLoading(true);
+  const loadNotifications = useCallback(async () => {
+    if (!hasLoaded.current) setIsLoading(true);
     try {
       const response = await fetch(`${apiBase}${isPlatform ? "/platform/notifications" : "/notifications"}`, {
         headers: { Authorization: `Bearer ${accessToken}`, ...(isPlatform ? {} : { "x-org-id": orgId }) },
       });
+      if (!response.ok) return;
       const data = await response.json().catch(() => ({}));
       setNotifications(data.notifications ?? []);
+    } catch {
+      // The live stream reconnects automatically; polling remains a quiet fallback.
     } finally {
+      hasLoaded.current = true;
       setIsLoading(false);
     }
-  }
+  }, [accessToken, isPlatform, orgId]);
+
   useEffect(() => {
-    loadNotifications(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    hasLoaded.current = false;
+    void loadNotifications();
+    const poll = window.setInterval(() => void loadNotifications(), 15_000);
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadNotifications();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    let disposed = false;
+    let controller: AbortController | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = async () => {
+      controller = new AbortController();
+      try {
+        const response = await fetch(`${apiBase}${isPlatform ? "/platform/notifications/stream" : "/notifications/stream"}`, {
+          headers: { Authorization: `Bearer ${accessToken}`, ...(isPlatform ? {} : { "x-org-id": orgId }) },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) throw new Error("Notification stream unavailable");
+        setIsLive(true);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (!disposed) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+          for (const event of events) {
+            if (!event.includes("event: notifications")) continue;
+            const data = event.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+            if (!data) continue;
+            const payload = JSON.parse(data) as { notifications?: NotificationRecord[] };
+            setNotifications(payload.notifications ?? []);
+            hasLoaded.current = true;
+            setIsLoading(false);
+          }
+        }
+      } catch (error) {
+        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) setIsLive(false);
+      } finally {
+        if (!disposed) {
+          setIsLive(false);
+          reconnectTimer = setTimeout(() => void connect(), 3000);
+        }
+      }
+    };
+    void connect();
+    return () => {
+      disposed = true;
+      controller?.abort();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    };
   }, [accessToken, isPlatform, orgId]);
   useEffect(() => {
     if (!open) return;
@@ -2946,7 +3015,7 @@ function NotificationMenu({ accessToken, orgId, isPlatform = false }: { accessTo
         <div className="notificationPopover">
           <div className="notificationPopoverHeader">
             <strong>Notifications</strong>
-            <small>{unread} unread</small>
+            <small className={isLive ? "notificationLiveStatus isLive" : "notificationLiveStatus"}>{isLive ? "Live" : `${unread} unread`}</small>
           </div>
           {isLoading ? (
             <DirectorySkeleton />

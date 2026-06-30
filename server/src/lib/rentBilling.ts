@@ -1,3 +1,5 @@
+import { notifyTenantCircle } from "./notifications";
+
 type TransactionClient = any;
 
 export async function syncCurrentRentDue(tx: TransactionClient, { orgId, tenantId, room, actorUserId }: { orgId: string; tenantId: string; room: { id: string; room_number: string; monthly_rent: unknown }; actorUserId: string }) {
@@ -14,6 +16,6 @@ export async function syncCurrentRentDue(tx: TransactionClient, { orgId, tenantI
     ? await tx.due.update({ where: { id: existing.id }, data: { amount, description, status } })
     : await tx.due.create({ data: { org_id: orgId, tenant_id: tenantId, due_type: "rent", amount, amount_paid: 0, description, due_date: dueDate, billing_month: monthStart, status: "unpaid", created_by: actorUserId } });
 
-  await tx.notification.create({ data: { org_id: orgId, user_id: tenantId, title: "Room rent updated", body: `Your current monthly rent is ₹${amount.toLocaleString("en-IN")} for Room ${room.room_number}.`, type: "due_reminder", reference_id: due.id, reference_type: "due" } });
+  await notifyTenantCircle(tx, tenantId, { orgId, title: "Room rent updated", body: `Current monthly rent is ₹${amount.toLocaleString("en-IN")} for Room ${room.room_number}.`, type: "due_reminder", referenceId: due.id, referenceType: "due" }, actorUserId);
   return due;
 }

@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { ComplaintCategory, ComplaintPriority } from "../../../../generated/prisma/client";
+import { notifyRoles } from "../../../lib/notifications";
 
 export const handleCreateComplaint = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -58,9 +59,7 @@ export const handleCreateComplaint = async (req: AuthorizedRequest, res: Respons
         photo_urls: photoUrls || [],
         status: "open",
       } });
-      const responders = await tx.userOrgRole.findMany({ where: { org_id: orgId, role: { in: ["owner", "warden"] }, is_active: true }, select: { user_id: true } });
-      const userIds = [...new Set(responders.map((item) => item.user_id))];
-      if (userIds.length) await tx.notification.createMany({ data: userIds.map((responderId) => ({ org_id: orgId, user_id: responderId, title: `New ${category} complaint`, body: title, type: "complaint" as const, reference_id: created.id, reference_type: "complaint" })) });
+      await notifyRoles(tx, ["owner", "warden"], { orgId, title: `New ${category} complaint`, body: title, type: "complaint", referenceId: created.id, referenceType: "complaint" }, userId);
       return created;
     });
 

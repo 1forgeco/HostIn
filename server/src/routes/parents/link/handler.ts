@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
+import { notifyTenantCircle, notifyUsers } from "../../../lib/notifications";
 
 export const handleLinkParent = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -104,6 +105,10 @@ export const handleLinkParent = async (req: AuthorizedRequest, res: Response) =>
           relation, // Update relation if profile already exists
         },
       });
+
+      const notice = { orgId, title: "Parent access linked", body: `${parentName} is now linked to this tenant account.`, type: "other" as const, referenceId: profile.id, referenceType: "parent_profile" };
+      await notifyTenantCircle(tx, tenantId, notice, req.user?.userId);
+      await notifyUsers(tx, [parentUser.id], { ...notice, title: "Your parent account is ready", body: "You can now view your ward's permitted workspace updates." });
 
       return {
         parent: parentUser,

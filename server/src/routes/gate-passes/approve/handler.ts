@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { PassStatus } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleApprovePass = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -38,7 +39,7 @@ export const handleApprovePass = async (req: AuthorizedRequest, res: Response) =
         status: status as PassStatus,
         approved_by: userId,
       } });
-      await tx.notification.create({ data: { org_id: orgId, user_id: gatePass.tenant_id, title: `Gate pass ${status}`, body: `${gatePass.purpose} · ${gatePass.destination}`, type: "gate_pass", reference_id: id, reference_type: "gate_pass" } });
+      await notifyTenantCircle(tx, gatePass.tenant_id, { orgId, title: `Gate pass ${status}`, body: `${gatePass.purpose} · ${gatePass.destination}`, type: "gate_pass", referenceId: id, referenceType: "gate_pass" }, userId);
       return updated;
     });
 

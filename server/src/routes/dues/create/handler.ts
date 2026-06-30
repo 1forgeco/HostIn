@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { DueType } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleCreateDue = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -63,6 +64,7 @@ export const handleCreateDue = async (req: AuthorizedRequest, res: Response) => 
         created_by: createdBy as string,
       },
     });
+    await notifyTenantCircle(prisma, tenantId, { orgId, title: `New ${String(dueType).replaceAll("_", " ")} due`, body: `₹${parsedAmount.toLocaleString("en-IN")} due by ${parsedDueDate.toLocaleDateString("en-IN")}.`, type: "due_reminder", referenceId: due.id, referenceType: "due" }, createdBy);
 
     return res.status(201).json({
       message: "Due generated successfully",

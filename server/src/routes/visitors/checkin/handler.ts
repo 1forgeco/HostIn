@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleVisitorCheckIn = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -38,6 +39,7 @@ export const handleVisitorCheckIn = async (req: AuthorizedRequest, res: Response
         actual_in_time: new Date(),
       },
     });
+    await notifyTenantCircle(prisma, visitor.tenant_id, { orgId, title: "Visitor checked in", body: `${visitor.visitor_name} is now inside the property.`, type: "visitor", referenceId: id, referenceType: "visitor" }, req.user?.userId);
 
     return res.status(200).json({
       message: "Visitor check-in logged successfully",

@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { VisitStatus } from "../../../../generated/prisma/client";
+import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleCreateVisitor = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -42,9 +43,8 @@ export const handleCreateVisitor = async (req: AuthorizedRequest, res: Response)
 
     const initialStatus: VisitStatus = VisitStatus.approved;
 
-    // Create Visitor record
-    const visitor = await prisma.visitor.create({
-      data: {
+    const visitor = await prisma.$transaction(async (tx) => {
+      const created = await tx.visitor.create({ data: {
         org_id: orgId,
         tenant_id: tenantId,
         visitor_name: visitorName,
@@ -55,7 +55,11 @@ export const handleCreateVisitor = async (req: AuthorizedRequest, res: Response)
         expected_visit_time: visitTime,
         status: initialStatus,
         approved_by: initialStatus === VisitStatus.approved ? userId : null,
-      },
+      } });
+      const notice = { orgId, title: `Visitor registered: ${visitorName}`, body: `${purpose} · ${visitTime.toLocaleString("en-IN")}`, type: "visitor" as const, referenceId: created.id, referenceType: "visitor" };
+      await notifyTenantCircle(tx, tenantId, notice, userId);
+      await notifyRoles(tx, ["owner", "warden", "guard"], notice, userId);
+      return created;
     });
 
     return res.status(201).json({

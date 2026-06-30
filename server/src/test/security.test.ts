@@ -103,6 +103,14 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
       expect(concern.status).toBe(201);
       expect(concern.body.complaint.status).toBe("open");
       complaintId = concern.body.complaint.id;
+      const reviewerNotification = await prisma.notification.findFirst({
+        where: {
+          org_id: login.body.session.orgId,
+          reference_id: complaintId,
+          user: { user_org_roles: { some: { org_id: login.body.session.orgId, role: { in: ["owner", "warden"] }, is_active: true } } },
+        },
+      });
+      expect(reviewerNotification?.title).toMatch(/new security complaint/i);
     } finally {
       if (complaintId) {
         await prisma.notification.deleteMany({ where: { reference_id: complaintId } });
@@ -131,7 +139,7 @@ describe.runIf(Boolean(process.env.RUN_DATABASE_TESTS))("Database-backed authori
     } finally {
       if (moved) await request(app).post(`/api/rooms/${profile.room_id}/assign-tenant`).set(authorization).send({ tenantUserId: tenant.id });
       await prisma.roomAssignmentHistory.deleteMany({ where: { org_id: organization.id, tenant_id: tenant.id, assigned_at: { gte: startedAt } } });
-      await prisma.notification.deleteMany({ where: { org_id: organization.id, user_id: tenant.id, title: "Room rent updated", created_at: { gte: startedAt } } });
+      await prisma.notification.deleteMany({ where: { org_id: organization.id, title: "Room rent updated", created_at: { gte: startedAt } } });
     }
   });
 

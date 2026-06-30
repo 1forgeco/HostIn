@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { VisitStatus } from "../../../../generated/prisma/client";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleVisitorCheckOut = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -38,6 +39,7 @@ export const handleVisitorCheckOut = async (req: AuthorizedRequest, res: Respons
         status: VisitStatus.completed,
       },
     });
+    await notifyTenantCircle(prisma, visitor.tenant_id, { orgId, title: "Visitor checked out", body: `${visitor.visitor_name} has left the property.`, type: "visitor", referenceId: id, referenceType: "visitor" }, req.user?.userId);
 
     return res.status(200).json({
       message: "Visitor check-out logged successfully",

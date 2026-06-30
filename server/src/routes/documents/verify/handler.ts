@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleVerifyDocument = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -35,6 +36,7 @@ export const handleVerifyDocument = async (req: AuthorizedRequest, res: Response
         verified_at: targetVerificationStatus ? new Date() : null,
       },
     });
+    await notifyTenantCircle(prisma, document.tenant_id, { orgId, title: targetVerificationStatus ? "Document verified" : "Document needs review", body: document.file_name, type: "other", referenceId: document.id, referenceType: "document" }, verifiedByUserId);
 
     return res.status(200).json({
       message: targetVerificationStatus ? "Document verified successfully" : "Document verification removed",

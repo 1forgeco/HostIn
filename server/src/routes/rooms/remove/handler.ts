@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleRemoveTenantFromRoom = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -78,6 +79,10 @@ export const handleRemoveTenantFromRoom = async (req: AuthorizedRequest, res: Re
           status: newOccupancy === 0 ? "available" : newOccupancy < room.capacity ? "available" : "occupied",
         },
       });
+
+      const notice = { orgId, title: "Room assignment ended", body: `The tenant was removed from room ${room.room_number}.`, type: "other" as const, referenceId: tenantProfile.user_id, referenceType: "tenant" };
+      await notifyTenantCircle(tx, tenantProfile.user_id, notice, req.user?.userId);
+      await notifyRoles(tx, ["owner", "warden"], notice, req.user?.userId);
 
       return { room: updatedRoom };
     });

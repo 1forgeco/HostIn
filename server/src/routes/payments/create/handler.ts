@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { PaymentMethod, PaymentGateway, DueStatus } from "../../../../generated/prisma/client";
+import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
 
 export const handleRecordPayment = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -101,6 +102,10 @@ export const handleRecordPayment = async (req: AuthorizedRequest, res: Response)
           status: newStatus,
         },
       });
+
+      const notice = { orgId, title: "Payment received", body: `A payment of ₹${parsedAmount.toLocaleString("en-IN")} was recorded successfully.`, type: "payment" as const, referenceId: payRecord.id, referenceType: "payment" };
+      await notifyTenantCircle(tx, due.tenant_id, notice);
+      await notifyRoles(tx, ["owner", "warden"], { ...notice, title: "Tenant payment received" }, userId);
 
       return payRecord;
     });

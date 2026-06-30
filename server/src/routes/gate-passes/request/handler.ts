@@ -2,6 +2,7 @@ import { Response } from "express";
 import crypto from "crypto";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
+import { notifyRoles } from "../../../lib/notifications";
 
 export const handleRequestPass = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
@@ -54,9 +55,7 @@ export const handleRequestPass = async (req: AuthorizedRequest, res: Response) =
         status: "pending",
         qr_code: qrCode,
       } });
-      const reviewers = await tx.userOrgRole.findMany({ where: { org_id: orgId, role: { in: ["owner", "warden", "guard"] }, is_active: true }, select: { user_id: true } });
-      const userIds = [...new Set(reviewers.map((item) => item.user_id))];
-      if (userIds.length) await tx.notification.createMany({ data: userIds.map((reviewerId) => ({ org_id: orgId, user_id: reviewerId, title: "Gate pass awaiting review", body: `${purpose} · ${destination}`, type: "gate_pass" as const, reference_id: created.id, reference_type: "gate_pass" })) });
+      await notifyRoles(tx, ["owner", "warden", "guard"], { orgId, title: "Gate pass awaiting review", body: `${purpose} · ${destination}`, type: "gate_pass", referenceId: created.id, referenceType: "gate_pass" }, userId);
       return created;
     });
 
