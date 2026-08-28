@@ -9,16 +9,17 @@ test("landing, plans, and demo entry form one complete public journey", async ({
 
   await page.goto("/plans");
   await expect(page.getByRole("heading", { name: "Pricing that scales with your beds." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No surprises." })).toBeVisible();
   await expect(page.locator(".pricingCard")).toHaveCount(4);
-  await expect(page.getByRole("heading", { name: "Build a custom estimate, then compare it with the best package." })).toBeVisible();
+  await expect(page.getByText("Not included")).toHaveCount(3);
+  await expect(page.getByRole("heading", { name: "Estimate your plan in 60 seconds." })).toBeVisible();
   await expect(page.getByLabel("Number of beds")).toHaveValue("60");
   await expect(page.getByText("₹12,940")).toBeVisible();
   await expect(page.getByText("GST at 18%")).toBeVisible();
   await expect(page.getByText("₹15,269 / month")).toBeVisible();
   await expect(page.locator(".recommendationCard").getByRole("heading", { name: "Plus" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Compare without the clutter." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Pricing and core access" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Extensions and workflows" })).toBeVisible();
+  await page.getByRole("button", { name: "Yearly 20% off" }).click();
+  await expect(page.getByText("Yearly subtotal after 20% off")).toBeVisible();
   await expect(page.getByRole("link", { name: "Try every role" })).toHaveAttribute("href", "/login#demo-accounts");
 
   await page.goto("/login#demo-accounts");

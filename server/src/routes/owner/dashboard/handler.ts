@@ -49,7 +49,7 @@ export const handleGetOwnerDashboard = async (req: AuthorizedRequest, res: Respo
         }),
         prisma.ownerRequest.findMany({
           where: { org_id: { in: orgIds } },
-          include: { organization: { select: { id: true, name: true } }, requested_by_user: { select: { full_name: true } } },
+          include: { organization: { select: { id: true, name: true } }, requested_by_user: { select: { full_name: true } }, events: { orderBy: { created_at: "asc" } } },
           orderBy: { created_at: "desc" },
           take: 30,
         }),
@@ -171,6 +171,17 @@ export const handleGetOwnerDashboard = async (req: AuthorizedRequest, res: Respo
         updatedAt: request.updated_at,
         reason: request.reason,
         requiredAccess: request.required_access,
+        details: request.details,
+        events: request.events.map((event) => ({
+          id: event.id,
+          actorLabel: event.actor_label,
+          type: event.event_type,
+          fromStatus: event.from_status,
+          toStatus: event.to_status,
+          message: event.message,
+          metadata: event.metadata,
+          createdAt: event.created_at,
+        })),
       })),
       billing: organizations.map((organization) => ({
         orgId: organization.id,

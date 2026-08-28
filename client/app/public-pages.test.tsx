@@ -37,15 +37,16 @@ describe("public product journey", () => {
     render(<PlansPage />);
 
     expect(screen.getByRole("heading", { name: "Pricing that scales with your beds." })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "No surprises." })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Basic" })).toBeVisible();
     expect(screen.getByText("₹179 / bed / month")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Build a custom estimate, then compare it with the best package." })).toBeVisible();
+    expect(screen.getAllByText("Not included")).toHaveLength(3);
+    expect(screen.getByRole("heading", { name: "Estimate your plan in 60 seconds." })).toBeVisible();
     expect(screen.getByText("₹12,940")).toBeVisible();
     expect(screen.getByText("GST at 18%")).toBeVisible();
     expect(screen.getByText("₹15,269 / month")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Compare without the clutter." })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Pricing and core access" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Extensions and workflows" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Yearly 20% off" }));
+    expect(screen.getByText("Yearly subtotal after 20% off")).toBeVisible();
     expect(screen.getByRole("link", { name: "Try every role" })).toHaveAttribute("href", "/login#demo-accounts");
   });
 

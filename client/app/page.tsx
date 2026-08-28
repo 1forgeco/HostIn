@@ -57,10 +57,19 @@ const faqs = [
   ["Can it support multiple properties?", "Yes. Custom plans can be configured for owners running multiple PGs, hostels, or co-living properties."],
 ];
 
+const ownerStories = [
+  { label: "Calmer evenings", role: "Multi-property owner", place: "Bengaluru", quote: "Rent, rooms, and staff follow-ups finally live in one place.", metric: "12 hrs saved weekly" },
+  { label: "Clear collections", role: "PG operator", place: "Pune", quote: "The team knows exactly what is paid, pending, and overdue.", metric: "97% on-time collection" },
+  { label: "One connected view", role: "Hostel owner", place: "Bengaluru", quote: "I can see what needs attention before someone has to call me.", metric: "3 properties connected" },
+  { label: "A smoother gate", role: "Operations lead", place: "Hyderabad", quote: "Approved movement reaches the gate without calls or paper slips.", metric: "24×7 activity history" },
+  { label: "Residents feel heard", role: "Co-living manager", place: "Gurugram", quote: "Requests stay visible, assigned, and easy to follow through.", metric: "One shared request queue" },
+];
+
 export default function LandingPage() {
   const [activeRole, setActiveRole] = useState<keyof typeof roleData>("Owner");
   const [openFaq, setOpenFaq] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [activeStory, setActiveStory] = useState(2);
 
   useEffect(() => {
     const items = Array.from(document.querySelectorAll<HTMLElement>(
@@ -154,6 +163,26 @@ export default function LandingPage() {
       </section>
 
       <OwnerCommandCenter />
+
+      <section className="storyCarousel landingSection" aria-labelledby="story-carousel-title">
+        <div className="storyHeading"><p className="sectionEyebrow">Owner stories</p><h2 id="story-carousel-title">Every property has a story.</h2><p>See how calmer operations change the day for the people behind every property.</p><small>Illustrative stories—replace with verified customer testimonials before publishing.</small></div>
+        <div className="storyViewport">
+          <div className="storyTrack">
+            {[-2,-1,0,1,2].map((offset,position)=>{
+              const storyIndex=(activeStory+offset+ownerStories.length)%ownerStories.length;
+              const story=ownerStories[storyIndex];
+              return <button className={`storyCard storyPosition${position} ${offset===0?"isActive":""}`} type="button" onClick={()=>setActiveStory(storyIndex)} aria-label={`${story.role}: ${story.quote}`} aria-current={offset===0?"true":undefined} key={`${storyIndex}-${position}`}>
+                <Image src="/brand/hostin-owner-story-property.png" alt="" fill sizes="(max-width: 720px) 88vw, 28vw" />
+                <span className="storyShade" />
+                <span className="storyLabel">{story.label}</span>
+                <span className="storyPlay"><i className="ri-double-quotes-l" /></span>
+                <span className="storyContent"><small>{story.metric}</small><strong>{story.role}</strong><em>{story.place}</em><q>{story.quote}</q></span>
+              </button>;
+            })}
+          </div>
+        </div>
+        <div className="storyControls"><button type="button" onClick={()=>setActiveStory((activeStory-1+ownerStories.length)%ownerStories.length)} aria-label="Previous owner story"><i className="ri-arrow-left-line" /></button><div>{ownerStories.map((story,index)=><button type="button" aria-label={`Go to ${story.role} story`} aria-current={index===activeStory?"true":undefined} className={index===activeStory?"active":""} onClick={()=>setActiveStory(index)} key={story.role} />)}</div><button type="button" onClick={()=>setActiveStory((activeStory+1)%ownerStories.length)} aria-label="Next owner story"><i className="ri-arrow-right-line" /></button></div>
+      </section>
 
       <section className="roleSection landingSection" id="roles">
         <div className="landingSectionHeader"><p className="sectionEyebrow">Made for the whole team</p><h2>One platform. Different views for everyone.</h2><p>Everyone gets what they need—without the clutter they do not.</p></div>

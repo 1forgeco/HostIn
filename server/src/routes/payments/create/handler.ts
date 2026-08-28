@@ -1,15 +1,17 @@
 import { Response } from "express";
+import crypto from "node:crypto";
 import { AuthorizedRequest } from "../../../middleware/orgAccess";
 import { prisma } from "../../../lib/prisma";
 import { PaymentMethod, PaymentGateway, DueStatus } from "../../../../generated/prisma/client";
 import { notifyRoles, notifyTenantCircle } from "../../../lib/notifications";
+import { env } from "../../../config/env";
 
 export const handleRecordPayment = async (req: AuthorizedRequest, res: Response) => {
   const orgId = req.headers["x-org-id"] as string;
   const userId = req.user?.userId;
   const userRole = req.userOrgRole;
 
-  const { dueId, amount, paymentMethod, gateway, gatewayPaymentId, receiptUrl } = req.body;
+  const { dueId, amount, paymentMethod, gateway, gatewayOrderId, gatewayPaymentId, gatewaySignature, receiptUrl } = req.body;
 
   if (!dueId || amount === undefined || !paymentMethod) {
     return res.status(400).json({
@@ -58,6 +60,12 @@ export const handleRecordPayment = async (req: AuthorizedRequest, res: Response)
       return res.status(400).json({ error: "This due has already been fully paid" });
     }
 
+    if (gateway === "razorpay" && env.RAZORPAY_KEY_SECRET) {
+      if (!gatewayOrderId || !gatewayPaymentId || !gatewaySignature) return res.status(400).json({ error: "Razorpay order, payment, and signature are required" });
+      const expected = crypto.createHmac("sha256", env.RAZORPAY_KEY_SECRET).update(`${gatewayOrderId}|${gatewayPaymentId}`).digest("hex");
+      if (expected !== gatewaySignature) return res.status(400).json({ error: "Payment gateway signature verification failed" });
+    }
+
     // Convert decimal columns to float for calculation
     const dueAmount = Number(due.amount);
     const duePaid = Number(due.amount_paid);
@@ -80,6 +88,7 @@ export const handleRecordPayment = async (req: AuthorizedRequest, res: Response)
           amount: parsedAmount,
           payment_method: paymentMethod as PaymentMethod,
           gateway: (gateway as PaymentGateway) || "manual",
+          gateway_order_id: gatewayOrderId || null,
           gateway_payment_id: gatewayPaymentId || null,
           status: "successful",
           paid_by: userId as string,

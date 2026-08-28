@@ -286,6 +286,14 @@ enum OwnerRequestStatus {
   canceled
 }
 
+enum OwnerRequestEventType {
+  status_change
+  message
+  payment
+  fulfillment
+  internal_note
+}
+
 // ─────────────────────────────────────────────
 // PLATFORM (Super Admin — separate from org users)
 // ─────────────────────────────────────────────
@@ -302,6 +310,7 @@ model PlatformUser {
   updated_at    DateTime  @updatedAt @db.Timestamp(6)
 
   platform_audit_logs PlatformAuditLog[]
+  owner_request_events OwnerRequestEvent[] @relation("OwnerRequestEventPlatformUser")
 
   @@map("platform_users")
 }
@@ -422,6 +431,7 @@ model Organization {
   audit_logs               AuditLog[]
   platform_metrics         PlatformMetric[]
   due_reminder_config      DueReminderConfig?
+  billing_late_fee_config  BillingLateFeeConfig?
   room_assignment_history  RoomAssignmentHistory[]
   community_interactions   CommunityInteraction[]
   lost_found_posts         LostFoundPost[]
@@ -431,6 +441,7 @@ model Organization {
   role_feature_permissions RoleFeaturePermission[]
   access_overrides         AccessOverride[]
   owner_requests           OwnerRequest[]
+  owner_request_events     OwnerRequestEvent[]
 
   @@map("organizations")
 }
@@ -486,6 +497,7 @@ model User {
   mess_feedback             MessFeedback[]          @relation("MessFeedbackTenant")
   dues                      Due[]                   @relation("DueTenant")
   dues_created              Due[]                   @relation("DueCreatedBy")
+  billing_late_fee_updates  BillingLateFeeConfig[]  @relation("BillingLateFeeUpdatedBy")
   payments                  Payment[]               @relation("PaymentTenant")
   payments_paid             Payment[]               @relation("PaymentPaidBy")
   complaints                Complaint[]             @relation("ComplaintTenant")
@@ -507,6 +519,7 @@ model User {
   person                    Person?                 @relation(fields: [person_id], references: [id], onDelete: SetNull)
   access_overrides          AccessOverride[]
   owner_requests            OwnerRequest[]          @relation("OwnerRequestRequestedBy")
+  owner_request_events      OwnerRequestEvent[]     @relation("OwnerRequestEventUser")
 
   @@map("users")
 }
@@ -655,10 +668,35 @@ model OwnerRequest {
 
   organization      Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
   requested_by_user User         @relation("OwnerRequestRequestedBy", fields: [requested_by], references: [id])
+  events            OwnerRequestEvent[]
 
   @@index([org_id, type, status])
   @@index([requested_by, created_at])
   @@map("owner_requests")
+}
+
+model OwnerRequestEvent {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  request_id             String                 @db.Uuid
+  org_id                 String                 @db.Uuid
+  actor_user_id          String?                @db.Uuid
+  actor_platform_user_id String?                @db.Uuid
+  actor_label            String                 @db.VarChar(255)
+  event_type             OwnerRequestEventType
+  from_status            OwnerRequestStatus?
+  to_status              OwnerRequestStatus?
+  message                String?                @db.Text
+  metadata               Json?                  @db.JsonB
+  created_at             DateTime               @default(now()) @db.Timestamp(6)
+
+  request             OwnerRequest  @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  organization        Organization  @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  actor_user          User?         @relation("OwnerRequestEventUser", fields: [actor_user_id], references: [id])
+  actor_platform_user PlatformUser? @relation("OwnerRequestEventPlatformUser", fields: [actor_platform_user_id], references: [id])
+
+  @@index([request_id, created_at])
+  @@index([org_id, created_at])
+  @@map("owner_request_events")
 }
 
 /// Digital onboarding — warden sends invite link, tenant fills in own details.
@@ -981,6 +1019,23 @@ model DueReminderConfig {
   organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
 
   @@map("due_reminder_configs")
+}
+
+model BillingLateFeeConfig {
+  id              String    @id @default(uuid()) @db.Uuid
+  org_id          String    @unique @db.Uuid
+  is_active       Boolean   @default(false)
+  fine_day        Int?
+  fine_amount     Decimal   @default(0) @db.Decimal(10, 2)
+  description     String?   @db.Text
+  last_applied_at DateTime? @db.Timestamp(6)
+  updated_by      String?   @db.Uuid
+  updated_at       DateTime  @updatedAt @db.Timestamp(6)
+
+  organization    Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  updated_by_user User?        @relation("BillingLateFeeUpdatedBy", fields: [updated_by], references: [id])
+
+  @@map("billing_late_fee_configs")
 }
 
 // ─────────────────────────────────────────────

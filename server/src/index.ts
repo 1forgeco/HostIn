@@ -34,8 +34,11 @@ import listPassRoutes from "./routes/gate-passes/list";
 import cancelPassRoutes from "./routes/gate-passes/cancel";
 import createDueRoutes from "./routes/dues/create";
 import listDueRoutes from "./routes/dues/list";
+import billingSummaryRoutes from "./routes/dues/billing-summary";
+import lateFeeConfigRoutes from "./routes/dues/late-fee-config";
 import recordPaymentRoutes from "./routes/payments/create";
 import listPaymentRoutes from "./routes/payments/list";
+import checkoutPaymentRoutes from "./routes/payments/checkout";
 import createComplaintRoutes from "./routes/complaints/create";
 import assignComplaintRoutes from "./routes/complaints/assign";
 import statusComplaintRoutes from "./routes/complaints/status";
@@ -84,6 +87,7 @@ import accountOrgRoutes from "./routes/platform/organizations/accounts";
 import controlOrgRoutes from "./routes/platform/organizations/control";
 import platformOnboardingRoutes from "./routes/platform/onboarding";
 import platformNotificationRoutes from "./routes/platform/notifications";
+import platformRequestRoutes from "./routes/platform/requests";
 import wardenDashboardRoutes from "./routes/warden/dashboard";
 
 
@@ -149,8 +153,11 @@ app.use("/api/gate-passes", listPassRoutes);
 app.use("/api/gate-passes", cancelPassRoutes);
 app.use("/api/dues", createDueRoutes);
 app.use("/api/dues", listDueRoutes);
+app.use("/api/dues", billingSummaryRoutes);
+app.use("/api/dues", lateFeeConfigRoutes);
 app.use("/api/payments", recordPaymentRoutes);
 app.use("/api/payments", listPaymentRoutes);
+app.use("/api/payments", checkoutPaymentRoutes);
 app.use("/api/complaints", createComplaintRoutes);
 app.use("/api/complaints", assignComplaintRoutes);
 app.use("/api/complaints", statusComplaintRoutes);
@@ -200,6 +207,7 @@ app.use("/api/platform/organizations", accountOrgRoutes);
 app.use("/api/platform/organizations", controlOrgRoutes);
 app.use("/api/platform/onboarding", platformOnboardingRoutes);
 app.use("/api/platform/notifications", platformNotificationRoutes);
+app.use("/api/platform/requests", platformRequestRoutes);
 
 
 

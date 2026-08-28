@@ -130,8 +130,10 @@ type DueRecord = {
   amount_paid: string | number;
   due_date: string;
   due_type: string;
+  description?: string | null;
+  billing_month?: string;
   status: string;
-  tenant: { full_name: string };
+  tenant: { id?: string; full_name: string; email?: string; phone?: string };
 };
 
 type StaffContactRecord = { id: string; name: string; phone: string; role_type: string };
@@ -140,9 +142,40 @@ type PaymentRecord = {
   id: string;
   amount: string | number;
   payment_method: string;
+  gateway?: string;
   paid_at: string;
   status: string;
-  due: { due_type: string; amount: string | number; due_date: string };
+  receipt_url?: string | null;
+  tenant?: { id: string; full_name: string };
+  due: { due_type: string; amount: string | number; due_date: string; description?: string | null };
+};
+
+type BillingTenantRow = {
+  tenant: { id: string; fullName: string; email?: string | null; phone?: string | null; profilePhotoUrl?: string | null };
+  room: { number: string; type: string; monthlyRent: string | number } | null;
+  dueCount: number;
+  dueDate?: string | null;
+  status: string;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+};
+
+type BillingSummaryData = {
+  month: string;
+  lateFeeConfig?: { is_active: boolean; fine_day?: number | null; fine_amount: string | number; description?: string | null } | null;
+  summary: {
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    overdueAmount: number;
+    collectionRate: number;
+    tenantCount: number;
+    overdueCount: number;
+  };
+  tenants: BillingTenantRow[];
+  dues: DueRecord[];
+  payments: PaymentRecord[];
 };
 type NotificationRecord = { id: string; title: string; body: string; status: string; created_at: string };
 type PlatformOrganization = {
@@ -174,6 +207,50 @@ type PlatformOrganization = {
   onboarding?: { current_step: number; status: string } | null;
 };
 type PlatformPlan = { id: string; name: string; price_monthly: string | number; max_tenants: number };
+type RequestEvent = {
+  id: string;
+  actorLabel: string;
+  actor_label?: string;
+  event_type?: string;
+  type?: string;
+  fromStatus?: string | null;
+  from_status?: string | null;
+  toStatus?: string | null;
+  to_status?: string | null;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  created_at?: string;
+};
+type OwnerRequestRecord = {
+  id: string;
+  type: string;
+  status: string;
+  title: string;
+  personName?: string | null;
+  role?: string | null;
+  property: string;
+  requestedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  reason?: string | null;
+  requiredAccess?: string | null;
+  details?: Record<string, unknown> | null;
+  events?: RequestEvent[];
+};
+type PlatformOwnerRequest = Omit<OwnerRequestRecord, "property" | "requestedBy" | "createdAt" | "updatedAt"> & {
+  organization: { id: string; name: string; slug: string };
+  requested_by_user: { full_name: string; email: string };
+  property_name?: string | null;
+  required_access?: string | null;
+  created_at: string;
+  updated_at: string;
+  events: RequestEvent[];
+};
+type PurchaseOptions = {
+  organization: { id: string; planId: string; planName: string; totalCapacity: number; activeTenants: number; activeFeatures: string[] };
+  plans: PlatformPlan[];
+};
 type PlatformControlData = {
   onboarding?: { current_step: number; status: string } | null;
   people: {
@@ -280,20 +357,7 @@ type OwnerDashboardData = {
     status: string;
   }[];
   documents: { id: string; tenantName: string; type: string; fileName: string; status: string; createdAt: string }[];
-  requests: {
-    id: string;
-    type: string;
-    status: string;
-    title: string;
-    personName?: string | null;
-    role?: string | null;
-    property: string;
-    requestedBy: string;
-    createdAt: string;
-    updatedAt: string;
-    reason?: string | null;
-    requiredAccess?: string | null;
-  }[];
+  requests: OwnerRequestRecord[];
   billing: {
     orgId: string;
     property: string;
@@ -312,6 +376,16 @@ type OwnerDashboardData = {
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
 const ownerDashboardIds: SectionId[] = ["overview", "ownerProperties", "ownerPeople", "ownerCredentials", "ownerRequests", "documents", "ownerBilling", "ownerReports", "ownerSettings"];
+const gstRate = 0.18;
+const addonCatalog = [
+  { id: "guard", label: "Guard", price: 500, features: ["role_guard", "gate_pass", "visitor_log"], icon: "ri-shield-user-line", copy: "Security desk, visitor control, and gate pass workflows." },
+  { id: "mess_manager", label: "Mess Manager", price: 200, features: ["role_staff", "mess_menu"], icon: "ri-restaurant-2-line", copy: "Meal menus, feedback, and mess operating access." },
+  { id: "vault_management", label: "Vault Management", price: 300, features: ["documents"], icon: "ri-folder-shield-2-line", copy: "Tenant document storage and verification workspace." },
+] as const;
+const isAddonActive = (activeFeatures: string[], addon: (typeof addonCatalog)[number]) => addon.features.some((feature) => activeFeatures.includes(feature));
+const eventActor = (event: RequestEvent) => event.actorLabel ?? event.actor_label ?? "System";
+const eventKind = (event: RequestEvent) => event.type ?? event.event_type ?? "message";
+const eventDate = (event: RequestEvent) => event.createdAt ?? event.created_at ?? new Date().toISOString();
 
 const modules: Module[] = [
   {
@@ -1567,6 +1641,14 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [requestTitle, setRequestTitle] = useState("Submit request to 1Forge");
   const [documentQuery, setDocumentQuery] = useState("");
+  const [billingMode, setBillingMode] = useState<"overview" | "shop" | "checkout">("overview");
+  const [purchaseOptions, setPurchaseOptions] = useState<PurchaseOptions | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [targetCapacity, setTargetCapacity] = useState(0);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [ticketMessage, setTicketMessage] = useState("");
   const [draft, setDraft] = useState({
     type: view === "ownerBilling" ? "plan_upgrade" : view === "ownerProperties" ? "new_property" : "credential_creation",
     title: "",
@@ -1595,10 +1677,28 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
     }
   }
 
+  async function loadPurchaseOptions() {
+    try {
+      const response = await fetch(`${apiBase}/owner/requests/purchase-options`, { headers });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) setPurchaseOptions(data);
+    } catch {
+      setPurchaseOptions(null);
+    }
+  }
+
   useEffect(() => {
     loadOwnerDashboard();
+    loadPurchaseOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, orgId]);
+
+  useEffect(() => {
+    const currentBill = dashboard?.billing[0];
+    if (!purchaseOptions || !currentBill) return;
+    setSelectedPlanId((current) => current || purchaseOptions.organization.planId || purchaseOptions.plans[0]?.id || "");
+    setTargetCapacity((current) => current || currentBill.totalCapacity || purchaseOptions.organization.totalCapacity || 0);
+  }, [dashboard, purchaseOptions]);
 
   useEffect(() => {
     if (!isRequestOpen) return;
@@ -1644,6 +1744,59 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
       await loadOwnerDashboard();
     } else {
       setMessage(data.error ?? "Unable to submit request.");
+    }
+  }
+
+  async function completePurchase() {
+    if (!purchaseOptions || !dashboard?.billing[0]) return;
+    const currentBill = dashboard.billing[0];
+    const selectedPlan = purchaseOptions.plans.find((plan) => plan.id === selectedPlanId);
+    const addonFeatureKeys = addonCatalog.filter((addon) => selectedAddons.includes(addon.id)).flatMap((addon) => addon.features);
+    const extraBeds = Math.max(0, targetCapacity - currentBill.totalCapacity);
+    const planAmount = selectedPlan ? Number(selectedPlan.price_monthly) : currentBill.baseMonthly;
+    const addonAmount = addonCatalog.filter((addon) => selectedAddons.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0);
+    const subtotal = planAmount + addonAmount + extraBeds * 49;
+    const total = Math.round(subtotal * (1 + gstRate));
+    setIsPurchasing(true);
+    const response = await fetch(`${apiBase}/owner/requests/purchase`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        planId: selectedPlanId || undefined,
+        targetCapacity,
+        featureKeys: addonFeatureKeys,
+        amount: total,
+        billingCycle: "monthly",
+        paymentGateway: "HostIn Checkout",
+        gatewayOrderId: `HOSTIN-${Date.now()}`,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setIsPurchasing(false);
+    if (response.ok) {
+      setMessage("Payment successful. Subscription changes are active.");
+      setSelectedAddons([]);
+      setBillingMode("overview");
+      await Promise.all([loadOwnerDashboard(), loadPurchaseOptions()]);
+    } else {
+      setMessage(data.error ?? "Unable to complete checkout.");
+    }
+  }
+
+  async function sendOwnerTicketMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedRequestId || !ticketMessage.trim()) return;
+    const response = await fetch(`${apiBase}/owner/requests/${selectedRequestId}/messages`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: ticketMessage }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setTicketMessage("");
+      await loadOwnerDashboard();
+    } else {
+      setMessage(data.error ?? "Unable to send message.");
     }
   }
 
@@ -1917,34 +2070,93 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   }
 
   if (view === "ownerRequests") {
+    const selectedRequest = dashboard.requests.find((request) => request.id === selectedRequestId) ?? dashboard.requests[0];
+    const requestStats = [
+      { label: "Open", value: dashboard.requests.filter((request) => ["submitted", "need_more_info"].includes(request.status)).length, icon: "ri-chat-1-line" },
+      { label: "In Progress", value: dashboard.requests.filter((request) => ["under_review", "approved"].includes(request.status)).length, icon: "ri-hourglass-2-line" },
+      { label: "Resolved", value: dashboard.requests.filter((request) => ["fulfilled", "activated"].includes(request.status)).length, icon: "ri-checkbox-circle-line" },
+      { label: "Closed / Refused", value: dashboard.requests.filter((request) => ["rejected", "canceled"].includes(request.status)).length, icon: "ri-close-circle-line" },
+    ];
     return withRequestModal(
       <div className="ownerPageGrid">
         <section className="ownerSectionHeader panel">
           <div>
-            <h3>Requests</h3>
-            <p>Track every credential, staffing, plan, property, feature, and support request submitted to 1Forge.</p>
+            <h3>Support & Tickets</h3>
+            <p>Chat with 1Forge, track purchases, and follow every workspace request from one clean desk.</p>
           </div>
-          <button className="gradientButton" onClick={() => openRequest("New Request", { type: "credential_creation", title: "" })} type="button">
-            New Request
-          </button>
+          <div className="billingHeaderActions">
+            <button className="outlineButton" onClick={() => openRequest("Open Support Chat", { type: "support", title: "Support request" })} type="button">
+              <i className="ri-chat-smile-2-line" aria-hidden="true" /> Open Chat
+            </button>
+            <button className="gradientButton" onClick={() => openRequest("New Ticket", { type: "support", title: "" })} type="button">
+              <i className="ri-add-circle-line" aria-hidden="true" /> New Ticket
+            </button>
+          </div>
         </section>
-        <section className="panel">
-          <PanelTitle title="Request history" meta={`${dashboard.requests.length} requests`} />
-          <div className="ownerRequestList">
-            {dashboard.requests.map((request) => (
-              <article key={request.id}>
-                <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
-                <div>
-                  <b>{request.title}</b>
-                  <small>
-                    {labelFromKey(request.type)} · {request.property}
-                  </small>
-                  <p>{request.reason || request.requiredAccess || "Awaiting 1Forge review."}</p>
-                </div>
-                <time>{new Date(request.createdAt).toLocaleDateString("en-IN")}</time>
-              </article>
-            ))}
+        <section className="billingKpiGrid">
+          {requestStats.map((stat) => (
+            <article className="panel billingKpi" key={stat.label}>
+              <span>
+                <i className={stat.icon} aria-hidden="true" />
+              </span>
+              <div>
+                <small>{stat.label}</small>
+                <strong>{stat.value}</strong>
+              </div>
+            </article>
+          ))}
+        </section>
+        <section className="ticketCenterGrid">
+          <div className="panel">
+            <PanelTitle title="All tickets" meta={`${dashboard.requests.length} total`} />
+            <div className="ownerRequestList ticketList">
+              {dashboard.requests.map((request) => (
+                <button className={selectedRequest?.id === request.id ? "active" : ""} key={request.id} onClick={() => setSelectedRequestId(request.id)} type="button">
+                  <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
+                  <div>
+                    <b>{request.title}</b>
+                    <small>
+                      {labelFromKey(request.type)} · {request.property}
+                    </small>
+                    <p>{request.reason || request.requiredAccess || "Awaiting 1Forge review."}</p>
+                  </div>
+                  <time>{new Date(request.updatedAt || request.createdAt).toLocaleDateString("en-IN")}</time>
+                </button>
+              ))}
+              {!dashboard.requests.length ? <EmptyPanel title="No tickets yet" copy="Open a support request when you need 1Forge help." /> : null}
+            </div>
           </div>
+          <aside className="panel ticketChatPanel">
+            <PanelTitle title={selectedRequest ? selectedRequest.title : "Chat with HostIn Support"} meta={selectedRequest ? labelFromKey(selectedRequest.status) : "Online"} />
+            {selectedRequest ? (
+              <>
+                <div className="ticketMetaGrid">
+                  <span>{labelFromKey(selectedRequest.type)}</span>
+                  <span>{selectedRequest.property}</span>
+                  <span>{new Date(selectedRequest.createdAt).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="ticketTimeline">
+                  {(selectedRequest.events ?? []).map((event) => (
+                    <article className={eventActor(event).toLowerCase().includes("owner") ? "owner" : ""} key={event.id}>
+                      <small>
+                        {eventActor(event)} · {labelFromKey(eventKind(event))} · {new Date(eventDate(event)).toLocaleString("en-IN")}
+                      </small>
+                      <p>{event.message || "Status updated."}</p>
+                    </article>
+                  ))}
+                  {!selectedRequest.events?.length ? <EmptyPanel title="No messages yet" copy="Send a note to start the conversation." /> : null}
+                </div>
+                <form className="ticketMessageForm" onSubmit={sendOwnerTicketMessage}>
+                  <input aria-label="Message 1Forge support" onChange={(event) => setTicketMessage(event.target.value)} placeholder="Type your message..." value={ticketMessage} />
+                  <button className="gradientButton" type="submit">
+                    <i className="ri-send-plane-2-line" aria-hidden="true" /> Send
+                  </button>
+                </form>
+              </>
+            ) : (
+              <EmptyPanel title="Select a ticket" copy="Conversation and status logs will appear here." />
+            )}
+          </aside>
         </section>
       </div>
     );
@@ -1988,55 +2200,173 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   }
 
   if (view === "ownerBilling") {
+    const bill = dashboard.billing[0];
+    const activeFeatures = purchaseOptions?.organization.activeFeatures ?? bill?.activeFeatures ?? [];
+    const sortedPlans = [...(purchaseOptions?.plans ?? [])].sort((a, b) => Number(b.price_monthly) - Number(a.price_monthly));
+    const selectedPlan = sortedPlans.find((plan) => plan.id === selectedPlanId) ?? sortedPlans.find((plan) => plan.name === bill?.planName) ?? sortedPlans[0];
+    const selectedAddonItems = addonCatalog.filter((addon) => selectedAddons.includes(addon.id));
+    const extraBeds = Math.max(0, targetCapacity - (bill?.totalCapacity ?? 0));
+    const planAmount = selectedPlan ? Number(selectedPlan.price_monthly) : bill?.baseMonthly ?? 0;
+    const addonAmount = selectedAddonItems.reduce((sum, addon) => sum + addon.price, 0);
+    const bedAmount = extraBeds * 49;
+    const subtotal = planAmount + addonAmount + bedAmount;
+    const gst = Math.round(subtotal * gstRate);
+    const total = subtotal + gst;
     return withRequestModal(
       <div className="ownerPageGrid">
         <section className="ownerSectionHeader panel">
           <div>
             <h3>Billing & Plans</h3>
-            <p>Plan limits and enabled features are controlled centrally by 1Forge.</p>
+            <p>Manage your subscription, extensions, bed capacity, and billing support from one guided workspace.</p>
           </div>
-          <button className="gradientButton" onClick={() => openRequest("Request Plan Change", { type: "plan_upgrade", title: "Upgrade or change plan" })} type="button">
-            Request Plan Change
-          </button>
+          <div className="billingHeaderActions">
+            <button className="outlineButton" onClick={() => setBillingMode("shop")} type="button">
+              <i className="ri-shopping-bag-3-line" aria-hidden="true" /> Manage Plan
+            </button>
+            <button className="gradientButton" onClick={() => openRequest("Open Billing Support", { type: "support", title: "Billing support" })} type="button">
+              <i className="ri-customer-service-2-line" aria-hidden="true" /> Support
+            </button>
+          </div>
         </section>
-        <section className="ownerBillingGrid">
-          {dashboard.billing.map((bill) => (
-            <article className="panel" key={bill.orgId}>
-              <PanelTitle title={bill.property} meta={titleFromSlug(bill.planStatus)} />
-              <dl className="clientDetails">
-                <div>
-                  <dt>Current plan</dt>
-                  <dd>{bill.planName}</dd>
-                </div>
-                <div>
-                  <dt>Base monthly</dt>
-                  <dd>{money(bill.baseMonthly)}</dd>
-                </div>
-                <div>
-                  <dt>Included users</dt>
-                  <dd>{bill.maxTenants}</dd>
-                </div>
-                <div>
-                  <dt>Active users</dt>
-                  <dd>{bill.activeUsers}</dd>
-                </div>
-                <div>
-                  <dt>Capacity</dt>
-                  <dd>{bill.totalCapacity} beds</dd>
-                </div>
-                <div>
-                  <dt>Renewal</dt>
-                  <dd>{bill.nextRenewal ? new Date(bill.nextRenewal).toLocaleDateString("en-IN") : "Not set"}</dd>
-                </div>
+        <nav className="billingModeTabs" aria-label="Billing mode">
+          {(["overview", "shop", "checkout"] as const).map((mode) => (
+            <button className={billingMode === mode ? "active" : ""} key={mode} onClick={() => setBillingMode(mode)} type="button">
+              {titleFromSlug(mode)}
+            </button>
+          ))}
+        </nav>
+        {billingMode === "overview" && bill ? (
+          <section className="billingOverviewGrid">
+            <article className="panel subscriptionHero">
+              <span className="subscriptionIcon"><i className="ri-vip-crown-2-line" aria-hidden="true" /></span>
+              <div>
+                <small>Current Subscription</small>
+                <h3>{bill.planName}</h3>
+                <p>{bill.property} · {titleFromSlug(bill.planStatus)}</p>
+              </div>
+              <dl>
+                <div><dt>Monthly price</dt><dd>{money(bill.baseMonthly)}</dd></div>
+                <div><dt>Next renewal</dt><dd>{bill.nextRenewal ? new Date(bill.nextRenewal).toLocaleDateString("en-IN") : "Not set"}</dd></div>
+                <div><dt>Beds</dt><dd>{bill.activeUsers}/{bill.totalCapacity}</dd></div>
               </dl>
-              <div className="applyRoleList">
-                {bill.activeFeatures.map((feature) => (
-                  <span key={feature}>{labelFromKey(feature)}</span>
+              <button className="outlineButton" onClick={() => setBillingMode("shop")} type="button">Manage Plan</button>
+            </article>
+            <section className="billingKpiGrid">
+              <article className="panel billingKpi"><span><i className="ri-hotel-bed-line" aria-hidden="true" /></span><div><small>Beds Used</small><strong>{bill.activeUsers} / {bill.totalCapacity}</strong><em>{Math.max(0, bill.totalCapacity - bill.activeUsers)} available</em></div></article>
+              <article className="panel billingKpi"><span><i className="ri-puzzle-2-line" aria-hidden="true" /></span><div><small>Active Extensions</small><strong>{addonCatalog.filter((addon) => isAddonActive(activeFeatures, addon)).length}</strong><em>{addonCatalog.filter((addon) => !isAddonActive(activeFeatures, addon)).length} available</em></div></article>
+              <article className="panel billingKpi"><span><i className="ri-bill-line" aria-hidden="true" /></span><div><small>Upcoming Invoice</small><strong>{money(Math.round(bill.baseMonthly * (1 + gstRate)))}</strong><em>Includes 18% GST</em></div></article>
+            </section>
+            <section className="panel extensionListPanel">
+              <PanelTitle title="Extensions" meta="2 accounts included per extension" />
+              {addonCatalog.map((addon) => {
+                const active = isAddonActive(activeFeatures, addon);
+                return (
+                  <div className="extensionRow" key={addon.id}>
+                    <i className={addon.icon} aria-hidden="true" />
+                    <span><b>{addon.label}</b><small>{addon.copy}</small></span>
+                    <em className={`statusPill ${active ? "active" : "paused"}`}>{active ? "Active" : "Available"}</em>
+                  </div>
+                );
+              })}
+            </section>
+            <section className="panel invoiceSummary">
+              <PanelTitle title="Invoice Summary" meta="This month" />
+              <div><span>Plan ({bill.planName})</span><b>{money(bill.baseMonthly)}</b></div>
+              <div><span>GST (18%)</span><b>{money(Math.round(bill.baseMonthly * gstRate))}</b></div>
+              <footer><span>Total</span><strong>{money(Math.round(bill.baseMonthly * (1 + gstRate)))}</strong></footer>
+            </section>
+          </section>
+        ) : null}
+        {billingMode === "shop" ? (
+          <section className="billingShopGrid">
+            <div className="panel">
+              <PanelTitle title="Choose your plan" meta="Upgrade anytime" />
+              <div className="upgradePlanGrid">
+                {sortedPlans.map((plan) => (
+                  <button className={selectedPlanId === plan.id ? "active" : ""} key={plan.id} onClick={() => setSelectedPlanId(plan.id)} type="button">
+                    <small>{plan.max_tenants}+ beds</small>
+                    <b>{plan.name}</b>
+                    <strong>{money(plan.price_monthly)}<em>/month</em></strong>
+                    <span>{selectedPlanId === plan.id ? "Selected" : "Select plan"}</span>
+                  </button>
                 ))}
               </div>
-            </article>
-          ))}
-        </section>
+            </div>
+            <div className="panel">
+              <PanelTitle title="Capacity" meta="Register more students" />
+              <label className="capacityControl">
+                <span>Licensed beds</span>
+                <input min={bill?.totalCapacity ?? 0} onChange={(event) => setTargetCapacity(Number(event.target.value))} type="number" value={targetCapacity} />
+                <small>{extraBeds} extra beds · {money(bedAmount)}/month</small>
+              </label>
+            </div>
+            <div className="panel">
+              <PanelTitle title="Buy extensions" meta="Activate instantly after payment" />
+              <div className="addonToggleList">
+                {addonCatalog.map((addon) => {
+                  const active = isAddonActive(activeFeatures, addon);
+                  const checked = active || selectedAddons.includes(addon.id);
+                  return (
+                    <label className={checked ? "active" : ""} key={addon.id}>
+                      <i className={addon.icon} aria-hidden="true" />
+                      <span><b>{addon.label}</b><small>{active ? "Already active" : `${money(addon.price)}/month · 2 accounts included`}</small></span>
+                      <span className="switch">
+                        <input checked={checked} disabled={active} onChange={(event) => setSelectedAddons((current) => event.target.checked ? [...current, addon.id] : current.filter((id) => id !== addon.id))} type="checkbox" />
+                        <i />
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <aside className="panel checkoutSummaryPanel">
+              <PanelTitle title="Live quote" meta="Monthly" />
+              <div><span>Plan</span><b>{money(planAmount)}</b></div>
+              <div><span>Extensions</span><b>{money(addonAmount)}</b></div>
+              <div><span>Extra beds</span><b>{money(bedAmount)}</b></div>
+              <div><span>GST (18%)</span><b>{money(gst)}</b></div>
+              <footer><span>Total</span><strong>{money(total)}</strong></footer>
+              <button className="gradientButton fullButton" onClick={() => setBillingMode("checkout")} type="button">Review checkout</button>
+            </aside>
+          </section>
+        ) : null}
+        {billingMode === "checkout" ? (
+          <section className="checkoutGrid">
+            <div className="panel checkoutSteps">
+              <PanelTitle title="Checkout" meta="Secure activation" />
+              <div className="checkoutStepLine">
+                <span className="done"><i className="ri-check-line" aria-hidden="true" /> Select Plan</span>
+                <span className="done"><i className="ri-check-line" aria-hidden="true" /> Customize</span>
+                <span className="active">3 Payment</span>
+              </div>
+              <div className="paymentMethodGrid">
+                {["UPI", "Card", "Net Banking", "Wallet"].map((method) => (
+                  <button className={method === "UPI" ? "active" : ""} key={method} type="button">
+                    <i className={method === "UPI" ? "ri-flashlight-line" : method === "Card" ? "ri-bank-card-line" : method === "Net Banking" ? "ri-bank-line" : "ri-wallet-3-line"} aria-hidden="true" />
+                    {method}
+                  </button>
+                ))}
+              </div>
+              <div className="secureCheckoutNote">
+                <i className="ri-shield-check-line" aria-hidden="true" />
+                <span>Payment confirmation activates plan, extensions, and bed capacity automatically.</span>
+              </div>
+            </div>
+            <aside className="panel checkoutSummaryPanel">
+              <PanelTitle title="Order Summary" meta={selectedPlan?.name ?? bill?.planName ?? "Plan"} />
+              <div><span>Monthly subscription</span><b>{money(planAmount)}</b></div>
+              {selectedAddonItems.map((addon) => <div key={addon.id}><span>{addon.label}</span><b>{money(addon.price)}</b></div>)}
+              <div><span>{extraBeds} extra beds</span><b>{money(bedAmount)}</b></div>
+              <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
+              <div><span>GST (18%)</span><b>{money(gst)}</b></div>
+              <footer><span>Total</span><strong>{money(total)}</strong></footer>
+              <button className="gradientButton fullButton" disabled={isPurchasing} onClick={completePurchase} type="button">
+                <i className="ri-lock-2-line" aria-hidden="true" /> {isPurchasing ? "Activating..." : `Pay securely ${money(total)}`}
+              </button>
+              {message ? <p className="formMessage" role="status">{message}</p> : null}
+            </aside>
+          </section>
+        ) : null}
       </div>
     );
   }
@@ -2197,12 +2527,15 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
 function PlatformSection({ accessToken, routeView }: { accessToken: string; routeView?: string }) {
   const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
   const [plans, setPlans] = useState<PlatformPlan[]>([]);
+  const [platformRequests, setPlatformRequests] = useState<PlatformOwnerRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [controlTab, setControlTab] = useState("overview");
   const [controlData, setControlData] = useState<PlatformControlData | null>(null);
   const [oneTimeCredential, setOneTimeCredential] = useState<{ loginId: string; temporaryPassword: string } | null>(null);
+  const [selectedPlatformRequestId, setSelectedPlatformRequestId] = useState<string | null>(null);
+  const [platformRequestMessage, setPlatformRequestMessage] = useState("");
   const [overrideDraft, setOverrideDraft] = useState({
     userId: "",
     role: "tenant",
@@ -2217,10 +2550,11 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   async function loadPlatform() {
     setIsLoading(true);
     try {
-      const [orgResponse, planResponse] = await Promise.all([fetch(`${apiBase}/platform/organizations`, { headers }), fetch(`${apiBase}/platform/plans`, { headers })]);
-      const [orgData, planData] = await Promise.all([orgResponse.json(), planResponse.json()]);
+      const [orgResponse, planResponse, requestResponse] = await Promise.all([fetch(`${apiBase}/platform/organizations`, { headers }), fetch(`${apiBase}/platform/plans`, { headers }), fetch(`${apiBase}/platform/requests`, { headers })]);
+      const [orgData, planData, requestData] = await Promise.all([orgResponse.json(), planResponse.json(), requestResponse.json()]);
       setOrganizations(orgData.organizations ?? []);
       setPlans(planData.plans ?? []);
+      setPlatformRequests(requestData.requests ?? []);
     } finally {
       setIsLoading(false);
     }
@@ -2318,6 +2652,31 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
     });
     if (response.ok) await loadControl(selected.id);
   }
+  async function updatePlatformRequest(requestId: string, status: string, applyChanges = false) {
+    const response = await fetch(`${apiBase}/platform/requests/${requestId}/status`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ status, applyChanges, message: platformRequestMessage || undefined }),
+    });
+    if (response.ok) {
+      setPlatformRequestMessage("");
+      await loadPlatform();
+      if (selected) await loadControl(selected.id);
+    }
+  }
+  async function sendPlatformRequestMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPlatformRequestId || !platformRequestMessage.trim()) return;
+    const response = await fetch(`${apiBase}/platform/requests/${selectedPlatformRequestId}/messages`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: platformRequestMessage }),
+    });
+    if (response.ok) {
+      setPlatformRequestMessage("");
+      await loadPlatform();
+    }
+  }
   const roleLabels = ["owner", "warden", "guard", "staff", "tenant", "parent"];
   const featureKeys = Array.from(new Set(["rooms", "dues", "gate_pass", "visitor_log", "community", "mess_menu", "documents", "parent_portal", ...(selected?.features.map((feature) => feature.key).filter((key) => !key.startsWith("role_")) ?? [])]));
 
@@ -2342,6 +2701,7 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
     return matchesQuery && matchesFilter;
   });
   const money = (value: number | string) => `₹${Number(value).toLocaleString("en-IN")}`;
+  const labelFromKey = (value: string) => titleFromSlug(value.replace(/_/g, "-"));
 
   if (routeView === "analytics") {
     const today = new Date();
@@ -2430,7 +2790,9 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
   }
 
   if (selected) {
-    const tabs = ["overview", "setup", "people", "accounts", "rooms", "apps & roles", "features", "access overrides", "theme & branding", "billing"];
+    const tabs = ["overview", "setup", "people", "accounts", "rooms", "apps & roles", "features", "access overrides", "requests", "theme & branding", "billing"];
+    const selectedOrgRequests = platformRequests.filter((request) => request.organization.id === selected.id);
+    const selectedPlatformRequest = selectedOrgRequests.find((request) => request.id === selectedPlatformRequestId) ?? selectedOrgRequests[0];
     return (
       <div className="platformPage">
         <div className="clientControlHeader panel">
@@ -2815,6 +3177,69 @@ function PlatformSection({ accessToken, routeView }: { accessToken: string; rout
               </div>
             </section>
           </div>
+        ) : null}
+        {controlTab === "requests" ? (
+          <section className="ticketCenterGrid platformRequestCenter">
+            <div className="panel">
+              <PanelTitle title="Client requests" meta={`${selectedOrgRequests.length} requests`} />
+              <div className="ownerRequestList ticketList">
+                {selectedOrgRequests.map((request) => (
+                  <button className={selectedPlatformRequest?.id === request.id ? "active" : ""} key={request.id} onClick={() => setSelectedPlatformRequestId(request.id)} type="button">
+                    <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
+                    <div>
+                      <b>{request.title}</b>
+                      <small>
+                        {labelFromKey(request.type)} · {request.requested_by_user.full_name}
+                      </small>
+                      <p>{request.reason || request.required_access || request.requiredAccess || "No details supplied."}</p>
+                    </div>
+                    <time>{new Date(request.updated_at || request.created_at).toLocaleDateString("en-IN")}</time>
+                  </button>
+                ))}
+                {!selectedOrgRequests.length ? <EmptyPanel title="No client requests" copy="Owner purchase changes and support tickets will appear here." /> : null}
+              </div>
+            </div>
+            <aside className="panel ticketChatPanel">
+              <PanelTitle title={selectedPlatformRequest ? selectedPlatformRequest.title : "Request details"} meta={selectedPlatformRequest ? labelFromKey(selectedPlatformRequest.status) : "Empty"} />
+              {selectedPlatformRequest ? (
+                <>
+                  <div className="ticketMetaGrid">
+                    <span>{selectedPlatformRequest.organization.name}</span>
+                    <span>{labelFromKey(selectedPlatformRequest.type)}</span>
+                    <span>{new Date(selectedPlatformRequest.created_at).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="requestActionBar">
+                    <select aria-label="Request status" onChange={(event) => updatePlatformRequest(selectedPlatformRequest.id, event.target.value)} value={selectedPlatformRequest.status}>
+                      {["submitted", "under_review", "need_more_info", "approved", "fulfilled", "activated", "rejected", "canceled"].map((status) => (
+                        <option key={status} value={status}>{labelFromKey(status)}</option>
+                      ))}
+                    </select>
+                    <button className="outlineButton" onClick={() => updatePlatformRequest(selectedPlatformRequest.id, "activated", true)} type="button">
+                      <i className="ri-flashlight-line" aria-hidden="true" /> Apply changes
+                    </button>
+                  </div>
+                  <div className="ticketTimeline">
+                    {(selectedPlatformRequest.events ?? []).map((event) => (
+                      <article className={eventActor(event).toLowerCase().includes("owner") ? "owner" : ""} key={event.id}>
+                        <small>
+                          {eventActor(event)} · {labelFromKey(eventKind(event))} · {new Date(eventDate(event)).toLocaleString("en-IN")}
+                        </small>
+                        <p>{event.message || "Status updated."}</p>
+                      </article>
+                    ))}
+                  </div>
+                  <form className="ticketMessageForm" onSubmit={sendPlatformRequestMessage}>
+                    <input aria-label="Message client" onChange={(event) => setPlatformRequestMessage(event.target.value)} placeholder="Reply to owner..." value={platformRequestMessage} />
+                    <button className="gradientButton" type="submit">
+                      <i className="ri-send-plane-2-line" aria-hidden="true" /> Send
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <EmptyPanel title="Select a request" copy="Timeline, chat, and fulfillment controls will appear here." />
+              )}
+            </aside>
+          </section>
         ) : null}
         {controlTab === "theme & branding" ? (
           <section className="brandingGrid">
@@ -4045,144 +4470,248 @@ function fileToDataUrl(file: File) {
 }
 
 function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string; isTenant: boolean; orgId: string }) {
-  const [dues, setDues] = useState<DueRecord[]>([]);
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [billing, setBilling] = useState<BillingSummaryData | null>(null);
   const [checkoutDue, setCheckoutDue] = useState<DueRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState("desc");
   const [search, setSearch] = useState("");
+  const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [showFineSettings, setShowFineSettings] = useState(false);
+  const [showChargeForm, setShowChargeForm] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [billingMonth, setBillingMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  const loadBilling = useCallback(async () => {
+    setIsLoading(true);
+    const response = await fetch(`${apiBase}/dues/billing-summary?month=${billingMonth}`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Billing could not be loaded");
+    setBilling(data);
+    setSelectedTenantId((current) => current || data.tenants?.[0]?.tenant?.id || "");
+    setIsLoading(false);
+  }, [accessToken, billingMonth, orgId]);
 
   useEffect(() => {
-    setIsLoading(true);
-    Promise.all([fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json()), fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((response) => response.json())])
-      .then(([dueData, paymentData]) => {
-        setDues(dueData.dues ?? []);
-        setPayments(paymentData.payments ?? []);
-      })
-      .catch(() => setDues([]))
-      .finally(() => setIsLoading(false));
-  }, [accessToken, orgId]);
+    loadBilling().catch(() => {
+      setBilling(null);
+      setIsLoading(false);
+    });
+  }, [loadBilling]);
 
-  const visible = dues
-    .filter((due) => {
-      const paid = due.status === "paid";
-      return (status === "all" || (status === "paid" ? paid : !paid)) && due.tenant.full_name.toLowerCase().includes(search.toLowerCase());
-    })
-    .sort((a, b) => (Number(a.amount) - Number(b.amount)) * (sort === "asc" ? 1 : -1));
-  const paidDues = dues.filter((due) => due.status === "paid");
-  const dueDues = dues.filter((due) => due.status !== "paid");
+  const dues = billing?.dues ?? [];
+  const payments = billing?.payments ?? [];
+  const tenantRows = billing?.tenants ?? [];
+  const activeTenant = tenantRows.find((row) => row.tenant.id === selectedTenantId) ?? tenantRows[0];
+  const activeTenantDues = activeTenant ? dues.filter((due) => due.tenant?.id === activeTenant.tenant.id || due.tenant?.full_name === activeTenant.tenant.fullName) : dues;
+  const activeTenantPayments = activeTenant ? payments.filter((payment) => payment.tenant?.id === activeTenant.tenant.id || payment.tenant?.full_name === activeTenant.tenant.fullName) : payments;
+  const outstandingDues = dues.filter((due) => !["paid", "waived"].includes(due.status));
+  const filteredTenants = tenantRows.filter((row) => {
+    const matchesStatus = status === "all" || row.status === status;
+    const haystack = `${row.tenant.fullName} ${row.tenant.phone ?? ""} ${row.tenant.email ?? ""} ${row.room?.number ?? ""}`.toLowerCase();
+    return matchesStatus && haystack.includes(search.toLowerCase());
+  });
 
   async function payDue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!checkoutDue) return;
     const form = new FormData(event.currentTarget);
     const remaining = Number(checkoutDue.amount) - Number(checkoutDue.amount_paid);
+    const checkoutResponse = await fetch(`${apiBase}/payments/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({ dueId: checkoutDue.id, amount: remaining }),
+    });
+    const checkout = await checkoutResponse.json().catch(() => ({}));
+    if (!checkoutResponse.ok) {
+      setNotice(checkout.error || "Payment checkout could not be created.");
+      return;
+    }
+
+    if (checkout.mode === "razorpay" && checkout.keyId) {
+      await loadRazorpayCheckout();
+      const Razorpay = (window as unknown as { Razorpay?: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay;
+      if (!Razorpay) {
+        setNotice("Payment gateway could not be opened. Please retry.");
+        return;
+      }
+      new Razorpay({
+        key: checkout.keyId,
+        amount: Math.round(remaining * 100),
+        currency: "INR",
+        name: "HostIn",
+        description: titleFromSlug(checkoutDue.due_type),
+        order_id: checkout.orderId,
+        prefill: { name: checkout.tenant?.full_name, email: checkout.tenant?.email, contact: checkout.tenant?.phone },
+        handler: async (payment: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          await recordPayment(checkoutDue, remaining, String(form.get("paymentMethod") || "upi"), payment.razorpay_order_id, payment.razorpay_payment_id, payment.razorpay_signature);
+        },
+      }).open();
+      return;
+    }
+
+    await recordPayment(checkoutDue, remaining, String(form.get("paymentMethod") || "upi"), checkout.orderId, `${checkout.orderId || "hostin_demo"}_payment`);
+  }
+
+  async function recordPayment(due: DueRecord, amount: number, paymentMethod: string, gatewayOrderId?: string, gatewayPaymentId?: string, gatewaySignature?: string) {
     const response = await fetch(`${apiBase}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
       body: JSON.stringify({
-        dueId: checkoutDue.id,
-        amount: remaining,
-        paymentMethod: form.get("paymentMethod"),
-        gateway: "manual",
+        dueId: due.id,
+        amount,
+        paymentMethod,
+        gateway: "razorpay",
+        gatewayOrderId,
+        gatewayPaymentId,
+        gatewaySignature,
       }),
     });
     if (response.ok) {
       setCheckoutDue(null);
-      const [dueData, paymentData] = await Promise.all([fetch(`${apiBase}/dues`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json()), fetch(`${apiBase}/payments`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } }).then((item) => item.json())]);
-      setDues(dueData.dues ?? []);
-      setPayments(paymentData.payments ?? []);
+      await loadBilling();
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setNotice(data.error || "Payment could not be recorded.");
+    }
+  }
+
+  async function saveFineSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(`${apiBase}/dues/late-fee-config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        isActive: form.get("isActive") === "on",
+        fineDay: form.get("fineDay"),
+        fineAmount: form.get("fineAmount"),
+        description: form.get("description"),
+        billingMonth,
+        applyToCurrentMonth: true,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setNotice(response.ok ? `${data.applied ?? 0} tenant fine records updated.` : data.error || "Late fee settings could not be saved.");
+    if (response.ok) {
+      setShowFineSettings(false);
+      await loadBilling();
+    }
+  }
+
+  async function addCharge(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(`${apiBase}/dues`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        tenantId: form.get("tenantId"),
+        dueType: form.get("dueType"),
+        amount: form.get("amount"),
+        description: form.get("description"),
+        dueDate: form.get("dueDate"),
+        billingMonth: `${billingMonth}-01`,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setNotice(response.ok ? "Charge added to the tenant ledger." : data.error || "Charge could not be added.");
+    if (response.ok) {
+      setShowChargeForm(false);
+      await loadBilling();
     }
   }
 
   if (isTenant)
     return (
-      <section className="tenantBilling">
+      <section className="tenantBilling billingWorkspace">
         <section className="panel feedPanel">
-          <PanelTitle title="My dues" meta={`${dueDues.length} outstanding`} />
-          {isLoading ? (
+          <PanelTitle title="My payment breakdown" meta={billing?.month ?? billingMonth} />
+          {isLoading || !billing ? (
             <DirectorySkeleton />
-          ) : dueDues.length ? (
-            <div className="billGrid">
-              {dueDues.map((due) => {
-                const remaining = Number(due.amount) - Number(due.amount_paid);
-                return (
-                  <article className="billCard" key={due.id}>
-                    <div className="billHeader">
-                      <div>
-                        <small>{titleFromSlug(due.due_type)}</small>
-                        <strong>₹{remaining.toLocaleString("en-IN")}</strong>
-                      </div>
-                      <span className={`statusPill ${due.status}`}>{due.status}</span>
-                    </div>
-                    <dl>
-                      <div>
-                        <dt>Base amount</dt>
-                        <dd>₹{Number(due.amount).toLocaleString("en-IN")}</dd>
-                      </div>
-                      <div>
-                        <dt>Already paid</dt>
-                        <dd>- ₹{Number(due.amount_paid).toLocaleString("en-IN")}</dd>
-                      </div>
-                      <div>
-                        <dt>Due date</dt>
-                        <dd>{new Date(due.due_date).toLocaleDateString("en-IN")}</dd>
-                      </div>
-                      <div className="billTotal">
-                        <dt>Amount payable</dt>
-                        <dd>₹{remaining.toLocaleString("en-IN")}</dd>
-                      </div>
-                    </dl>
-                    <button className="gradientButton fullButton" onClick={() => setCheckoutDue(due)} type="button">
-                      Pay now
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
           ) : (
-            <EmptyPanel title="Nothing due" copy="You have no outstanding payments." />
+            <div className="tenantBillingGrid">
+              <article className="billingBreakdownCard">
+                <div className="billingCardHeader">
+                  <div>
+                    <small>Outstanding balance</small>
+                    <strong>{money(billing.summary.balanceAmount)}</strong>
+                  </div>
+                  <span className={`statusPill ${activeTenant?.status ?? "unpaid"}`}>{titleFromSlug(activeTenant?.status ?? "unpaid")}</span>
+                </div>
+                <div className="billingLineItems">
+                  {dues.map((due) => {
+                    const remaining = Number(due.amount) - Number(due.amount_paid);
+                    return (
+                      <div key={due.id}>
+                        <span>
+                          <b>{titleFromSlug(due.due_type)}</b>
+                          <small>{due.description || `Due ${formatDateTime(due.due_date)}`}</small>
+                        </span>
+                        <strong>{money(remaining)}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+                <dl className="billingTotals">
+                  <div><dt>Total payable</dt><dd>{money(billing.summary.totalAmount)}</dd></div>
+                  <div><dt>Already paid</dt><dd>{money(billing.summary.paidAmount)}</dd></div>
+                  <div><dt>Balance due</dt><dd>{money(billing.summary.balanceAmount)}</dd></div>
+                </dl>
+              </article>
+              <article className="billingSideCard">
+                <PanelTitle title="Secure checkout" meta={`${outstandingDues.length} open dues`} />
+                {outstandingDues.length ? (
+                  <div className="billingActionList">
+                    {outstandingDues.map((due) => {
+                      const remaining = Number(due.amount) - Number(due.amount_paid);
+                      return (
+                        <button key={due.id} onClick={() => setCheckoutDue(due)} type="button">
+                          <i aria-hidden="true" className="ri-bank-card-line" />
+                          <span><b>{titleFromSlug(due.due_type)}</b><small>Pay {money(remaining)}</small></span>
+                          <i aria-hidden="true" className="ri-arrow-right-line" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <EmptyPanel title="Nothing due" copy="You have no outstanding payments." />
+                )}
+              </article>
+            </div>
           )}
         </section>
         <section className="panel feedPanel">
-          <PanelTitle title="Payment history" meta={`${payments.length} payments`} />
+          <PanelTitle title="Payment history" meta={`${payments.length} receipts`} />
           {payments.length ? (
-            <div className="recordList">
+            <div className="billingTimeline">
               {payments.map((payment) => (
-                <article className="actionRecord" key={payment.id}>
+                <article key={payment.id}>
+                  <i aria-hidden="true" className={payment.status === "successful" ? "ri-checkbox-circle-line" : "ri-error-warning-line"} />
                   <div>
-                    <strong>{titleFromSlug(payment.due.due_type)}</strong>
-                    <small>
-                      {formatDateTime(payment.paid_at)} · {titleFromSlug(payment.payment_method)}
-                    </small>
+                    <strong>{money(payment.amount)}</strong>
+                    <small>{titleFromSlug(payment.due?.due_type ?? "payment")} · {formatDateTime(payment.paid_at)} · {titleFromSlug(payment.payment_method)}</small>
                   </div>
-                  <div className="dueAmount">
-                    <strong>₹{Number(payment.amount).toLocaleString("en-IN")}</strong>
-                    <span className={`statusPill ${payment.status}`}>{payment.status}</span>
-                  </div>
+                  <span className={`statusPill ${payment.status}`}>{titleFromSlug(payment.status)}</span>
                 </article>
               ))}
             </div>
           ) : (
-            <EmptyPanel title="No payments yet" copy="Completed payments and their breakdown will remain here." />
+            <EmptyPanel title="No payments yet" copy="Completed payments and receipts will remain here." />
           )}
         </section>
         {checkoutDue ? (
           <div className="modalBackdrop" onMouseDown={() => setCheckoutDue(null)}>
-            <form className="panel checkoutModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={payDue}>
+            <form className="panel checkoutModal billingModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={payDue}>
               <div className="modalHeader">
                 <div>
                   <h3>Payment checkout</h3>
-                  <p>{titleFromSlug(checkoutDue.due_type)}</p>
+                  <p>{titleFromSlug(checkoutDue.due_type)} · encrypted gateway session</p>
                 </div>
-                <button aria-label="Close checkout" onClick={() => setCheckoutDue(null)} type="button">
-                  ×
-                </button>
+                <button aria-label="Close checkout" onClick={() => setCheckoutDue(null)} type="button"><i aria-hidden="true" className="ri-close-line" /></button>
               </div>
               <div className="checkoutTotal">
                 <span>Total payable</span>
-                <strong>₹{(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid)).toLocaleString("en-IN")}</strong>
+                <strong>{money(Number(checkoutDue.amount) - Number(checkoutDue.amount_paid))}</strong>
               </div>
               <label>
                 <span>Payment method</span>
@@ -4192,10 +4721,7 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
                   <option value="net_banking">Net banking</option>
                 </select>
               </label>
-              <button className="gradientButton fullButton" type="submit">
-                Pay securely
-              </button>
-              <small className="checkoutNote">Payment gateway integration will replace manual confirmation in production.</small>
+              <button className="gradientButton fullButton" type="submit"><i aria-hidden="true" className="ri-lock-2-line" /> Complete payment</button>
             </form>
           </div>
         ) : null}
@@ -4203,47 +4729,135 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
     );
 
   return (
-    <section className="financeExperience">
-      <div className="financeStats">
-        <Metric label="Paid" value={`₹${sumDues(paidDues)}`} meta={`${countDueTenants(paidDues)} students`} />
-        <Metric label="Due" value={`₹${sumDues(dueDues)}`} meta={`${countDueTenants(dueDues)} students`} />
-      </div>
-      <section className="panel feedPanel">
-        <div className="roomsToolbar financeToolbar">
-          <input onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant name..." value={search} />
-          <select onChange={(event) => setStatus(event.target.value)} value={status}>
-            <option value="all">All payments</option>
-            <option value="paid">Paid</option>
-            <option value="due">Not paid</option>
-          </select>
-          <select onChange={(event) => setSort(event.target.value)} value={sort}>
-            <option value="desc">Price: high to low</option>
-            <option value="asc">Price: low to high</option>
-          </select>
+    <section className="financeExperience billingWorkspace">
+      <div className="billingHeroActions">
+        <div>
+          <h3>Dues command center</h3>
+          <p>Track tenant balances, apply late fees, add charges, and reconcile payments from one ledger.</p>
         </div>
-        {isLoading ? (
-          <DirectorySkeleton />
-        ) : visible.length ? (
-          <div className="recordList">
-            {visible.map((due) => (
-              <article className="actionRecord" key={due.id}>
-                <div>
-                  <strong>{due.tenant.full_name}</strong>
-                  <small>
-                    {titleFromSlug(due.due_type)} · Due {new Date(due.due_date).toLocaleDateString("en-IN")}
-                  </small>
-                </div>
-                <div className="dueAmount">
-                  <strong>₹{Number(due.amount).toLocaleString("en-IN")}</strong>
-                  <span className={`statusPill ${due.status}`}>{due.status}</span>
-                </div>
-              </article>
+        <div>
+          <label className="monthPicker">
+            <span>Billing month</span>
+            <input onChange={(event) => setBillingMonth(event.target.value)} type="month" value={billingMonth} />
+          </label>
+          <button className="outlineButton" onClick={() => setShowFineSettings(true)} type="button"><i aria-hidden="true" className="ri-settings-4-line" /> Late Fee Settings</button>
+          <button className="gradientButton" onClick={() => setShowChargeForm(true)} type="button"><i aria-hidden="true" className="ri-add-line" /> Add Charges</button>
+        </div>
+      </div>
+      {notice ? <div className="syncBanner"><span>Billing</span>{notice}</div> : null}
+      <div className="billingKpis">
+        <Metric label="Total collected" value={money(billing?.summary.paidAmount ?? 0)} meta="This month" />
+        <Metric label="Total due" value={money(billing?.summary.balanceAmount ?? 0)} meta={`From ${billing?.summary.tenantCount ?? 0} tenants`} />
+        <Metric label="Overdue" value={money(billing?.summary.overdueAmount ?? 0)} meta={`${billing?.summary.overdueCount ?? 0} tenants`} />
+        <Metric label="Collection rate" value={`${billing?.summary.collectionRate ?? 0}%`} meta="Paid against generated dues" />
+      </div>
+      <section className="panel billingLedgerPanel">
+        <div className="billingFilters">
+          <div className="billingTabs" role="tablist" aria-label="Payment status">
+            {["all", "paid", "unpaid", "partial", "overdue"].map((item) => (
+              <button aria-selected={status === item} className={status === item ? "active" : ""} key={item} onClick={() => setStatus(item)} role="tab" type="button">{titleFromSlug(item)}</button>
             ))}
           </div>
+          <label>
+            <i aria-hidden="true" className="ri-search-line" />
+            <input onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant, room, phone..." value={search} />
+          </label>
+        </div>
+        {isLoading || !billing ? (
+          <DirectorySkeleton />
+        ) : filteredTenants.length ? (
+          <div className="billingContentGrid">
+            <div className="billingTableWrap">
+              <table className="billingTable">
+                <thead><tr><th>Tenant</th><th>Room</th><th>Monthly due</th><th>Paid</th><th>Due amount</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {filteredTenants.map((row) => (
+                    <tr className={activeTenant?.tenant.id === row.tenant.id ? "selected" : ""} key={row.tenant.id}>
+                      <td><span className="tenantIdentity"><b>{getInitials(row.tenant.fullName)}</b><span><strong>{row.tenant.fullName}</strong><small>{row.tenant.phone || row.tenant.email || "Tenant account"}</small></span></span></td>
+                      <td><strong>{row.room?.number ?? "Unassigned"}</strong><small>{row.room ? titleFromSlug(row.room.type) : "No room"}</small></td>
+                      <td>{money(row.totalAmount)}</td>
+                      <td>{money(row.paidAmount)}</td>
+                      <td>{money(row.balanceAmount)}</td>
+                      <td><span className={`statusPill ${row.status}`}>{titleFromSlug(row.status)}</span></td>
+                      <td><button className="outlineButton miniButton" onClick={() => setSelectedTenantId(row.tenant.id)} type="button">View details</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {activeTenant ? (
+              <aside className="billingTenantPanel">
+                <div className="billingCardHeader">
+                  <div>
+                    <small>Tenant ledger</small>
+                    <strong>{activeTenant.tenant.fullName}</strong>
+                    <p>{activeTenant.room ? `Room ${activeTenant.room.number} · ${titleFromSlug(activeTenant.room.type)}` : "No active room"}</p>
+                  </div>
+                  <span className={`statusPill ${activeTenant.status}`}>{titleFromSlug(activeTenant.status)}</span>
+                </div>
+                <dl className="billingTotals">
+                  <div><dt>Total payable</dt><dd>{money(activeTenant.totalAmount)}</dd></div>
+                  <div><dt>Amount paid</dt><dd>{money(activeTenant.paidAmount)}</dd></div>
+                  <div><dt>Balance due</dt><dd>{money(activeTenant.balanceAmount)}</dd></div>
+                </dl>
+                <div className="billingLineItems compact">
+                  {activeTenantDues.map((due) => (
+                    <div key={due.id}>
+                      <span><b>{titleFromSlug(due.due_type)}</b><small>{due.description || `Due ${formatDateTime(due.due_date)}`}</small></span>
+                      <strong>{money(Number(due.amount) - Number(due.amount_paid))}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="billingTimeline compact">
+                  {activeTenantPayments.slice(0, 3).map((payment) => (
+                    <article key={payment.id}>
+                      <i aria-hidden="true" className="ri-checkbox-circle-line" />
+                      <div><strong>{money(payment.amount)}</strong><small>{formatDateTime(payment.paid_at)}</small></div>
+                    </article>
+                  ))}
+                </div>
+              </aside>
+            ) : null}
+          </div>
         ) : (
-          <EmptyPanel title="No dues found" copy="Monthly rent dues appear automatically after a tenant is assigned a room." />
+          <EmptyPanel title="No tenants found" copy="Assigned tenants with generated dues will appear here." />
         )}
       </section>
+      {showFineSettings ? (
+        <div className="modalBackdrop" onMouseDown={() => setShowFineSettings(false)}>
+          <form className="panel billingModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={saveFineSettings}>
+            <div className="modalHeader">
+              <div><h3>Late fee settings</h3><p>Apply, update, or remove fine records for open tenant balances.</p></div>
+              <button aria-label="Close late fee settings" onClick={() => setShowFineSettings(false)} type="button"><i aria-hidden="true" className="ri-close-line" /></button>
+            </div>
+            <label className="billingSwitch"><input defaultChecked={Boolean(billing?.lateFeeConfig?.is_active)} name="isActive" type="checkbox" /><span>Enable late payment fine</span></label>
+            <div className="billingFormGrid">
+              <label><span>Fine date</span><input defaultValue={billing?.lateFeeConfig?.fine_day ?? 6} max={31} min={1} name="fineDay" type="number" /></label>
+              <label><span>Fine amount</span><input defaultValue={Number(billing?.lateFeeConfig?.fine_amount ?? 0)} min={0} name="fineAmount" step="1" type="number" /></label>
+            </div>
+            <label><span>Description</span><input defaultValue={billing?.lateFeeConfig?.description ?? "Late payment fine"} name="description" /></label>
+            <button className="gradientButton fullButton" type="submit">Save and sync tenants</button>
+          </form>
+        </div>
+      ) : null}
+      {showChargeForm ? (
+        <div className="modalBackdrop" onMouseDown={() => setShowChargeForm(false)}>
+          <form className="panel billingModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={addCharge}>
+            <div className="modalHeader">
+              <div><h3>Add tenant charge</h3><p>Create a due and notify the tenant account.</p></div>
+              <button aria-label="Close add charge" onClick={() => setShowChargeForm(false)} type="button"><i aria-hidden="true" className="ri-close-line" /></button>
+            </div>
+            <label><span>Tenant</span><select name="tenantId" required>{tenantRows.map((row) => <option key={row.tenant.id} value={row.tenant.id}>{row.tenant.fullName} {row.room ? `· ${row.room.number}` : ""}</option>)}</select></label>
+            <div className="billingFormGrid">
+              <label><span>Charge type</span><select name="dueType" required><option value="rent">Rent</option><option value="maintenance">Maintenance</option><option value="mess">Mess</option><option value="electricity">Electricity</option><option value="security_deposit">Security deposit</option><option value="other">Other</option></select></label>
+              <label><span>Amount</span><input min={1} name="amount" required step="1" type="number" /></label>
+            </div>
+            <label><span>Due date</span><input defaultValue={`${billingMonth}-06`} name="dueDate" required type="date" /></label>
+            <label><span>Description</span><input name="description" placeholder="Monthly room rent, utility charge, adjustment..." /></label>
+            <button className="gradientButton fullButton" type="submit">Add charge</button>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -4371,12 +4985,6 @@ function StaffContactsSection({ accessToken, orgId }: { accessToken: string; org
   );
 }
 
-function sumDues(dues: DueRecord[]) {
-  return dues.reduce((sum, due) => sum + Math.max(0, Number(due.amount) - Number(due.amount_paid)), 0).toLocaleString("en-IN");
-}
-function countDueTenants(dues: DueRecord[]) {
-  return new Set(dues.map((due) => due.tenant.full_name)).size;
-}
 function getMondayInput() {
   const date = new Date();
   const day = date.getDay();
@@ -4841,6 +5449,10 @@ function getInitials(name: string) {
     .join("");
 }
 
+function money(value: unknown) {
+  return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
+}
+
 function formatRoomType(type: string) {
   return type
     .split("_")
@@ -4853,6 +5465,25 @@ function formatDateTime(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not scheduled";
   return date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function loadRazorpayCheckout() {
+  if (typeof window === "undefined") return Promise.resolve();
+  if ((window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Unable to load Razorpay checkout")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Unable to load Razorpay checkout"));
+    document.head.appendChild(script);
+  });
 }
 
 function dayToDate(value: string) {

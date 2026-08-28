@@ -8,6 +8,8 @@ const schema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET must contain at least 32 characters"),
   CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
 });
 
 const result = schema.safeParse(process.env);

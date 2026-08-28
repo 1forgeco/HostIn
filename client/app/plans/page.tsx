@@ -42,7 +42,9 @@ const packages = [
     rate: 179,
     extensionMode: "₹1,000 bundle",
     description: "For smaller PGs that want structured owner, warden, and tenant operations.",
-    includes: ["Owner, warden, and tenant roles", "Rooms and tenant records", "Dues visibility", "Optional extension bundle"],
+    bestFor: "10-40 bed PGs",
+    highlight: false,
+    accent: "neutral",
   },
   {
     name: "Plus",
@@ -53,7 +55,9 @@ const packages = [
     rate: 149,
     extensionMode: "All included",
     description: "For growing properties where gate, mess, and document operations happen daily.",
-    includes: ["Everything in Basic", "Guard extension included", "Mess extension included", "Vault extension included"],
+    bestFor: "40-100 bed hostels",
+    highlight: true,
+    accent: "teal",
   },
   {
     name: "Premium",
@@ -64,7 +68,9 @@ const packages = [
     rate: 129,
     extensionMode: "All included",
     description: "For larger hostels that need full operating visibility across teams and residents.",
-    includes: ["Full role workspace", "All extensions included", "Operational reports", "Priority setup support"],
+    bestFor: "100-500 bed operators",
+    highlight: false,
+    accent: "gold",
   },
   {
     name: "Enterprise",
@@ -75,38 +81,23 @@ const packages = [
     rate: 89,
     extensionMode: "All included",
     description: "For large institutions and operators managing high-capacity properties.",
-    includes: ["Portfolio-ready operating model", "All extensions included", "Custom onboarding plan", "Commercial support"],
+    bestFor: "500+ bed institutions",
+    highlight: false,
+    accent: "neutral",
   },
-] as const;
-
-const pricingComparisonRows = [
-  ["Bed range", "Any size", "10-40", "40-100", "100-500", "500+"],
-  ["Base price", "₹199 / bed", "₹179 / bed", "₹149 / bed", "₹129 / bed", "₹89 / bed"],
-  ["Owner role", true, true, true, true, true],
-  ["Warden role", true, true, true, true, true],
-  ["Tenant role", true, true, true, true, true],
-  ["Best for", "Flexible builds", "Small PGs", "Growing hostels", "Large hostels", "Institutions"],
-] as const;
-
-const operationsComparisonRows = [
-  ["Guard role", "₹500 add-on", "Bundle add-on", true, true, true],
-  ["Mess manager role", "₹200 add-on", "Bundle add-on", true, true, true],
-  ["Vault management", "₹300 add-on", "Bundle add-on", true, true, true],
-  ["Gate pass workflow", "With Guard add-on", "With bundle", true, true, true],
-  ["Mess menu workflow", "With Mess add-on", "With bundle", true, true, true],
-  ["Document storage", "With Vault add-on", "With bundle", true, true, true],
-  ["Included guard accounts", "2 with add-on", "2 with bundle", "2 included", "2 included", "2 included"],
-  ["Included mess accounts", "2 with add-on", "2 with bundle", "2 included", "2 included", "2 included"],
 ] as const;
 
 function money(value: number) {
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
 
-function valueBadge(value: boolean | string) {
-  if (value === true) return <span className="hostinPlanFeature yes"><i aria-hidden="true" className="ri-check-line" />Included</span>;
-  if (value === false) return <span className="hostinPlanFeature no"><i aria-hidden="true" className="ri-close-line" />Not included</span>;
-  return <span className="hostinPlanFeature partial">{value}</span>;
+function availabilityBadge(included: boolean, label: string) {
+  return (
+    <span className={`planAvailability ${included ? "yes" : "no"}`}>
+      <i aria-hidden="true" className={included ? "ri-check-line" : "ri-close-line"} />
+      {label}
+    </span>
+  );
 }
 
 function packageTotal(plan: (typeof packages)[number], beds: number, wantsExtensions: boolean) {
@@ -124,6 +115,7 @@ function packageFit(plan: (typeof packages)[number], beds: number) {
 export default function PlansPage() {
   const [beds, setBeds] = useState(60);
   const [activePackage, setActivePackage] = useState(1);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [selectedExtensions, setSelectedExtensions] = useState<Record<string, boolean>>({
     guard: true,
     mess: true,
@@ -155,21 +147,32 @@ export default function PlansPage() {
       fit: "matched",
       total: packageTotal(packages[packages.length - 1], beds, wantsExtensions),
     };
-    const savings = customTotal - recommended.total;
+    const yearlyDiscount = billingCycle === "yearly" ? 0.2 : 0;
+    const multiplier = billingCycle === "yearly" ? 12 : 1;
+    const customBillingSubtotal = customTotal * multiplier * (1 - yearlyDiscount);
+    const recommendedBillingSubtotal = recommended.total * multiplier * (1 - yearlyDiscount);
     const customGst = customTotal * 0.18;
     const recommendedGst = recommended.total * 0.18;
     return {
+      billingLabel: billingCycle === "yearly" ? "/ year" : "/ month",
+      customBillingGst: customBillingSubtotal * 0.18,
+      customBillingGrandTotal: customBillingSubtotal * 1.18,
+      customBillingSubtotal,
       customGst,
       customGrandTotal: customTotal + customGst,
       customTotal,
       extensionTotal,
+      yearlyDiscount,
       recommended,
+      recommendedBillingGst: recommendedBillingSubtotal * 0.18,
+      recommendedBillingGrandTotal: recommendedBillingSubtotal * 1.18,
+      recommendedBillingSubtotal,
       recommendedGrandTotal: recommended.total + recommendedGst,
       recommendedGst,
-      savings,
+      savings: customBillingSubtotal - recommendedBillingSubtotal,
       selected,
     };
-  }, [beds, selectedExtensions]);
+  }, [beds, billingCycle, selectedExtensions]);
 
   return (
     <main className="marketingPage plansPage">
@@ -184,7 +187,7 @@ export default function PlansPage() {
         <div className="navActions">
           <Link className="navDemo" href="/login#demo-accounts">Try demo</Link>
           <Link className="navLogin" href="/login">Log in</Link>
-          <a className="gradientButton" href="#calculator">Calculate price</a>
+          <a className="gradientButton" href="#calculator">Estimate price</a>
         </div>
       </header>
 
@@ -193,28 +196,50 @@ export default function PlansPage() {
         <h1>Pricing that scales with your beds.</h1>
         <p>Start with owner, warden, and tenant access. Add guard, mess, and vault workflows when your property needs deeper daily operations.</p>
         <div className="plansHeroActions">
-          <a className="gradientButton" href="#calculator">Calculate price</a>
-          <a className="outlineButton" href="#compare">Compare packages</a>
+          <a className="gradientButton" href="#calculator">Estimate price</a>
+          <a className="outlineButton" href="#plans">Compare packages</a>
         </div>
       </section>
 
-      <section className="pricingCarousel" aria-label="Hostin pricing plans">
+      <section className="pricingCarousel" id="plans" aria-label="Hostin pricing plans">
+        <div className="pricingIntro">
+          <div>
+            <p className="sectionEyebrow">Transparent pricing</p>
+            <h2>No surprises.</h2>
+            <p>Each plan card shows the price, core access, and extension availability in one place.</p>
+          </div>
+          <div className="billingToggle" aria-label="Billing cycle">
+            <button className={billingCycle === "monthly" ? "active" : ""} onClick={() => setBillingCycle("monthly")} type="button">Monthly</button>
+            <button className={billingCycle === "yearly" ? "active" : ""} onClick={() => setBillingCycle("yearly")} type="button">Yearly 20% off</button>
+          </div>
+        </div>
         <div className="plansGrid" style={{ "--active-package": activePackage } as CSSProperties & { "--active-package": number }}>
         {packages.map((plan, index) => (
-          <article className={`pricingCard ${index === activePackage ? "isActive" : ""} ${index === 1 ? "popular" : ""}`} key={plan.name}>
+          <article className={`pricingCard ${index === activePackage ? "isActive" : ""} ${plan.highlight ? "popular" : ""} ${plan.accent === "gold" ? "bestValue" : ""}`} key={plan.name}>
             <span>{plan.badge}</span>
             <small>{plan.range}</small>
             <h2>{plan.name}</h2>
             <strong>{money(plan.rate)} / bed / month</strong>
             <p>{plan.description}</p>
-            <div className="packageExtensionMode">
-              <i aria-hidden="true" className={index === 0 ? "ri-add-circle-line" : "ri-checkbox-circle-line"} />
-              {plan.extensionMode}
+            <div className="planCardMeta">
+              <span><i aria-hidden="true" className="ri-hotel-bed-line" />{plan.bestFor}</span>
+              <span><i aria-hidden="true" className={index === 0 ? "ri-add-circle-line" : "ri-checkbox-circle-line"} />{plan.extensionMode}</span>
             </div>
-            <ul className="hostinPlanIncludes">
-              {plan.includes.map((item) => <li key={item}><i aria-hidden="true" className="ri-check-line" />{item}</li>)}
-            </ul>
-            <a className={index === 1 ? "gradientButton" : "outlineButton"} href="#calculator">Estimate this plan</a>
+            <div className="planComparisonList">
+              <div><span>Owner</span>{availabilityBadge(true, "Included")}</div>
+              <div><span>Warden</span>{availabilityBadge(true, "Included")}</div>
+              <div><span>Tenant</span>{availabilityBadge(true, "Included")}</div>
+              {extensions.map((extension) => {
+                const included = index > 0;
+                return (
+                  <div key={extension.id}>
+                    <span>{extension.name}</span>
+                    {availabilityBadge(included, included ? "Included" : "Not included")}
+                  </div>
+                );
+              })}
+            </div>
+            <a className={plan.highlight ? "gradientButton" : "outlineButton"} href="#calculator">Estimate this plan</a>
           </article>
         ))}
         </div>
@@ -231,51 +256,47 @@ export default function PlansPage() {
         </div>
       </section>
 
-      <section className="extensionSection" aria-labelledby="hostin-extensions">
-        <div className="splitHeading">
-          <div>
-            <p className="sectionEyebrow">Operational extensions</p>
-            <h2 id="hostin-extensions">Buy only the workflows your property needs.</h2>
-          </div>
-          <p>Extensions unlock the operational roles and workflows outside the standard owner, warden, and tenant workspace.</p>
-        </div>
-        <div className="extensionCards">
-          {extensions.map((extension) => (
-            <article key={extension.id}>
-              <i aria-hidden="true" className={extension.icon} />
-              <span>{extension.name}</span>
-              <strong>{money(extension.price)} / month</strong>
-              <p>{extension.description}</p>
-              <small>{extension.accountNote}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
       <section className="priceCalculator" id="calculator" aria-labelledby="price-calculator-title">
-        <div className="calculatorCopy">
+        <div className="calculatorLead">
           <p className="sectionEyebrow">Custom price calculator</p>
-          <h2 id="price-calculator-title">Build a custom estimate, then compare it with the best package.</h2>
-          <p>The standard builder starts at ₹199 per bed with owner, warden, and tenant access. Add extensions only when you need those workflows.</p>
-          <div className="standardPlanBox">
-            <span>Standard builder includes</span>
-            <p><i aria-hidden="true" className="ri-user-star-line" />Owner</p>
-            <p><i aria-hidden="true" className="ri-user-settings-line" />Warden</p>
-            <p><i aria-hidden="true" className="ri-home-heart-line" />Tenant</p>
-          </div>
+          <h2 id="price-calculator-title">Estimate your plan in 60 seconds.</h2>
+          <p>Tell us your bed count and required operations. Hostin will compare the custom builder against packages and suggest the better buy.</p>
+          <a className="outlineButton inverse" href="#calculator-panel">Calculate now</a>
         </div>
 
-        <div className="calculatorPanel">
-          <label className="bedInput">
-            <span>Number of beds</span>
-            <input
-              aria-label="Number of beds"
-              min={1}
-              onChange={(event) => setBeds(Math.max(1, Number(event.target.value) || 1))}
-              type="number"
-              value={beds}
-            />
-          </label>
+        <div className="calculatorPanel" id="calculator-panel">
+          <div className="calculatorPanelHeader">
+            <div>
+              <h3>Custom price calculator</h3>
+              <p>Standard builder starts at ₹199 per bed before selected extensions.</p>
+            </div>
+            <div className="calculatorVisual" aria-hidden="true">
+              <i className="ri-building-4-line" />
+              <i className="ri-community-line" />
+            </div>
+          </div>
+
+          <div className="bedInput">
+            <label htmlFor="beds">Number of beds</label>
+            <div>
+              <input
+                aria-label="Number of beds"
+                id="beds"
+                min={1}
+                onChange={(event) => setBeds(Math.max(1, Number(event.target.value) || 1))}
+                type="number"
+                value={beds}
+              />
+              <input
+                aria-label="Bed count slider"
+                max={800}
+                min={1}
+                onChange={(event) => setBeds(Math.max(1, Number(event.target.value) || 1))}
+                type="range"
+                value={Math.min(beds, 800)}
+              />
+            </div>
+          </div>
 
           <div className="extensionChecklist" aria-label="Select extensions">
             {extensions.map((extension) => (
@@ -286,8 +307,9 @@ export default function PlansPage() {
                   type="checkbox"
                 />
                 <span>
+                  <i aria-hidden="true" className={extension.icon} />
                   <b>{extension.name}</b>
-                  <small>{money(extension.price)} / month</small>
+                  <small>{money(extension.price)} / month · {extension.accountNote}</small>
                 </span>
               </label>
             ))}
@@ -296,9 +318,9 @@ export default function PlansPage() {
           <div className="estimateBreakdown" aria-live="polite">
             <div><span>Base standard price</span><strong>{money(beds * 199)}</strong></div>
             <div><span>Selected extensions</span><strong>{money(calculator.extensionTotal)}</strong></div>
-            <div><span>Subtotal before GST</span><strong>{money(calculator.customTotal)}</strong></div>
-            <div><span>GST at 18%</span><strong>{money(calculator.customGst)}</strong></div>
-            <div className="payableRow"><span>Custom payable quote</span><strong>{money(calculator.customGrandTotal)} / month</strong></div>
+            <div><span>{billingCycle === "yearly" ? "Yearly subtotal after 20% off" : "Subtotal before GST"}</span><strong>{money(calculator.customBillingSubtotal)}</strong></div>
+            <div><span>GST at 18%</span><strong>{money(calculator.customBillingGst)}</strong></div>
+            <div className="payableRow"><span>Custom payable quote</span><strong>{money(calculator.customBillingGrandTotal)} {calculator.billingLabel}</strong></div>
           </div>
 
           <div className="recommendationCard">
@@ -309,65 +331,17 @@ export default function PlansPage() {
                 ? `Closest package starts at ${calculator.recommended.plan.minBeds} beds.`
                 : `${calculator.recommended.plan.range} at ${money(calculator.recommended.plan.rate)} per bed.`}
             </p>
-            <strong>{money(calculator.recommendedGrandTotal)} / month</strong>
+            <strong>{money(calculator.recommendedBillingGrandTotal)} {calculator.billingLabel}</strong>
             <div className="quoteStrip">
               <b>Quote</b>
-              <small>{money(calculator.recommended.total)} subtotal + {money(calculator.recommendedGst)} GST</small>
+              <small>{money(calculator.recommendedBillingSubtotal)} subtotal + {money(calculator.recommendedBillingGst)} GST</small>
             </div>
             {calculator.savings > 0 ? (
-              <small>{calculator.recommended.plan.name} saves {money(calculator.savings)} per month and {calculator.recommended.plan.name === "Basic" ? "can bundle all extensions." : "includes all extensions."}</small>
+              <small>{calculator.recommended.plan.name} saves {money(calculator.savings)} {billingCycle === "yearly" ? "per year" : "per month"} and {calculator.recommended.plan.name === "Basic" ? "can bundle all extensions." : "includes all extensions."}</small>
             ) : (
               <small>Your custom builder estimate is already optimized for this setup.</small>
             )}
           </div>
-        </div>
-      </section>
-
-      <section className="plansCompare" id="compare" aria-labelledby="hostin-plan-comparison">
-        <div>
-          <p className="sectionEyebrow">Compare plans</p>
-          <h2 id="hostin-plan-comparison">Compare without the clutter.</h2>
-          <p>Pricing and access sit in one table. Operational workflows and account limits sit in the next one.</p>
-        </div>
-        <div className="hostinCompareTableWrap">
-          <h3>Pricing and core access</h3>
-          <table className="hostinCompareTable">
-            <thead>
-              <tr>
-                <th scope="col">Feature</th>
-                <th scope="col">Custom Builder</th>
-                {packages.map((plan) => <th scope="col" key={plan.name}>{plan.name}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {pricingComparisonRows.map((row) => (
-                <tr key={row[0]}>
-                  <th scope="row">{row[0]}</th>
-                  {row.slice(1).map((value, index) => <td key={`${row[0]}-${index}`}>{valueBadge(value)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="hostinCompareTableWrap">
-          <h3>Extensions and workflows</h3>
-          <table className="hostinCompareTable">
-            <thead>
-              <tr>
-                <th scope="col">Feature</th>
-                <th scope="col">Custom Builder</th>
-                {packages.map((plan) => <th scope="col" key={plan.name}>{plan.name}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {operationsComparisonRows.map((row) => (
-                <tr key={row[0]}>
-                  <th scope="row">{row[0]}</th>
-                  {row.slice(1).map((value, index) => <td key={`${row[0]}-${index}`}>{valueBadge(value)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </section>
 
