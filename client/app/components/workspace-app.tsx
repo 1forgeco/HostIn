@@ -9,7 +9,7 @@ import { applyCustomColor, applyDefaultTheme } from "./theme-system";
 import { ClientOnboardingWizard } from "./client-onboarding-wizard";
 
 type Role = "owner" | "warden" | "guard" | "security" | "staff" | "tenant" | "parent" | "platform";
-type SectionId = "profile" | "overview" | "ownerProperties" | "ownerPeople" | "ownerCredentials" | "ownerRequests" | "ownerBilling" | "ownerReports" | "ownerSettings" | "rooms" | "tenants" | "gate" | "visitors" | "finance" | "community" | "complaints" | "announcements" | "mess" | "documents" | "staff" | "parents" | "parentChild" | "parentGate" | "parentBilling" | "parentMess" | "parentAnnouncements" | "parentContacts" | "parentHelp" | "parentDocuments" | "platform";
+type SectionId = "profile" | "overview" | "ownerProperties" | "ownerCredentials" | "ownerRequests" | "ownerBilling" | "ownerReports" | "ownerSettings" | "rooms" | "tenants" | "gate" | "finance" | "community" | "complaints" | "announcements" | "mess" | "documents" | "staff" | "parents" | "parentChild" | "parentGate" | "parentBilling" | "parentMess" | "parentAnnouncements" | "parentContacts" | "parentHelp" | "parentDocuments" | "platform";
 
 type Module = {
   id: SectionId;
@@ -136,7 +136,7 @@ type DueRecord = {
   tenant: { id?: string; full_name: string; email?: string; phone?: string };
 };
 
-type StaffContactRecord = { id: string; name: string; phone: string; role_type: string };
+type StaffContactRecord = { id: string; name: string; phone: string; role_type: string; is_emergency?: boolean; updated_at?: string; created_at?: string };
 type MessItem = { id: string; day_of_week: string; meal_type: string; items: string[] };
 type PaymentRecord = {
   id: string;
@@ -375,7 +375,7 @@ type OwnerDashboardData = {
 };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api";
-const ownerDashboardIds: SectionId[] = ["overview", "ownerProperties", "ownerPeople", "ownerCredentials", "ownerRequests", "documents", "ownerBilling", "ownerReports", "ownerSettings"];
+const ownerDashboardIds: SectionId[] = ["overview", "ownerProperties", "ownerCredentials", "ownerRequests", "documents", "ownerSettings"];
 const gstRate = 0.18;
 const addonCatalog = [
   { id: "guard", label: "Guard", price: 500, features: ["role_guard", "gate_pass", "visitor_log"], icon: "ri-shield-user-line", copy: "Security desk, visitor control, and gate pass workflows." },
@@ -422,20 +422,9 @@ const modules: Module[] = [
     method: "POST",
   },
   {
-    id: "ownerPeople",
-    title: "People & Roles",
-    description: "Master people directory across tenants, wardens, guards, mess managers, parents, and vendors.",
-    stat: "118",
-    meta: "people",
-    roles: ["owner"],
-    action: "Request credential",
-    endpoint: "/owner/requests",
-    method: "POST",
-  },
-  {
     id: "ownerCredentials",
     title: "Credentials",
-    description: "View login IDs, account status, role access, and credential requests fulfilled by 1Forge.",
+    description: "Manage team members, role access, login IDs, and credential requests fulfilled by 1Forge.",
     stat: "0",
     meta: "accounts",
     roles: ["owner"],
@@ -445,12 +434,12 @@ const modules: Module[] = [
   },
   {
     id: "ownerRequests",
-    title: "Requests",
-    description: "Track credential, feature, property, plan, staff, document, and support requests.",
+    title: "Help & Support",
+    description: "Find answers or get in touch with the support team.",
     stat: "0",
-    meta: "open",
+    meta: "help",
     roles: ["owner"],
-    action: "Submit request",
+    action: "Raise ticket",
     endpoint: "/owner/requests",
     method: "POST",
   },
@@ -468,7 +457,7 @@ const modules: Module[] = [
   {
     id: "gate",
     title: "Gate Passes",
-    description: "View outing requests and approve or reject pending passes.",
+    description: "Manage tenant outing passes and visitor entry records from one gate desk.",
     stat: "9",
     meta: "pending",
     roles: ["owner", "warden", "guard", "security", "tenant"],
@@ -477,23 +466,12 @@ const modules: Module[] = [
     method: "GET",
   },
   {
-    id: "visitors",
-    title: "Visitors",
-    description: "View visitor records and filter by date, day, or visitor name.",
-    stat: "6",
-    meta: "today",
-    roles: ["owner", "warden", "guard", "security"],
-    action: "View visitors",
-    endpoint: "/visitors",
-    method: "GET",
-  },
-  {
     id: "complaints",
     title: "Complaints",
     description: "Assign, update, and resolve operational complaints.",
     stat: "0",
     meta: "open",
-    roles: ["owner", "warden"],
+    roles: [],
     action: "Review complaints",
     endpoint: "/complaints",
     method: "GET",
@@ -523,10 +501,10 @@ const modules: Module[] = [
   {
     id: "community",
     title: "Community",
-    description: "Announcements, complaints, and lost/found discussion feed.",
+    description: "Manage announcements, complaints, and lost & found.",
     stat: "3",
     meta: "threads",
-    roles: ["owner", "staff", "tenant"],
+    roles: ["owner", "warden", "staff", "tenant"],
     action: "Create post",
     endpoint: "/announcements",
     method: "POST",
@@ -570,7 +548,7 @@ const modules: Module[] = [
     description: "Plan, enabled features, usage, renewal, and add-on request controls.",
     stat: "0",
     meta: "billing",
-    roles: ["owner"],
+    roles: [],
     action: "Request upgrade",
     endpoint: "/owner/requests",
     method: "POST",
@@ -581,7 +559,7 @@ const modules: Module[] = [
     description: "Owner-level financial, occupancy, role, request, and operations summaries.",
     stat: "0",
     meta: "reports",
-    roles: ["owner"],
+    roles: [],
     action: "Refresh",
     endpoint: "/owner/dashboard",
     method: "GET",
@@ -592,7 +570,7 @@ const modules: Module[] = [
     description: "Workspace status, plan limits, feature policy, and 1Forge-managed controls.",
     stat: "0",
     meta: "settings",
-    roles: ["owner"],
+    roles: [],
     action: "Request change",
     endpoint: "/owner/requests",
     method: "POST",
@@ -661,12 +639,7 @@ const dataRows: Partial<Record<SectionId, string[][]>> = {
   gate: [
     ["Rohan Patel", "Home visit", "Pending", "Out 5 PM"],
     ["Maya Nair", "Coaching", "Approved", "Return 8 PM"],
-    ["Kabir Singh", "Medical", "Completed", "Returned"],
-  ],
-  visitors: [
-    ["Priya Shah", "Isha Rao", "Approved", "Waiting"],
-    ["Delivery", "Office", "Checked in", "Gate 1"],
-    ["Mr. Nair", "Maya Nair", "Pending", "5 PM"],
+    ["Priya Shah", "Visitor for Isha", "Pending", "Gate 1"],
   ],
   finance: [
     ["Rent - June", "Aarav Mehta", "₹12,000", "Unpaid"],
@@ -835,10 +808,11 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
         return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
       }
       if (normalizedRole !== "warden") return available;
-    const order: SectionId[] = ["overview", "rooms", "tenants", "complaints", "gate", "visitors", "announcements", "staff", "documents"];
+    const order: SectionId[] = ["overview", "rooms", "tenants", "community", "gate", "announcements", "staff", "documents"];
     return available.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }, [normalizedRole]);
-  const activeModule = activeId === "profile" ? profileModule : (allowedModules.find((module) => module.id === activeId) ?? allowedModules[0] ?? modules[0]);
+  const hiddenOwnerModule = normalizedRole === "owner" && ownerDashboardIds.includes(activeId) ? modules.find((module) => module.id === activeId) : undefined;
+  const activeModule = activeId === "profile" ? profileModule : (allowedModules.find((module) => module.id === activeId) ?? hiddenOwnerModule ?? allowedModules[0] ?? modules[0]);
   const propertyOptions = useMemo(() => {
     if (!login || normalizedRole === "platform") return [];
     const seen = new Set<string>();
@@ -1119,7 +1093,7 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
             <i aria-hidden="true" className={darkMode ? "ri-sun-line" : "ri-moon-line"} />
           </button>
           <NotificationMenu accessToken={login.accessToken} isPlatform={normalizedRole === "platform"} orgId={login.orgId} />
-          <ProfileMenu login={login} onLogout={logout} onOpenProfile={() => setActiveId("profile")} role={normalizedRole} workspace={propertyName} />
+          <ProfileMenu login={login} onLogout={logout} onOpenProfile={() => setActiveId("profile")} onOpenSettings={normalizedRole === "owner" ? () => setActiveId("ownerSettings") : undefined} role={normalizedRole} workspace={propertyName} />
         </div>
       </header>
 
@@ -1137,12 +1111,21 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
             )
           ) : (
             <>
-              <div className="pageHeader">
+              <div className={activeModule.id === "gate" ? "pageHeader gatePassPageHeader" : "pageHeader"}>
                 <div>
                   <p className="crumb">
                     {propertyName} / {roleLabel(role)}
                   </p>
-                  <h2>{activeModule.title}</h2>
+                  <h2 className={activeModule.id === "ownerCredentials" ? "credentialsVaultTitle" : undefined}>
+                    {activeModule.id === "ownerCredentials" ? (
+                      <>
+                        <i aria-hidden="true" className="ri-shield-user-line" />
+                        Credentials Vault
+                      </>
+                    ) : (
+                      activeModule.title
+                    )}
+                  </h2>
                   <p>{normalizedRole === "tenant" && activeModule.id === "gate" ? "Request an outing pass and review your permanent pass history." : normalizedRole === "tenant" && activeModule.id === "finance" ? "Review your dues, pay securely, and keep your payment history." : activeModule.description}</p>
                 </div>
                 {activeModule.id === "tenants" ? (
@@ -1153,16 +1136,11 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
                   <button className="gradientButton" disabled={gatePassLocked} onClick={() => window.dispatchEvent(new Event("hostin:request-gate-pass"))} type="button">
                     {gatePassLocked ? "Gate Pass Active" : "Request Gate Pass"}
                   </button>
-                ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "visitors", "gate", "community", "complaints", "announcements", "documents", "parents", "parentChild", "parentGate", "parentBilling", "parentMess", "parentAnnouncements", "parentContacts", "parentHelp", "parentDocuments", "platform"].includes(activeModule.id) ? (
+                ) : normalizedRole !== "owner" && !["profile", "finance", "mess", "staff", "gate", "community", "complaints", "announcements", "documents", "parents", "parentChild", "parentGate", "parentBilling", "parentMess", "parentAnnouncements", "parentContacts", "parentHelp", "parentDocuments", "platform"].includes(activeModule.id) ? (
                   <button className="gradientButton" onClick={syncModule} type="button">
                     {activeModule.action}
                   </button>
                 ) : null}
-              </div>
-
-              <div className="syncBanner">
-                <span>Workspace</span>
-                <p>{message}</p>
               </div>
 
               {activeModule.id === "profile" ? (
@@ -1174,13 +1152,11 @@ export function WorkspaceApp({ workspace, role, profile }: { workspace: string; 
               ) : normalizedRole === "parent" ? (
                 <ParentWorkspace accessToken={login.accessToken} orgId={login.orgId} setActiveId={setActiveId} view={activeModule.id} />
               ) : activeModule.id === "rooms" && ["owner", "warden"].includes(normalizedRole) ? (
-                <RoomsBoard accessToken={login.accessToken} canManage={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={role} workspace={workspace} />
+                <RoomsBoard accessToken={login.accessToken} canManage={["owner", "warden"].includes(normalizedRole)} orgId={login.orgId} role={role} setActiveId={setActiveId} workspace={workspace} />
               ) : activeModule.id === "tenants" && ["owner", "warden"].includes(normalizedRole) ? (
                 <TenantsSection accessToken={login.accessToken} orgId={login.orgId} workspace={workspace} />
               ) : activeModule.id === "gate" ? (
-                <GatePassSection accessToken={login.accessToken} canApprove={["owner", "warden"].includes(normalizedRole)} canHandleMovement={["owner", "warden", "guard"].includes(normalizedRole)} isTenant={normalizedRole === "tenant"} onLockChange={setGatePassLocked} orgId={login.orgId} />
-              ) : activeModule.id === "visitors" ? (
-                <VisitorsSection accessToken={login.accessToken} canCreate={["guard", "warden"].includes(normalizedRole)} canModerate={["owner", "warden", "guard"].includes(normalizedRole)} orgId={login.orgId} />
+                <GatePassSection accessToken={login.accessToken} canApprove={["owner", "warden"].includes(normalizedRole)} canCreateVisitors={["guard", "warden"].includes(normalizedRole)} canHandleMovement={["owner", "warden", "guard"].includes(normalizedRole)} canModerateVisitors={["owner", "warden", "guard"].includes(normalizedRole)} isTenant={normalizedRole === "tenant"} onLockChange={setGatePassLocked} orgId={login.orgId} />
               ) : activeModule.id === "community" || activeModule.id === "complaints" || activeModule.id === "announcements" ? (
                 <CommunitySection accessToken={login.accessToken} canCreate={activeModule.id !== "complaints" && ["owner", "warden"].includes(normalizedRole)} mode={activeModule.id === "complaints" ? "complaints" : activeModule.id === "announcements" ? "announcements" : undefined} orgId={login.orgId} role={normalizedRole} />
               ) : activeModule.id === "documents" && normalizedRole === "warden" ? (
@@ -1245,7 +1221,7 @@ function PanelTitle({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-function ProfileMenu({ login, role, workspace, onOpenProfile, onLogout }: { login: LoginState; role: Role; workspace: string; onOpenProfile: () => void; onLogout: () => void }) {
+function ProfileMenu({ login, role, workspace, onOpenProfile, onOpenSettings, onLogout }: { login: LoginState; role: Role; workspace: string; onOpenProfile: () => void; onOpenSettings?: () => void; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
   const initials =
     login.userName
@@ -1288,6 +1264,17 @@ function ProfileMenu({ login, role, workspace, onOpenProfile, onLogout }: { logi
           >
             View profile
           </button>
+          {onOpenSettings ? (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenSettings();
+              }}
+              type="button"
+            >
+              Settings
+            </button>
+          ) : null}
           <Link href="/change-password">Change password</Link>
           <button onClick={onLogout} type="button">
             Logout
@@ -1460,9 +1447,9 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
   const urgentComplaints = openComplaints.sort((a, b) => ["urgent", "high", "medium", "low"].indexOf(a.priority) - ["urgent", "high", "medium", "low"].indexOf(b.priority)).slice(0, 4);
   const tasks: { label: string; count: number; action: string; target: SectionId }[] = [
     { label: "gate passes waiting for approval", count: pendingPasses.length, action: "Approve", target: "gate" },
-    { label: "complaints needing attention", count: openComplaints.length, action: "Assign", target: "complaints" },
+    { label: "complaints needing attention", count: openComplaints.length, action: "Assign", target: "community" },
     { label: "tenants late to return", count: lateReturns.length, action: "Call", target: "gate" },
-    { label: "visitors waiting at the gate", count: waitingVisitors.length, action: "Review", target: "visitors" },
+    { label: "visitors waiting at the gate", count: waitingVisitors.length, action: "Review", target: "gate" },
     { label: "documents pending review", count: pendingDocuments.length, action: "Review", target: "documents" },
   ];
 
@@ -1489,9 +1476,9 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
       <section className="wardenKpis" aria-label="Today’s operational summary">
         {[
           ["Available Beds", availableBeds, "rooms"],
-          ["Pending Complaints", openComplaints.length, "complaints"],
+          ["Pending Complaints", openComplaints.length, "community"],
           ["Gate Pass Requests", pendingPasses.length, "gate"],
-          ["Visitors Today", visitorsToday.length, "visitors"],
+          ["Visitors Today", visitorsToday.length, "gate"],
           ["Late Returns", lateReturns.length, "gate"],
         ].map(([label, value, target]) => (
           <button className="panel" key={label} onClick={() => setActiveId(target as SectionId)} type="button">
@@ -1539,7 +1526,7 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
                   {item.tenant?.full_name || "Resident"} · {titleFromSlug(item.priority)}
                 </small>
               </div>
-              <button onClick={() => setActiveId("complaints")} type="button">
+              <button onClick={() => setActiveId("community")} type="button">
                 Resolve
               </button>
             </article>
@@ -1573,7 +1560,7 @@ function WardenDashboard({ accessToken, orgId, setActiveId, userName, workspace 
                   {visitor.status === "pending" ? "Waiting at gate" : "Currently inside"} · {visitor.tenant?.full_name || "Tenant"}
                 </small>
               </div>
-              <button onClick={() => setActiveId("visitors")} type="button">
+              <button onClick={() => setActiveId("gate")} type="button">
                 {visitor.status === "pending" ? "Review" : "Mark Exit"}
               </button>
             </article>
@@ -1640,6 +1627,7 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   const [message, setMessage] = useState("");
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [requestTitle, setRequestTitle] = useState("Submit request to 1Forge");
+  const [supportSearch, setSupportSearch] = useState("");
   const [documentQuery, setDocumentQuery] = useState("");
   const [billingMode, setBillingMode] = useState<"overview" | "shop" | "checkout">("overview");
   const [purchaseOptions, setPurchaseOptions] = useState<PurchaseOptions | null>(null);
@@ -1648,7 +1636,10 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [ticketMessage, setTicketMessage] = useState("");
+  const [ownerDashboardView, setOwnerDashboardView] = useState<"property" | "revenue" | "hostel">("property");
+  const [quickActions, setQuickActions] = useState<{ label: string; target: SectionId }[]>([]);
+  const [isQuickActionFormOpen, setIsQuickActionFormOpen] = useState(false);
+  const [quickActionDraft, setQuickActionDraft] = useState<{ label: string; target: SectionId }>({ label: "", target: "ownerProperties" });
   const [draft, setDraft] = useState({
     type: view === "ownerBilling" ? "plan_upgrade" : view === "ownerProperties" ? "new_property" : "credential_creation",
     title: "",
@@ -1783,23 +1774,6 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
     }
   }
 
-  async function sendOwnerTicketMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedRequestId || !ticketMessage.trim()) return;
-    const response = await fetch(`${apiBase}/owner/requests/${selectedRequestId}/messages`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: ticketMessage }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setTicketMessage("");
-      await loadOwnerDashboard();
-    } else {
-      setMessage(data.error ?? "Unable to send message.");
-    }
-  }
-
   if (isLoading)
     return (
       <section className="panel">
@@ -1912,83 +1886,59 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
         <section className="ownerPropertyGrid">
           {dashboard.properties.map((property) => (
             <article className="panel ownerPropertyCard" key={property.id}>
-              <header>
-                <span className={`statusPill ${property.status}`}>{titleFromSlug(property.status)}</span>
-                <b>{property.planName}</b>
-              </header>
-              <h3>{property.name}</h3>
-              <p>
-                {property.cityState} · {property.clientType || "PG / Hostel"}
-              </p>
-              <div className="clientQuickStats">
-                <span>
-                  <b>{property.activeTenants}</b>Tenants
-                </span>
-                <span>
-                  <b>{property.availableBeds}</b>Available beds
-                </span>
-                <span>
-                  <b>{money(property.pendingRent)}</b>Pending rent
-                </span>
-                <span>
-                  <b>{property.openComplaints}</b>Complaints
-                </span>
+              <div className="ownerPropertyMain">
+                <div className="ownerPropertyHero">
+                  <span className="ownerPropertyIcon" aria-hidden="true">
+                    <i className="ri-building-4-line" />
+                  </span>
+                  <div>
+                    <div className="ownerPropertyMetaRow">
+                      <span className={`ownerHealthPill ${property.status}`}>{titleFromSlug(property.status)}</span>
+                    </div>
+                    <h3>{property.name}</h3>
+                    <p>
+                      <i aria-hidden="true" className="ri-map-pin-line" />
+                      {property.cityState} · {property.clientType || "PG / Hostel"}
+                    </p>
+                  </div>
+                  <span className="ownerPlanPill">{property.planName}</span>
+                </div>
+                <div className="ownerPropertyStats" aria-label={`${property.name} property stats`}>
+                  <span>
+                    <i aria-hidden="true" className="ri-group-line" />
+                    <b>{property.activeTenants}</b>
+                    <small>Tenants</small>
+                  </span>
+                  <span>
+                    <i aria-hidden="true" className="ri-hotel-bed-line" />
+                    <b>{property.availableBeds}</b>
+                    <small>Available beds</small>
+                  </span>
+                  <span>
+                    <i aria-hidden="true" className="ri-money-rupee-circle-line" />
+                    <b>{money(property.pendingRent)}</b>
+                    <small>Pending rent</small>
+                  </span>
+                </div>
               </div>
-              <footer>
-                <button onClick={() => setActiveId("rooms")} type="button">
-                  Manage rooms
+              <div className="ownerPropertyActions">
+                <button className="ownerPropertyActionPrimary" onClick={() => setActiveId("rooms")} type="button">
+                  <span>
+                    <i aria-hidden="true" className="ri-layout-grid-line" />
+                    Manage Rooms
+                  </span>
+                  <i aria-hidden="true" className="ri-arrow-right-s-line" />
                 </button>
-                <button onClick={() => setActiveId("staff")} type="button">
-                  View Mess Manager
+                <button className="ownerPropertyActionSecondary" onClick={() => setActiveId("ownerBilling")} type="button">
+                  <span>
+                    <i aria-hidden="true" className="ri-file-list-3-line" />
+                    View Billing
+                  </span>
+                  <i aria-hidden="true" className="ri-arrow-right-s-line" />
                 </button>
-                <button onClick={() => setActiveId("ownerBilling")} type="button">
-                  View billing
-                </button>
-              </footer>
+              </div>
             </article>
           ))}
-        </section>
-      </div>
-    );
-  }
-
-  if (view === "ownerPeople") {
-    return withRequestModal(
-      <div className="ownerPageGrid">
-        <section className="ownerSectionHeader panel">
-          <div>
-            <h3>People & Roles</h3>
-            <p>View residents and staff from live workspace records. Request new access through 1Forge.</p>
-          </div>
-          <button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "staff_addition", title: "Add team member" })} type="button">
-            Add Team Member
-          </button>
-        </section>
-        <section className="panel">
-          <PanelTitle title="People directory" meta={`${dashboard.people.length} people`} />
-          <div className="controlTable ownerPeopleTable">
-            <div>
-              <b>Name</b>
-              <b>Role</b>
-              <b>Property</b>
-              <b>Room / department</b>
-              <b>Account</b>
-              <b>Documents</b>
-            </div>
-            {dashboard.people.map((person) => (
-              <div key={person.id}>
-                <span>
-                  <strong>{person.name}</strong>
-                  <small>{person.phone}</small>
-                </span>
-                <span>{titleFromSlug(person.role)}</span>
-                <span>{person.property}</span>
-                <span>{person.roomOrDepartment}</span>
-                <span className={`statusPill ${person.accountStatus}`}>{titleFromSlug(person.accountStatus)}</span>
-                <span>{titleFromSlug(person.documentStatus)}</span>
-              </div>
-            ))}
-          </div>
         </section>
       </div>
     );
@@ -1997,39 +1947,58 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
   if (view === "ownerCredentials") {
     return withRequestModal(
       <div className="ownerPageGrid">
-        <section className="ownerSectionHeader panel">
+        <section className="ownerSectionHeader panel ownerCredentialsIntro">
+          <span className="ownerCredentialsIntroIcon" aria-hidden="true">
+            <i className="ri-group-line" />
+          </span>
           <div>
             <h3>Credentials</h3>
-            <p>Each login is shown as a separate account card so owner review stays compact and readable.</p>
+            <p>Team members, roles, login IDs, and account status live here. New member access is requested through 1Forge.</p>
           </div>
-          <button className="gradientButton" onClick={() => openRequest("Add Team Member", { type: "credential_creation", title: "Create team member credential" })} type="button">
+          <button className="gradientButton ownerCredentialsAddButton" onClick={() => openRequest("Add Team Member", { type: "credential_creation", title: "Create team member credential" })} type="button">
+            <i aria-hidden="true" className="ri-add-line" />
             Add Team Member
           </button>
         </section>
         <section className="ownerCredentialCards">
           {dashboard.credentials.map((credential) => (
-            <article className="panel ownerCredentialCard" key={`${credential.userId}-${credential.role}`}>
-              <header>
+            <article className={`panel ownerCredentialCard role-${credential.role}`} key={`${credential.userId}-${credential.role}`}>
+              <header className="ownerCredentialCardHeader">
+                <span className="ownerCredentialAvatar" aria-hidden="true">
+                  <i className="ri-user-line" />
+                </span>
                 <div>
                   <h3>{credential.name}</h3>
                   <span>{credential.property}</span>
                 </div>
-                <span className={`statusPill ${credential.status}`}>{titleFromSlug(credential.status)}</span>
+                <button aria-label={`More actions for ${credential.name}`} className="ownerCredentialMore" type="button">
+                  <i aria-hidden="true" className="ri-more-2-fill" />
+                </button>
+                <span className={`ownerCredentialStatus ${credential.status}`}>{titleFromSlug(credential.status)}</span>
               </header>
-              <dl>
+              <dl className="ownerCredentialDetails">
                 <div>
                   <dt>Role</dt>
-                  <dd>{titleFromSlug(credential.role)}</dd>
+                  <dd>
+                    <i aria-hidden="true" className="ri-briefcase-4-line" />
+                    {titleFromSlug(credential.role)}
+                  </dd>
                 </div>
                 <div>
                   <dt>Login ID</dt>
                   <dd>
                     <code>{credential.loginId}</code>
+                    <button aria-label={`Copy login ID for ${credential.name}`} onClick={() => navigator.clipboard?.writeText(credential.loginId)} type="button">
+                      <i aria-hidden="true" className="ri-file-copy-line" />
+                    </button>
                   </dd>
                 </div>
                 <div>
                   <dt>Last active</dt>
-                  <dd>{credential.lastActive ? new Date(credential.lastActive).toLocaleDateString("en-IN") : "Never"}</dd>
+                  <dd>
+                    <span>{credential.lastActive ? new Date(credential.lastActive).toLocaleDateString("en-IN") : "Never"}</span>
+                    <i aria-hidden="true" className="ri-calendar-line" />
+                  </dd>
                 </div>
               </dl>
               <footer>
@@ -2045,7 +2014,8 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
                   }
                   type="button"
                 >
-                  Request reset
+                  <i aria-hidden="true" className="ri-key-2-line" />
+                  Reset
                 </button>
                 <button
                   onClick={() =>
@@ -2059,104 +2029,148 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
                   }
                   type="button"
                 >
-                  Request role change
+                  <i aria-hidden="true" className="ri-user-settings-line" />
+                  Change Role
                 </button>
               </footer>
             </article>
           ))}
+          <button className="ownerCredentialAddTile" onClick={() => openRequest("Add Team Member", { type: "credential_creation", title: "Create team member credential" })} type="button">
+            <span aria-hidden="true">
+              <i className="ri-add-line" />
+            </span>
+            <strong>Add Team Member</strong>
+            <small>Invite a new member to City Complex</small>
+          </button>
         </section>
       </div>
     );
   }
-
   if (view === "ownerRequests") {
-    const selectedRequest = dashboard.requests.find((request) => request.id === selectedRequestId) ?? dashboard.requests[0];
-    const requestStats = [
-      { label: "Open", value: dashboard.requests.filter((request) => ["submitted", "need_more_info"].includes(request.status)).length, icon: "ri-chat-1-line" },
-      { label: "In Progress", value: dashboard.requests.filter((request) => ["under_review", "approved"].includes(request.status)).length, icon: "ri-hourglass-2-line" },
-      { label: "Resolved", value: dashboard.requests.filter((request) => ["fulfilled", "activated"].includes(request.status)).length, icon: "ri-checkbox-circle-line" },
-      { label: "Closed / Refused", value: dashboard.requests.filter((request) => ["rejected", "canceled"].includes(request.status)).length, icon: "ri-close-circle-line" },
+    const filteredSupportRequests = dashboard.requests.filter((request) => {
+      const query = supportSearch.trim().toLowerCase();
+      if (!query) return true;
+      return `${request.title} ${request.type} ${request.property} ${request.reason ?? ""} ${request.requiredAccess ?? ""}`.toLowerCase().includes(query);
+    });
+    const quickLinks = [
+      { title: "Getting Started", copy: "Learn the basics and set things up", icon: "ri-rocket-line", action: () => setActiveId("ownerProperties") },
+      { title: "Account & Billing", copy: "Manage plans, payments and invoices", icon: "ri-bank-card-line", action: () => openRequest("Open Billing Support", { type: "support", title: "Billing support" }) },
+      { title: "Property Management", copy: "Manage rooms, tenants and access", icon: "ri-building-4-line", action: () => setActiveId("rooms") },
+      { title: "Dues & Payments", copy: "Understand dues, late fees and payments", icon: "ri-wallet-3-line", action: () => setActiveId("finance") },
+      { title: "Community", copy: "Announcements, complaints and lost & found", icon: "ri-group-line", action: () => setActiveId("community") },
     ];
     return withRequestModal(
-      <div className="ownerPageGrid">
-        <section className="ownerSectionHeader panel">
-          <div>
-            <h3>Support & Tickets</h3>
-            <p>Chat with 1Forge, track purchases, and follow every workspace request from one clean desk.</p>
-          </div>
-          <div className="billingHeaderActions">
-            <button className="outlineButton" onClick={() => openRequest("Open Support Chat", { type: "support", title: "Support request" })} type="button">
-              <i className="ri-chat-smile-2-line" aria-hidden="true" /> Open Chat
-            </button>
-            <button className="gradientButton" onClick={() => openRequest("New Ticket", { type: "support", title: "" })} type="button">
-              <i className="ri-add-circle-line" aria-hidden="true" /> New Ticket
-            </button>
-          </div>
-        </section>
-        <section className="billingKpiGrid">
-          {requestStats.map((stat) => (
-            <article className="panel billingKpi" key={stat.label}>
-              <span>
-                <i className={stat.icon} aria-hidden="true" />
-              </span>
-              <div>
-                <small>{stat.label}</small>
-                <strong>{stat.value}</strong>
-              </div>
-            </article>
-          ))}
-        </section>
-        <section className="ticketCenterGrid">
-          <div className="panel">
-            <PanelTitle title="All tickets" meta={`${dashboard.requests.length} total`} />
-            <div className="ownerRequestList ticketList">
-              {dashboard.requests.map((request) => (
-                <button className={selectedRequest?.id === request.id ? "active" : ""} key={request.id} onClick={() => setSelectedRequestId(request.id)} type="button">
-                  <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
-                  <div>
-                    <b>{request.title}</b>
-                    <small>
-                      {labelFromKey(request.type)} · {request.property}
-                    </small>
-                    <p>{request.reason || request.requiredAccess || "Awaiting 1Forge review."}</p>
-                  </div>
-                  <time>{new Date(request.updatedAt || request.createdAt).toLocaleDateString("en-IN")}</time>
+      <div className="helpSupportPage">
+        <section className="helpSearchHero">
+          <div className="panel helpSearchCard">
+            <strong>How can we help?</strong>
+            <label>
+              <input onChange={(event) => setSupportSearch(event.target.value)} placeholder="Search for help articles, topics or guides..." type="search" value={supportSearch} />
+              <i aria-hidden="true" className="ri-search-line" />
+            </label>
+            <div className="helpPopularSearches">
+              <span>Popular searches:</span>
+              {["Add Room", "Dues Payment", "Gate Pass", "Late Fee", "Documents"].map((item) => (
+                <button key={item} onClick={() => setSupportSearch(item)} type="button">
+                  {item}
                 </button>
               ))}
-              {!dashboard.requests.length ? <EmptyPanel title="No tickets yet" copy="Open a support request when you need 1Forge help." /> : null}
             </div>
           </div>
-          <aside className="panel ticketChatPanel">
-            <PanelTitle title={selectedRequest ? selectedRequest.title : "Chat with HostIn Support"} meta={selectedRequest ? labelFromKey(selectedRequest.status) : "Online"} />
-            {selectedRequest ? (
-              <>
-                <div className="ticketMetaGrid">
-                  <span>{labelFromKey(selectedRequest.type)}</span>
-                  <span>{selectedRequest.property}</span>
-                  <span>{new Date(selectedRequest.createdAt).toLocaleString("en-IN")}</span>
+          <div aria-hidden="true" className="helpHeroArt">
+            <span><i className="ri-lifebuoy-line" /></span>
+          </div>
+        </section>
+        <section className="helpQuickLinks">
+          <div>
+            <strong>Quick links</strong>
+            <p>Browse common support topics</p>
+          </div>
+          <div className="helpQuickLinkGrid">
+            {quickLinks.map((link) => (
+              <button key={link.title} onClick={link.action} type="button">
+                <span><i aria-hidden="true" className={link.icon} /></span>
+                <div>
+                  <strong>{link.title}</strong>
+                  <p>{link.copy}</p>
                 </div>
-                <div className="ticketTimeline">
-                  {(selectedRequest.events ?? []).map((event) => (
-                    <article className={eventActor(event).toLowerCase().includes("owner") ? "owner" : ""} key={event.id}>
-                      <small>
-                        {eventActor(event)} · {labelFromKey(eventKind(event))} · {new Date(eventDate(event)).toLocaleString("en-IN")}
-                      </small>
-                      <p>{event.message || "Status updated."}</p>
-                    </article>
-                  ))}
-                  {!selectedRequest.events?.length ? <EmptyPanel title="No messages yet" copy="Send a note to start the conversation." /> : null}
-                </div>
-                <form className="ticketMessageForm" onSubmit={sendOwnerTicketMessage}>
-                  <input aria-label="Message 1Forge support" onChange={(event) => setTicketMessage(event.target.value)} placeholder="Type your message..." value={ticketMessage} />
-                  <button className="gradientButton" type="submit">
-                    <i className="ri-send-plane-2-line" aria-hidden="true" /> Send
+                <i aria-hidden="true" className="ri-arrow-right-s-line" />
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="helpSupportGrid">
+          <div className="panel helpContactPanel">
+            <div>
+              <strong>Get more help</strong>
+              <p>Choose the best way to reach us</p>
+            </div>
+            <button onClick={() => openRequest("Open Support Chat", { type: "support", title: "Support request" })} type="button">
+              <span><i aria-hidden="true" className="ri-chat-1-line" /></span>
+              <div>
+                <strong>Chat with us</strong>
+                <p>Live chat support during business hours</p>
+              </div>
+              <b>Online</b>
+            </button>
+            <button onClick={() => openRequest("Raise a Ticket", { type: "support", title: "" })} type="button">
+              <span><i aria-hidden="true" className="ri-mail-line" /></span>
+              <div>
+                <strong>Raise a ticket</strong>
+                <p>Submit a request and our team will get back to you</p>
+              </div>
+              <i aria-hidden="true" className="ri-arrow-right-s-line" />
+            </button>
+            <a href="tel:+919990012345">
+              <span><i aria-hidden="true" className="ri-phone-line" /></span>
+              <div>
+                <strong>Call us</strong>
+                <p>Mon - Sat, 9:00 AM to 6:00 PM</p>
+              </div>
+              <b>+91 99900 12345</b>
+            </a>
+          </div>
+          <aside className="panel helpTicketsPanel">
+            <div className="helpTicketsHeader">
+              <div>
+                <strong>Your support tickets</strong>
+                <p>Track your recent requests</p>
+              </div>
+              <button className="outlineButton miniButton" onClick={() => setSupportSearch("")} type="button">
+                View all tickets
+              </button>
+            </div>
+            {filteredSupportRequests.length ? (
+              <div className="helpTicketList">
+                {filteredSupportRequests.slice(0, 4).map((request) => (
+                  <button className={selectedRequestId === request.id ? "active" : ""} key={request.id} onClick={() => setSelectedRequestId(request.id)} type="button">
+                    <span className={`statusPill ${request.status}`}>{labelFromKey(request.status)}</span>
+                    <div>
+                      <strong>{request.title || "Support ticket"}</strong>
+                      <p>{labelFromKey(request.type)} · {new Date(request.updatedAt || request.createdAt).toLocaleDateString("en-IN")}</p>
+                    </div>
+                    <i aria-hidden="true" className="ri-arrow-right-s-line" />
                   </button>
-                </form>
-              </>
+                ))}
+              </div>
             ) : (
-              <EmptyPanel title="Select a ticket" copy="Conversation and status logs will appear here." />
+              <div className="helpTicketsEmpty">
+                <span><i aria-hidden="true" className="ri-clipboard-line" /></span>
+                <strong>No tickets yet</strong>
+                <p>You haven’t raised any support tickets.</p>
+                <button className="gradientButton" onClick={() => openRequest("Raise Your First Ticket", { type: "support", title: "" })} type="button">
+                  Raise your first ticket
+                </button>
+              </div>
             )}
           </aside>
+        </section>
+        <section className="panel helpStillNeed">
+          <i aria-hidden="true" className="ri-information-line" />
+          <div>
+            <strong>Still need help?</strong>
+            <p>Our support team is here to assist you. We typically respond within a few hours.</p>
+          </div>
         </section>
       </div>
     );
@@ -2454,72 +2468,159 @@ function OwnerWorkspaceSection({ accessToken, orgId, view, setActiveId }: { acce
     );
   }
 
+  const currentProperty = dashboard.properties.find((property) => property.id === orgId) ?? dashboard.properties[0];
+  const currentBilling = dashboard.billing.find((bill) => bill.orgId === orgId || bill.property === currentProperty?.name) ?? dashboard.billing[0];
+  const currentRequests = dashboard.requests.filter((request) => !currentProperty || request.property === currentProperty.name);
+  const quickActionTargets: { label: string; target: SectionId }[] = [
+    { label: "Properties", target: "ownerProperties" },
+    { label: "Credentials", target: "ownerCredentials" },
+    { label: "Requests", target: "ownerRequests" },
+    { label: "Documents", target: "documents" },
+    { label: "Billing", target: "ownerBilling" },
+    { label: "Reports", target: "ownerReports" },
+  ];
+
+  function addQuickAction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const label = quickActionDraft.label.trim();
+    if (!label || quickActions.length >= 4) return;
+    setQuickActions((current) => [...current, { label, target: quickActionDraft.target }].slice(0, 4));
+    setQuickActionDraft({ label: "", target: "ownerProperties" });
+    setIsQuickActionFormOpen(false);
+  }
+
   return (
     <div className="ownerDashboardHome">
-      <div className="ownerWelcome panel">
-        <p className="sectionEyebrow">Owner dashboard</p>
-        <h2>Good morning, {dashboard.owner.name.split("@")[0]}</h2>
-        <p>
-          Managing {dashboard.summary.totalProperties} {dashboard.summary.totalProperties === 1 ? "property" : "properties"} under {dashboard.owner.organizationName}.
-        </p>
-      </div>
-      <div className="platformKpis">
-        <PlatformKpi label="Total properties" value={dashboard.summary.totalProperties} note="Owner portfolio" />
-        <PlatformKpi label="Total tenants" value={dashboard.summary.totalTenants} note={`${dashboard.summary.availableBeds}/${dashboard.summary.totalBeds} beds available`} />
-        <PlatformKpi label="Monthly revenue" value={money(dashboard.summary.monthlyRevenue)} note="Successful payments this month" />
-        <PlatformKpi label="Pending rent" value={money(dashboard.summary.pendingRent)} note="Unpaid, partial, and overdue" tone="warning" />
-        <PlatformKpi label="Open complaints" value={dashboard.summary.openComplaints} note="Open or in progress" tone={dashboard.summary.openComplaints ? "warning" : undefined} />
-        <PlatformKpi label="Mess Managers active" value={dashboard.summary.staffActive} note="Owner, wardens, guards, mess managers, parents" />
-        <PlatformKpi label="Pending requests" value={dashboard.summary.pendingRequests} note={`${dashboard.summary.pendingCredentialRequests} credentials`} tone={dashboard.summary.pendingRequests ? "warning" : undefined} />
-      </div>
-      <div className="ownerPageGrid">
-        <section className="panel">
-          <PanelTitle title="Property health overview" meta={`${dashboard.properties.length} properties`} />
-          <div className="ownerPropertyMiniList">
-            {dashboard.properties.map((property) => (
-              <button key={property.id} onClick={() => setActiveId("ownerProperties")} type="button">
-                <b>{property.name}</b>
-                <span>
-                  {property.activeTenants}/{property.totalBeds} tenants · {property.availableBeds} beds available
-                </span>
-                <small>
-                  {money(property.pendingRent)} pending · {property.openComplaints} complaints
-                </small>
+      <div className="ownerDashboardTop">
+        <div className="ownerWelcome panel">
+          <p className="sectionEyebrow">Owner dashboard</p>
+          <h2>Good morning, {dashboard.owner.name.split("@")[0]}</h2>
+          <p>
+            Managing {dashboard.summary.totalProperties} {dashboard.summary.totalProperties === 1 ? "property" : "properties"} under {dashboard.owner.organizationName}.
+          </p>
+        </div>
+        <section className="panel ownerQuickActionsPanel">
+          <PanelTitle title="Quick actions" meta={`${quickActions.length}/4 saved`} />
+          <div className="ownerQuickActionRail">
+            {quickActions.map((action, index) => (
+              <button key={`${action.label}-${index}`} onClick={() => setActiveId(action.target)} type="button">
+                {action.label}
               </button>
             ))}
-          </div>
-        </section>
-        <section className="panel">
-          <PanelTitle title="Today’s attention" meta="Needs owner action" />
-          <div className="attentionList">
-            {dashboard.attention.map((item) => (
-              <button key={item.key} onClick={() => (item.key.includes("credential") ? setActiveId("ownerCredentials") : item.key.includes("document") ? setActiveId("documents") : item.key.includes("complaint") ? setActiveId("complaints") : setActiveId("ownerReports"))} type="button">
-                <strong>{item.count}</strong>
-                <span>{item.label}</span>
+            {quickActions.length < 4 ? (
+              <button aria-label="Add quick action" className="addQuickActionBox" onClick={() => setIsQuickActionFormOpen((open) => !open)} type="button">
+                <i aria-hidden="true" className="ri-add-line" />
               </button>
-            ))}
+            ) : null}
           </div>
-        </section>
-        <section className="panel">
-          <PanelTitle title="Quick actions" meta="Requests go to 1Forge" />
-          <div className="quickActionGrid">
-            {[
-              ["Request New Credential", "ownerCredentials"],
-              ["Add Team Member", "ownerCredentials"],
-              ["Add New Property", "ownerProperties"],
-              ["Request Plan Change", "ownerBilling"],
-              ["Add Feature", "ownerBilling"],
-              ["Create Announcement", "community"],
-              ["Upload Document", "documents"],
-              ["View Mess Manager Directory", "staff"],
-            ].map(([label, id]) => (
-              <button key={label} onClick={() => setActiveId(id as SectionId)} type="button">
-                {label}
-              </button>
-            ))}
-          </div>
+          {isQuickActionFormOpen ? (
+            <form className="ownerQuickActionForm" onSubmit={addQuickAction}>
+              <input aria-label="Quick action label" maxLength={28} onChange={(event) => setQuickActionDraft((current) => ({ ...current, label: event.target.value }))} placeholder="Action label" value={quickActionDraft.label} />
+              <select aria-label="Quick action destination" onChange={(event) => setQuickActionDraft((current) => ({ ...current, target: event.target.value as SectionId }))} value={quickActionDraft.target}>
+                {quickActionTargets.map((item) => (
+                  <option key={item.target} value={item.target}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <button type="submit">Add</button>
+            </form>
+          ) : null}
         </section>
       </div>
+
+      <nav aria-label="Owner dashboard category" className="ownerDashboardSwitchers">
+        {(["property", "revenue", "hostel"] as const).map((mode) => (
+          <button className={ownerDashboardView === mode ? "active" : ""} key={mode} onClick={() => setOwnerDashboardView(mode)} type="button">
+            {titleFromSlug(mode)}
+          </button>
+        ))}
+      </nav>
+
+      {ownerDashboardView === "property" ? (
+        <>
+          <div className="platformKpis">
+            <PlatformKpi label="Properties" value={dashboard.summary.totalProperties} note="Owner portfolio" />
+            <PlatformKpi label="Total tenants" value={dashboard.summary.totalTenants} note={`${dashboard.summary.availableBeds}/${dashboard.summary.totalBeds} beds available`} />
+            <PlatformKpi label="Active beds" value={`${dashboard.summary.totalTenants}/${dashboard.summary.totalBeds}`} note="Across all properties" />
+            <PlatformKpi label="Open complaints" value={dashboard.summary.openComplaints} note="Portfolio operations" tone={dashboard.summary.openComplaints ? "warning" : undefined} />
+          </div>
+          <section className="panel">
+            <PanelTitle title="Property portfolio" meta={`${dashboard.properties.length} properties`} />
+            <div className="ownerPropertyMiniList">
+              {dashboard.properties.map((property) => (
+                <button key={property.id} onClick={() => setActiveId("ownerProperties")} type="button">
+                  <b>{property.name}</b>
+                  <span>
+                    {property.activeTenants}/{property.totalBeds} tenants · {property.availableBeds} beds available
+                  </span>
+                  <small>
+                    {property.cityState} · {property.planName} · {titleFromSlug(property.status)}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {ownerDashboardView === "revenue" ? (
+        <>
+          <div className="platformKpis">
+            <PlatformKpi label="Monthly revenue" value={money(currentProperty?.monthlyRevenue ?? dashboard.summary.monthlyRevenue)} note={currentProperty?.name ?? "Selected hostel"} />
+            <PlatformKpi label="Pending rent" value={money(currentProperty?.pendingRent ?? dashboard.summary.pendingRent)} note="Unpaid and partial" tone={(currentProperty?.pendingRent ?? dashboard.summary.pendingRent) ? "warning" : undefined} />
+            <PlatformKpi label="Plan" value={currentBilling?.planName ?? "Active"} note={currentBilling ? titleFromSlug(currentBilling.planStatus) : "Selected hostel"} />
+            <PlatformKpi label="Beds billed" value={`${currentBilling?.activeUsers ?? currentProperty?.activeTenants ?? 0}/${currentBilling?.totalCapacity ?? currentProperty?.totalBeds ?? 0}`} note="Current hostel usage" />
+          </div>
+          <section className="panel">
+            <PanelTitle title="Revenue focus" meta={currentProperty?.name ?? "Selected hostel"} />
+            <div className="ownerRevenueSummary">
+              <div><span>Collected this month</span><b>{money(currentProperty?.monthlyRevenue ?? 0)}</b></div>
+              <div><span>Pending rent</span><b>{money(currentProperty?.pendingRent ?? 0)}</b></div>
+              <div><span>Available beds</span><b>{currentProperty?.availableBeds ?? 0}</b></div>
+              <div><span>Renewal</span><b>{currentBilling?.nextRenewal ? new Date(currentBilling.nextRenewal).toLocaleDateString("en-IN") : "Not set"}</b></div>
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {ownerDashboardView === "hostel" ? (
+        <div className="ownerPageGrid">
+          <section className="panel ownerCurrentHostel">
+            <PanelTitle title="Current hostel" meta={currentProperty?.name ?? "Selected PG"} />
+            <div className="clientQuickStats">
+              <span><b>{currentProperty?.activeTenants ?? 0}</b>Tenants</span>
+              <span><b>{currentProperty?.availableBeds ?? 0}</b>Available beds</span>
+              <span><b>{currentProperty?.openComplaints ?? 0}</b>Complaints</span>
+              <span><b>{currentProperty?.staffActive ?? 0}</b>Mess Managers active</span>
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle title="Passes, mess, requests" meta="Current hostel" />
+            <div className="attentionList">
+              {dashboard.attention.map((item) => (
+                <button key={item.key} onClick={() => (item.key.includes("document") ? setActiveId("documents") : item.key.includes("complaint") ? setActiveId("community") : item.key.includes("credential") || item.key.includes("request") ? setActiveId("ownerRequests") : setActiveId("gate"))} type="button">
+                  <strong>{item.count}</strong>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+              {!dashboard.attention.length ? <EmptyPanel title="Nothing pending" copy="Hostel-specific pass, mess, and request items will appear here." /> : null}
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle title="Request queue" meta={`${currentRequests.length} requests`} />
+            <div className="ownerRequestList">
+              {currentRequests.slice(0, 4).map((request) => (
+                <button key={request.id} onClick={() => setActiveId("ownerRequests")} type="button">
+                  <b>{request.title}</b>
+                  <small>{titleFromSlug(request.status)} · {new Date(request.createdAt).toLocaleDateString("en-IN")}</small>
+                </button>
+              ))}
+              {!currentRequests.length ? <EmptyPanel title="No hostel requests" copy="Requests for this selected hostel will appear here." /> : null}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -3792,8 +3893,31 @@ function TenantDetailCard({ tenant }: { tenant?: TenantRecord }) {
   );
 }
 
-function GatePassSection({ accessToken, canApprove, canHandleMovement, isTenant, onLockChange, orgId }: { accessToken: string; canApprove: boolean; canHandleMovement: boolean; isTenant: boolean; onLockChange: (locked: boolean) => void; orgId: string }) {
+function GatePassSection({
+  accessToken,
+  canApprove,
+  canCreateVisitors,
+  canHandleMovement,
+  canModerateVisitors,
+  isTenant,
+  onLockChange,
+  orgId,
+}: {
+  accessToken: string;
+  canApprove: boolean;
+  canCreateVisitors: boolean;
+  canHandleMovement: boolean;
+  canModerateVisitors: boolean;
+  isTenant: boolean;
+  onLockChange: (locked: boolean) => void;
+  orgId: string;
+}) {
   const [passes, setPasses] = useState<GatePassRecord[]>([]);
+  const [mode, setMode] = useState<"tenants" | "visitors">("tenants");
+  const [passSearch, setPassSearch] = useState("");
+  const [passStatusFilter, setPassStatusFilter] = useState("all");
+  const [passDestinationFilter, setPassDestinationFilter] = useState("all");
+  const [passDateFilter, setPassDateFilter] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -3829,14 +3953,14 @@ function GatePassSection({ accessToken, canApprove, canHandleMovement, isTenant,
 
   useEffect(() => {
     const open = () => {
-      if (!activePass) {
+      if (!isTenant || !activePass) {
         setRequestError("");
         setShowRequestForm(true);
       }
     };
     window.addEventListener("hostin:request-gate-pass", open);
     return () => window.removeEventListener("hostin:request-gate-pass", open);
-  }, [activePass]);
+  }, [activePass, isTenant]);
 
   useEffect(() => {
     onLockChange(Boolean(activePass));
@@ -3855,7 +3979,7 @@ function GatePassSection({ accessToken, canApprove, canHandleMovement, isTenant,
 
   async function requestPass(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (activePass || isSubmitting) return;
+    if ((isTenant && activePass) || isSubmitting) return;
     setIsSubmitting(true);
     setRequestError("");
     const form = new FormData(event.currentTarget);
@@ -3901,47 +4025,64 @@ function GatePassSection({ accessToken, canApprove, canHandleMovement, isTenant,
   }
 
   const historyPasses = passes.filter((pass) => !["pending", "approved"].includes(pass.status));
+  const destinationOptions = Array.from(new Set(passes.map((pass) => pass.destination).filter(Boolean))).sort();
+  const filteredPasses = passes.filter((pass) => {
+    const query = passSearch.toLowerCase().trim();
+    const text = `${pass.tenant?.full_name ?? ""} ${pass.purpose ?? ""} ${pass.reason ?? ""} ${pass.destination}`.toLowerCase();
+    const matchesSearch = !query || text.includes(query);
+    const matchesStatus = passStatusFilter === "all" || pass.status === passStatusFilter;
+    const matchesDestination = passDestinationFilter === "all" || pass.destination === passDestinationFilter;
+    const matchesDate = !passDateFilter || pass.expected_out_time?.slice(0, 10) === passDateFilter || pass.expected_return_time?.slice(0, 10) === passDateFilter;
+    return matchesSearch && matchesStatus && matchesDestination && matchesDate;
+  });
+  const passStats = {
+    total: passes.length,
+    completed: passes.filter((pass) => pass.status === "completed").length,
+    expired: passes.filter((pass) => ["rejected", "cancelled", "canceled", "expired"].includes(pass.status)).length,
+    upcoming: passes.filter((pass) => ["pending", "approved"].includes(pass.status)).length,
+  };
+  const requestPassModal = showRequestForm ? (
+    <div className="modalBackdrop" onMouseDown={() => setShowRequestForm(false)}>
+      <section aria-modal="true" className="panel gatePassModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+        <div className="modalHeader">
+          <div>
+            <h3>Request Gate Pass</h3>
+            <p>Share the destination and expected timings.</p>
+          </div>
+          <button aria-label="Close gate pass form" onClick={() => setShowRequestForm(false)} type="button">
+            ×
+          </button>
+        </div>
+        <form className="gatePassForm" onSubmit={requestPass}>
+          <label>
+            <span>Purpose</span>
+            <input name="purpose" placeholder="Home leave, outing..." required />
+          </label>
+          <label>
+            <span>Destination</span>
+            <input name="destination" placeholder="Where are they going?" required />
+          </label>
+          <label>
+            <span>Leaving</span>
+            <input name="expectedOutTime" type="datetime-local" required />
+          </label>
+          <label>
+            <span>Expected return</span>
+            <input name="expectedReturnTime" type="datetime-local" required />
+          </label>
+          {requestError ? <p className="formError" role="alert">{requestError}</p> : null}
+          <button className="gradientButton fullButton" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Creating..." : "Submit Request"}
+          </button>
+        </form>
+      </section>
+    </div>
+  ) : null;
 
   if (isTenant)
     return (
       <div className="gateTenantExperience">
-        {showRequestForm ? (
-          <div className="modalBackdrop" onMouseDown={() => setShowRequestForm(false)}>
-            <section aria-modal="true" className="panel gatePassModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
-              <div className="modalHeader">
-                <div>
-                  <h3>Request Gate Pass</h3>
-                  <p>Share your destination and expected timings.</p>
-                </div>
-                <button aria-label="Close gate pass form" onClick={() => setShowRequestForm(false)} type="button">
-                  ×
-                </button>
-              </div>
-              <form className="gatePassForm" onSubmit={requestPass}>
-                <label>
-                  <span>Purpose</span>
-                  <input name="purpose" placeholder="Home leave, outing..." required />
-                </label>
-                <label>
-                  <span>Destination</span>
-                  <input name="destination" placeholder="Where are you going?" required />
-                </label>
-                <label>
-                  <span>Leaving</span>
-                  <input name="expectedOutTime" type="datetime-local" required />
-                </label>
-                <label>
-                  <span>Expected return</span>
-                  <input name="expectedReturnTime" type="datetime-local" required />
-                </label>
-                {requestError ? <p className="formError" role="alert">{requestError}</p> : null}
-                <button className="gradientButton fullButton" disabled={isSubmitting} type="submit">
-                  {isSubmitting ? "Creating..." : "Submit Request"}
-                </button>
-              </form>
-            </section>
-          </div>
-        ) : null}
+        {requestPassModal}
         <section className="panel feedPanel">
           <PanelTitle title="Current gate pass" meta={activePass ? "1 active" : "No active pass"} />
           {isLoading ? (
@@ -3972,43 +4113,178 @@ function GatePassSection({ accessToken, canApprove, canHandleMovement, isTenant,
     );
 
   return (
-    <section className="panel feedPanel">
-      <PanelTitle title="Gate pass requests" meta={canHandleMovement ? "Live movement controls" : "View only"} />
-      {isLoading ? (
-        <DirectorySkeleton />
-      ) : passes.length ? (
-        <div className="recordList">
-          {passes.map((pass) => (
-            <article className="actionRecord" key={pass.id}>
-              <div>
-                <strong>{pass.tenant?.full_name ?? "Tenant"}</strong>
-                <small>
-                  {pass.purpose ?? pass.reason} · {pass.destination}
-                </small>
-                <small>Return: {formatDateTime(pass.expected_return_time)}</small>
-              </div>
-              <div>
-                <span className={`statusPill ${pass.status}`}>{pass.status}</span>
-                {canApprove && pass.status === "pending" ? (
-                  <div className="inlineActions">
-                    <button onClick={() => updatePass(pass.id, "approved")} type="button">
-                      Approve
-                    </button>
-                    <button onClick={() => updatePass(pass.id, "rejected")} type="button">
-                      Reject
-                    </button>
-                  </div>
-                ) : null}
-                {canHandleMovement && pass.status === "approved" && !pass.actual_out_time ? <button onClick={() => movePass(pass.id, "check-out")} type="button">Mark exit</button> : null}
-                {canHandleMovement && pass.status === "approved" && pass.actual_out_time && !pass.actual_in_time ? <button onClick={() => movePass(pass.id, "check-in")} type="button">Resolve return</button> : null}
-              </div>
-            </article>
-          ))}
+    <div className="gatePassWorkspace">
+      {requestPassModal}
+      <section className="panel gatePassControlPanel">
+        <div className="gatePassControlTop">
+          <nav aria-label="Gate pass record type" className="gatePassModeTabs">
+            <button className={mode === "tenants" ? "active" : ""} onClick={() => setMode("tenants")} type="button">
+              <i aria-hidden="true" className="ri-roadster-line" />
+              Tenant Passes
+            </button>
+            <button className={mode === "visitors" ? "active" : ""} onClick={() => setMode("visitors")} type="button">
+              <i aria-hidden="true" className="ri-user-received-line" />
+              Visitors
+            </button>
+          </nav>
+          <div className="gatePassCreateActions">
+            <button className="gatePassPrimaryAction" onClick={() => setShowRequestForm(true)} type="button">
+              <i aria-hidden="true" className="ri-user-add-line" />
+              New Tenant Pass
+            </button>
+            {canCreateVisitors ? (
+              <button className="gatePassSecondaryAction" onClick={() => setMode("visitors")} type="button">
+                <i aria-hidden="true" className="ri-user-shared-line" />
+                New Visitor Pass
+              </button>
+            ) : null}
+          </div>
         </div>
+        {mode === "tenants" ? (
+          <div className="gatePassFilters">
+            <label>
+              <i aria-hidden="true" className="ri-search-line" />
+              <input aria-label="Search gate passes" onChange={(event) => setPassSearch(event.target.value)} placeholder="Search by name, room, destination..." value={passSearch} />
+            </label>
+            <select aria-label="Filter gate pass status" onChange={(event) => setPassStatusFilter(event.target.value)} value={passStatusFilter}>
+              <option value="all">All Status</option>
+              {Array.from(new Set(passes.map((pass) => pass.status))).map((status) => (
+                <option key={status} value={status}>
+                  {titleFromSlug(status)}
+                </option>
+              ))}
+            </select>
+            <select aria-label="Filter gate pass destination" onChange={(event) => setPassDestinationFilter(event.target.value)} value={passDestinationFilter}>
+              <option value="all">All Destinations</option>
+              {destinationOptions.map((destination) => (
+                <option key={destination} value={destination}>
+                  {destination}
+                </option>
+              ))}
+            </select>
+            <label>
+              <i aria-hidden="true" className="ri-calendar-line" />
+              <input aria-label="Filter gate pass date" onChange={(event) => setPassDateFilter(event.target.value)} type="date" value={passDateFilter} />
+            </label>
+          </div>
+        ) : null}
+      </section>
+      {mode === "visitors" ? (
+        <VisitorsSection accessToken={accessToken} canCreate={canCreateVisitors} canModerate={canModerateVisitors} orgId={orgId} />
       ) : (
-        <EmptyPanel title="No gate passes" copy="Pending and historical gate passes will appear here." />
+        <section className="panel gatePassListPanel">
+          {isLoading ? (
+            <DirectorySkeleton />
+          ) : filteredPasses.length ? (
+            <div className="gatePassTravelList">
+              {filteredPasses.map((pass) => (
+                <GatePassTravelCard canApprove={canApprove} canHandleMovement={canHandleMovement} key={pass.id} onMove={movePass} onUpdate={updatePass} pass={pass} />
+              ))}
+            </div>
+          ) : (
+            <EmptyPanel title="No gate passes" copy="Pending and historical gate passes will appear here." />
+          )}
+          <div className="gatePassSummaryStrip">
+            <GatePassSummaryItem icon="ri-briefcase-line" label="Total Passes" meta="All time" tone="total" value={passStats.total} />
+            <GatePassSummaryItem icon="ri-checkbox-circle-line" label="Completed" meta="This month" tone="completed" value={passStats.completed} />
+            <GatePassSummaryItem icon="ri-close-circle-line" label="Expired" meta="This month" tone="expired" value={passStats.expired} />
+            <GatePassSummaryItem icon="ri-time-line" label="Upcoming" meta="Next 30 days" tone="upcoming" value={passStats.upcoming} />
+            <div className="gatePassSafeTravel">
+              <i aria-hidden="true" className="ri-flight-takeoff-line" />
+              <span>
+                <strong>Safe travels!</strong>
+                <small>Track and manage all gate passes in one place.</small>
+              </span>
+            </div>
+          </div>
+        </section>
       )}
-    </section>
+    </div>
+  );
+}
+
+function GatePassSummaryItem({ icon, label, meta, tone, value }: { icon: string; label: string; meta: string; tone: string; value: number | string }) {
+  return (
+    <div className={`gatePassSummaryItem ${tone}`}>
+      <i aria-hidden="true" className={icon} />
+      <span>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        <em>{meta}</em>
+      </span>
+    </div>
+  );
+}
+
+function GatePassTravelCard({ canApprove, canHandleMovement, onMove, onUpdate, pass }: { canApprove: boolean; canHandleMovement: boolean; onMove: (id: string, action: "check-out" | "check-in") => void; onUpdate: (id: string, status: "approved" | "rejected") => void; pass: GatePassRecord }) {
+  const statusTone = pass.status === "completed" ? "completed" : ["rejected", "cancelled", "canceled", "expired"].includes(pass.status) ? "expired" : "scheduled";
+  const placeParts = pass.destination.split(",").map((part) => part.trim()).filter(Boolean);
+  const destinationName = placeParts[0] ?? pass.destination;
+  const destinationRegion = placeParts.slice(1).join(", ") || "Destination";
+  const originName = "City Complex";
+  const originRegion = "Property";
+
+  return (
+    <article className={`gatePassTravelCard ${statusTone}`}>
+      <span className="gatePassTravelIcon" aria-hidden="true">
+        <i className="ri-flight-takeoff-line" />
+      </span>
+      <div className="gatePassTraveler">
+        <strong>{pass.tenant?.full_name ?? "Tenant"}</strong>
+        <small>{pass.purpose ?? pass.reason ?? "Travel pass"}</small>
+        <span>
+          <i aria-hidden="true" className="ri-map-pin-2-fill" />
+          {pass.destination}
+        </span>
+      </div>
+      <div className="gatePassRoute">
+        <div>
+          <small>From</small>
+          <strong>{originName}</strong>
+          <span>
+            <i aria-hidden="true" className="ri-map-pin-line" />
+            {originRegion}
+          </span>
+        </div>
+        <i aria-hidden="true" className="ri-flight-takeoff-fill" />
+        <div>
+          <small>To</small>
+          <strong>{destinationName}</strong>
+          <span>
+            <i aria-hidden="true" className="ri-map-pin-line" />
+            {destinationRegion}
+          </span>
+        </div>
+      </div>
+      <div className="gatePassTimes">
+        <span>
+          <i aria-hidden="true" className="ri-calendar-line" />
+          <small>Out</small>
+          <strong>{formatDateTime(pass.expected_out_time)}</strong>
+        </span>
+        <span>
+          <i aria-hidden="true" className="ri-time-line" />
+          <small>In</small>
+          <strong>{formatDateTime(pass.expected_return_time)}</strong>
+        </span>
+      </div>
+      <div className="gatePassStatusBlock">
+        <span className={`gatePassTravelStatus ${statusTone}`}>{statusTone === "scheduled" ? titleFromSlug(pass.status) : titleFromSlug(statusTone)}</span>
+        <small>Pass ID</small>
+        <strong>GP-{pass.id.slice(0, 5).toUpperCase()}</strong>
+        <button aria-label={`More actions for ${pass.tenant?.full_name ?? "gate pass"}`} className="gatePassMoreButton" type="button">
+          <i aria-hidden="true" className="ri-more-2-fill" />
+        </button>
+        {canApprove && pass.status === "pending" ? (
+          <div className="gatePassInlineActions">
+            <button onClick={() => onUpdate(pass.id, "approved")} type="button">Approve</button>
+            <button onClick={() => onUpdate(pass.id, "rejected")} type="button">Reject</button>
+          </div>
+        ) : null}
+        {canHandleMovement && pass.status === "approved" && !pass.actual_out_time ? <button className="gatePassMoveAction" onClick={() => onMove(pass.id, "check-out")} type="button">Mark exit</button> : null}
+        {canHandleMovement && pass.status === "approved" && pass.actual_out_time && !pass.actual_in_time ? <button className="gatePassMoveAction" onClick={() => onMove(pass.id, "check-in")} type="button">Resolve return</button> : null}
+      </div>
+    </article>
   );
 }
 
@@ -4226,6 +4502,7 @@ function CommunitySection({ accessToken, canCreate, orgId, role, mode }: { acces
   const [lostPosts, setLostPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState("");
+  const [showComposer, setShowComposer] = useState(false);
   const visibleTabs = mode ? [mode] : role === "tenant" ? ["announcements", "complaints", "lost"] : role === "parent" || role === "guard" ? ["announcements", "lost"] : ["announcements", "complaints", "lost"];
 
   async function loadCommunity() {
@@ -4262,6 +4539,10 @@ function CommunitySection({ accessToken, canCreate, orgId, role, mode }: { acces
     if (mode) setTab(mode);
   }, [mode]);
 
+  useEffect(() => {
+    setShowComposer(false);
+  }, [tab]);
+
   async function updateComplaintStatus(id: string, status: "in_progress" | "resolved" | "closed") {
     const response = await fetch(`${apiBase}/complaints/${id}/status`, {
       method: "PUT",
@@ -4275,87 +4556,136 @@ function CommunitySection({ accessToken, canCreate, orgId, role, mode }: { acces
   }
 
   const feedItems = tab === "announcements" ? announcements : tab === "complaints" ? complaints : lostPosts;
+  const canCreateCurrent = canCreate || (role === "tenant" && ["complaints", "lost"].includes(tab));
+  const createLabel = tab === "announcements" ? "Create Announcement" : tab === "complaints" ? "Create Complaint" : "Create Lost / Found";
+  const emptyTitle = tab === "announcements" ? "No announcements yet" : tab === "complaints" ? "No complaints yet" : "No lost / found posts yet";
+  const emptyCopy = tab === "announcements" ? "Share important updates and keep your community informed." : tab === "complaints" ? "Raise issues here so the team can track and resolve them." : "Post found items or report something missing for the community.";
+  const emptyIcon = tab === "announcements" ? "ri-megaphone-fill" : tab === "complaints" ? "ri-customer-service-2-fill" : "ri-search-eye-fill";
 
   return (
-    <section className="panel feedPanel">
+    <section className="communityWorkspace">
       <div className="communityHeader">
-        <PanelTitle title={mode ? titleFromSlug(mode) : "Community"} meta={mode === "complaints" ? "Open · In progress · Resolved" : mode === "announcements" ? "Property updates" : "Announcements · Complaints · Lost/Found"} />
         {!mode ? (
           <div className="communityToggle">
             {visibleTabs.map((item) => (
               <button className={tab === item ? "active" : ""} key={item} onClick={() => setTab(item as any)} type="button">
+                <i aria-hidden="true" className={item === "announcements" ? "ri-megaphone-line" : item === "complaints" ? "ri-customer-service-2-line" : "ri-search-eye-line"} />
                 {item === "lost" ? "Lost / Found" : titleFromSlug(item)}
               </button>
             ))}
           </div>
         ) : null}
+        {canCreateCurrent ? (
+          <button className="gradientButton communityCreateButton" onClick={() => setShowComposer(true)} type="button">
+            <i aria-hidden="true" className="ri-add-line" />
+            {createLabel}
+          </button>
+        ) : null}
       </div>
-      {canCreate || (role === "tenant" && ["complaints", "lost"].includes(tab)) ? <CommunityComposer tab={tab} accessToken={accessToken} orgId={orgId} onPosted={loadCommunity} /> : null}
-      {isLoading ? (
-        <DirectorySkeleton />
-      ) : feedItems.length ? (
-        <div className="communityFeed">
-          {feedItems.map((item) => (
-            <article className="communityPost" key={item.id}>
+      <section className="panel communityBoard">
+        {isLoading ? (
+          <DirectorySkeleton />
+        ) : feedItems.length ? (
+          <div className="communityFeed">
+            {feedItems.map((item) => (
+              <article className="communityPost" key={item.id}>
+                <div>
+                  <strong>{item.title ?? item.description ?? item.category}</strong>
+                  <small>
+                    {item.publisherName ?? item.tenant?.full_name ?? "Community"} · {formatDateTime(item.createdAt ?? item.created_at)}
+                  </small>
+                </div>
+                <p>{item.body ?? item.description ?? "No description added."}</p>
+                {["owner", "warden"].includes(role) && tab === "complaints" && item.status !== "closed" ? (
+                  <div className="inlineActions complaintActions">
+                    {item.status === "open" ? (
+                      <button onClick={() => updateComplaintStatus(item.id, "in_progress")} type="button">
+                        Start work
+                      </button>
+                    ) : null}
+                    {item.status !== "resolved" ? (
+                      <button onClick={() => updateComplaintStatus(item.id, "resolved")} type="button">
+                        Resolve
+                      </button>
+                    ) : (
+                      <button onClick={() => updateComplaintStatus(item.id, "closed")} type="button">
+                        Close
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+                {item.imageUrls?.length ? (
+                  <div className="postImages">
+                    {item.imageUrls.map((url: string, index: number) => (
+                      <Image alt={`Lost or found attachment ${index + 1}`} height={320} key={`${item.id}-${index}`} src={url} unoptimized width={512} />
+                    ))}
+                  </div>
+                ) : null}
+                {role !== "tenant" || tab === "announcements" ? (
+                  <div className="postActions">
+                    <button onClick={() => interact(item.id, tab, "reaction", "like")} type="button">
+                      Like <span>{item.reactionCount ?? 0}</span>
+                    </button>
+                    <button onClick={() => setCommentsFor((current) => (current === item.id ? "" : item.id))} type="button">
+                      Comment <span>{item.commentCount ?? 0}</span>
+                    </button>
+                  </div>
+                ) : null}
+                {(role !== "tenant" || tab === "announcements") && commentsFor === item.id ? (
+                  <form className="commentComposer" onSubmit={(event) => submitComment(event, item.id, tab)}>
+                    <input name="comment" placeholder="Write a comment..." required />
+                    <button type="submit">Post</button>
+                    {(item.comments ?? []).map((comment: any) => (
+                      <p key={comment.id}>
+                        <strong>{comment.authorName}</strong> {comment.body}
+                      </p>
+                    ))}
+                  </form>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="communityEmptyState">
+            <span aria-hidden="true" className="communityEmptyIllustration">
+              <i className={emptyIcon} />
+              <small><i className="ri-more-fill" /></small>
+            </span>
+            <strong>{emptyTitle}</strong>
+            <p>{emptyCopy}</p>
+            {canCreateCurrent ? (
+              <button className="gradientButton communityEmptyCreate" onClick={() => setShowComposer(true)} type="button">
+                <i aria-hidden="true" className="ri-add-line" />
+                {createLabel}
+              </button>
+            ) : null}
+          </div>
+        )}
+      </section>
+      {showComposer && canCreateCurrent ? (
+        <div className="modalBackdrop" onMouseDown={() => setShowComposer(false)}>
+          <section aria-modal="true" className="panel communityComposerModal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+            <div className="modalHeader">
               <div>
-                <strong>{item.title ?? item.description ?? item.category}</strong>
-                <small>
-                  {item.publisherName ?? item.tenant?.full_name ?? "Community"} · {formatDateTime(item.createdAt ?? item.created_at)}
-                </small>
+                <h3>{createLabel}</h3>
+                <p>{tab === "announcements" ? "Share an update with everyone in this property." : tab === "complaints" ? "Create a trackable issue for the property team." : "Share details so the item can be matched quickly."}</p>
               </div>
-              <p>{item.body ?? item.description ?? "No description added."}</p>
-              {["owner", "warden"].includes(role) && tab === "complaints" && item.status !== "closed" ? (
-                <div className="inlineActions complaintActions">
-                  {item.status === "open" ? (
-                    <button onClick={() => updateComplaintStatus(item.id, "in_progress")} type="button">
-                      Start work
-                    </button>
-                  ) : null}
-                  {item.status !== "resolved" ? (
-                    <button onClick={() => updateComplaintStatus(item.id, "resolved")} type="button">
-                      Resolve
-                    </button>
-                  ) : (
-                    <button onClick={() => updateComplaintStatus(item.id, "closed")} type="button">
-                      Close
-                    </button>
-                  )}
-                </div>
-              ) : null}
-              {item.imageUrls?.length ? (
-                <div className="postImages">
-                  {item.imageUrls.map((url: string, index: number) => (
-                    <Image alt={`Lost or found attachment ${index + 1}`} height={320} key={`${item.id}-${index}`} src={url} unoptimized width={512} />
-                  ))}
-                </div>
-              ) : null}
-              {role !== "tenant" || tab === "announcements" ? (
-                <div className="postActions">
-                  <button onClick={() => interact(item.id, tab, "reaction", "like")} type="button">
-                    Like <span>{item.reactionCount ?? 0}</span>
-                  </button>
-                  <button onClick={() => setCommentsFor((current) => (current === item.id ? "" : item.id))} type="button">
-                    Comment <span>{item.commentCount ?? 0}</span>
-                  </button>
-                </div>
-              ) : null}
-              {(role !== "tenant" || tab === "announcements") && commentsFor === item.id ? (
-                <form className="commentComposer" onSubmit={(event) => submitComment(event, item.id, tab)}>
-                  <input name="comment" placeholder="Write a comment..." required />
-                  <button type="submit">Post</button>
-                  {(item.comments ?? []).map((comment: any) => (
-                    <p key={comment.id}>
-                      <strong>{comment.authorName}</strong> {comment.body}
-                    </p>
-                  ))}
-                </form>
-              ) : null}
-            </article>
-          ))}
+              <button aria-label="Close create form" onClick={() => setShowComposer(false)} type="button">
+                <i aria-hidden="true" className="ri-close-line" />
+              </button>
+            </div>
+            <CommunityComposer
+              tab={tab}
+              accessToken={accessToken}
+              orgId={orgId}
+              onPosted={() => {
+                setShowComposer(false);
+                loadCommunity();
+              }}
+            />
+          </section>
         </div>
-      ) : (
-        <EmptyPanel title="No posts yet" copy="Community posts will appear here." />
-      )}
+      ) : null}
     </section>
   );
 
@@ -4510,6 +4840,16 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
     const haystack = `${row.tenant.fullName} ${row.tenant.phone ?? ""} ${row.tenant.email ?? ""} ${row.room?.number ?? ""}`.toLowerCase();
     return matchesStatus && haystack.includes(search.toLowerCase());
   });
+  const collectionRate = billing?.summary.collectionRate ?? 0;
+  const selectedTenantBalance = activeTenant?.balanceAmount ?? 0;
+  const selectedTenantTotal = activeTenant?.totalAmount ?? 0;
+  const balanceRate = selectedTenantTotal ? Math.round((selectedTenantBalance / selectedTenantTotal) * 100) : 0;
+  const selectedTenantRentDue = activeTenantDues.find((due) => due.due_type === "rent") ?? activeTenantDues[0];
+  const billingKpis = [
+    { label: "Total collected", value: money(billing?.summary.paidAmount ?? 0), meta: "This month", icon: "ri-wallet-3-line", tone: "mint", trend: "up" },
+    { label: "Total due", value: money(billing?.summary.balanceAmount ?? 0), meta: `From ${billing?.summary.tenantCount ?? 0} tenants`, icon: "ri-file-list-3-line", tone: "gold", trend: "due" },
+    { label: "Overdue", value: money(billing?.summary.overdueAmount ?? 0), meta: `${billing?.summary.overdueCount ?? 0} tenant${(billing?.summary.overdueCount ?? 0) === 1 ? "" : "s"}`, icon: "ri-error-warning-line", tone: "rose", trend: "overdue" },
+  ];
 
   async function payDue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4746,10 +5086,30 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
       </div>
       {notice ? <div className="syncBanner"><span>Billing</span>{notice}</div> : null}
       <div className="billingKpis">
-        <Metric label="Total collected" value={money(billing?.summary.paidAmount ?? 0)} meta="This month" />
-        <Metric label="Total due" value={money(billing?.summary.balanceAmount ?? 0)} meta={`From ${billing?.summary.tenantCount ?? 0} tenants`} />
-        <Metric label="Overdue" value={money(billing?.summary.overdueAmount ?? 0)} meta={`${billing?.summary.overdueCount ?? 0} tenants`} />
-        <Metric label="Collection rate" value={`${billing?.summary.collectionRate ?? 0}%`} meta="Paid against generated dues" />
+        {billingKpis.map((item) => (
+          <article className={`billingKpiCard ${item.tone}`} key={item.label}>
+            <span className="billingKpiIcon"><i aria-hidden="true" className={item.icon} /></span>
+            <div>
+              <small>{item.label}</small>
+              <strong>{item.value}</strong>
+              <p>{item.meta}</p>
+            </div>
+            <svg aria-hidden="true" className={`billingSparkline ${item.trend}`} viewBox="0 0 92 28">
+              <path d="M2 23 C14 13 22 14 31 20 S47 22 55 13 S75 8 90 3" />
+            </svg>
+          </article>
+        ))}
+        <article className="billingKpiCard blue">
+          <span className="billingKpiIcon"><i aria-hidden="true" className="ri-pie-chart-2-line" /></span>
+          <div>
+            <small>Collection rate</small>
+            <strong>{collectionRate}%</strong>
+            <p>Paid against generated dues</p>
+          </div>
+          <span aria-label={`${collectionRate}% collection rate`} className="billingRateRing" style={{ "--rate": `${Math.min(100, Math.max(0, collectionRate))}%` } as CSSProperties}>
+            <b>{collectionRate}%</b>
+          </span>
+        </article>
       </div>
       <section className="panel billingLedgerPanel">
         <div className="billingFilters">
@@ -4772,18 +5132,31 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
                 <thead><tr><th>Tenant</th><th>Room</th><th>Monthly due</th><th>Paid</th><th>Due amount</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {filteredTenants.map((row) => (
-                    <tr className={activeTenant?.tenant.id === row.tenant.id ? "selected" : ""} key={row.tenant.id}>
+                    <tr className={activeTenant?.tenant.id === row.tenant.id ? "selected" : ""} key={row.tenant.id} onClick={() => setSelectedTenantId(row.tenant.id)}>
                       <td><span className="tenantIdentity"><b>{getInitials(row.tenant.fullName)}</b><span><strong>{row.tenant.fullName}</strong><small>{row.tenant.phone || row.tenant.email || "Tenant account"}</small></span></span></td>
                       <td><strong>{row.room?.number ?? "Unassigned"}</strong><small>{row.room ? titleFromSlug(row.room.type) : "No room"}</small></td>
                       <td>{money(row.totalAmount)}</td>
                       <td>{money(row.paidAmount)}</td>
                       <td>{money(row.balanceAmount)}</td>
                       <td><span className={`statusPill ${row.status}`}>{titleFromSlug(row.status)}</span></td>
-                      <td><button className="outlineButton miniButton" onClick={() => setSelectedTenantId(row.tenant.id)} type="button">View details</button></td>
+                      <td>
+                        <span className="billingActionCell">
+                          <button className="outlineButton miniButton" onClick={(event) => { event.stopPropagation(); setSelectedTenantId(row.tenant.id); }} type="button">View details</button>
+                          <button aria-label={`More actions for ${row.tenant.fullName}`} className="iconOnlyButton" onClick={(event) => event.stopPropagation()} type="button"><i aria-hidden="true" className="ri-more-2-fill" /></button>
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <div className="billingTableFooter">
+                <span>Showing 1 to {filteredTenants.length} of {filteredTenants.length} tenants</span>
+                <div>
+                  <button aria-label="Previous page" type="button"><i aria-hidden="true" className="ri-arrow-left-s-line" /></button>
+                  <button className="active" type="button">1</button>
+                  <button aria-label="Next page" type="button"><i aria-hidden="true" className="ri-arrow-right-s-line" /></button>
+                </div>
+              </div>
             </div>
             {activeTenant ? (
               <aside className="billingTenantPanel">
@@ -4795,14 +5168,21 @@ function FinanceSection({ accessToken, isTenant, orgId }: { accessToken: string;
                   </div>
                   <span className={`statusPill ${activeTenant.status}`}>{titleFromSlug(activeTenant.status)}</span>
                 </div>
+                <div className="billingTenantBalance">
+                  <span className="billingBalanceRing" style={{ "--rate": `${Math.min(100, Math.max(0, balanceRate))}%` } as CSSProperties}>
+                    <b>{money(selectedTenantBalance)}</b>
+                    <small>Balance due</small>
+                  </span>
+                </div>
                 <dl className="billingTotals">
                   <div><dt>Total payable</dt><dd>{money(activeTenant.totalAmount)}</dd></div>
                   <div><dt>Amount paid</dt><dd>{money(activeTenant.paidAmount)}</dd></div>
                   <div><dt>Balance due</dt><dd>{money(activeTenant.balanceAmount)}</dd></div>
                 </dl>
                 <div className="billingLineItems compact">
-                  {activeTenantDues.map((due) => (
+                  {(selectedTenantRentDue ? [selectedTenantRentDue] : activeTenantDues).map((due) => (
                     <div key={due.id}>
+                      <i aria-hidden="true" className="ri-calendar-2-line" />
                       <span><b>{titleFromSlug(due.due_type)}</b><small>{due.description || `Due ${formatDateTime(due.due_date)}`}</small></span>
                       <strong>{money(Number(due.amount) - Number(due.amount_paid))}</strong>
                     </div>
@@ -4953,34 +5333,164 @@ function MessSection({ accessToken, canManage, orgId }: { accessToken: string; c
 function StaffContactsSection({ accessToken, orgId }: { accessToken: string; orgId: string }) {
   const [contacts, setContacts] = useState<StaffContactRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  useEffect(() => {
-    fetch(`${apiBase}/staff-contacts`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } })
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const loadContacts = useCallback(async () => {
+    setIsLoading(true);
+    await fetch(`${apiBase}/staff-contacts`, { headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": orgId } })
       .then((response) => response.json())
       .then((data) => setContacts(data.staffContacts ?? []))
       .catch(() => setContacts([]))
       .finally(() => setIsLoading(false));
   }, [accessToken, orgId]);
+
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts]);
+
+  async function createContact(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(`${apiBase}/staff-contacts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "x-org-id": orgId },
+      body: JSON.stringify({
+        name: form.get("name"),
+        phone: form.get("phone"),
+        roleType: form.get("roleType"),
+        isEmergency: form.get("isEmergency") === "on",
+      }),
+    });
+    if (response.ok) {
+      event.currentTarget.reset();
+      setShowCreate(false);
+      await loadContacts();
+    }
+  }
+
+  const categoryFor = (roleType: string) => (["guard"].includes(roleType) ? "security" : ["plumber", "electrician"].includes(roleType) ? "maintenance" : ["warden", "manager", "housekeeping", "cook"].includes(roleType) ? "staff" : "other");
+  const filteredContacts = contacts.filter((contact) => {
+    const matchesCategory = category === "all" || categoryFor(contact.role_type) === category;
+    const haystack = `${contact.name} ${contact.phone} ${contact.role_type} ${categoryFor(contact.role_type)}`.toLowerCase();
+    return matchesCategory && haystack.includes(search.toLowerCase());
+  });
+  const categories = Array.from(new Set(contacts.map((contact) => categoryFor(contact.role_type))));
+  const lastUpdatedDate = contacts
+    .map((contact) => contact.updated_at ?? contact.created_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const latestLabel = lastUpdatedDate ? new Date(lastUpdatedDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not updated";
+
   return (
-    <section className="panel feedPanel">
-      <PanelTitle title="Contact directory" meta={`${contacts.length} contacts`} />
-      {isLoading ? (
-        <DirectorySkeleton />
-      ) : contacts.length ? (
-        <div className="contactGrid">
-          {contacts.map((contact) => (
-            <article className="contactCard" key={contact.id}>
-              <span>{getInitials(contact.name)}</span>
-              <div>
-                <strong>{contact.name}</strong>
-                <small>{titleFromSlug(contact.role_type)}</small>
-              </div>
-              <a href={`tel:${contact.phone}`}>{contact.phone}</a>
-            </article>
-          ))}
+    <section className="staffContactsWorkspace">
+      <section className="panel staffContactsPanel">
+        <div className="staffContactsIntro">
+          <span aria-hidden="true" className="staffContactsIntroIcon">
+            <i className="ri-phone-line" />
+          </span>
+          <div>
+            <strong>Emergency contacts at your fingertips</strong>
+            <p>Quick access to important staff and emergency contacts whenever you need them.</p>
+          </div>
+          <button className="gradientButton staffAddButton" onClick={() => setShowCreate(true)} type="button">
+            <i aria-hidden="true" className="ri-add-line" />
+            Add New Contact
+          </button>
         </div>
-      ) : (
-        <EmptyPanel title="No contacts" copy="Staff names and phone numbers will appear here." />
-      )}
+        <div className="staffContactStats">
+          <article>
+            <span><i aria-hidden="true" className="ri-group-line" /></span>
+            <div><small>Total Contacts</small><strong>{contacts.length}</strong><p>Active contacts</p></div>
+          </article>
+          <article>
+            <span><i aria-hidden="true" className="ri-shield-check-line" /></span>
+            <div><small>Categories</small><strong>{Math.max(categories.length, contacts.length ? 1 : 0)}</strong><p>{categories.length ? categories.map(titleFromSlug).join(", ") : "Staff, Security, Maintenance"}</p></div>
+          </article>
+          <article>
+            <span><i aria-hidden="true" className="ri-time-line" /></span>
+            <div><small>Last Updated</small><strong>{lastUpdatedDate ? "Recently" : "No updates"}</strong><p>{lastUpdatedDate ? `On ${latestLabel}` : "Add a contact to begin"}</p></div>
+          </article>
+        </div>
+        <div className="staffContactFilters">
+          <label>
+            <i aria-hidden="true" className="ri-search-line" />
+            <input onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, role, or department..." value={search} />
+          </label>
+          <select aria-label="Filter staff contacts" onChange={(event) => setCategory(event.target.value)} value={category}>
+            <option value="all">All Categories</option>
+            <option value="staff">Staff</option>
+            <option value="security">Security</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        {isLoading ? (
+          <DirectorySkeleton />
+        ) : filteredContacts.length ? (
+          <div className="staffContactList">
+            {filteredContacts.map((contact) => (
+              <article className="staffContactRow" key={contact.id}>
+                <span className="staffContactAvatar">{getInitials(contact.name)}</span>
+                <div className="staffContactIdentity">
+                  <strong>{contact.name}</strong>
+                  <small>{titleFromSlug(contact.role_type)}</small>
+                  <b>{titleFromSlug(categoryFor(contact.role_type))}</b>
+                </div>
+                <a className="staffContactPhone" href={`tel:${contact.phone}`}>
+                  <i aria-hidden="true" className="ri-phone-line" />
+                  {contact.phone}
+                </a>
+                <span className="staffAvailabilityPill">{contact.is_emergency ? "24/7 Available" : ["plumber", "electrician", "housekeeping"].includes(contact.role_type) ? "Mon - Sat, 8AM - 8PM" : "24/7 Available"}</span>
+                <a className="staffCallButton" href={`tel:${contact.phone}`}>
+                  <i aria-hidden="true" className="ri-phone-line" />
+                  Call
+                </a>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyPanel title="No contacts" copy="Staff names and phone numbers will appear here." />
+        )}
+        <div className="staffContactsNote">
+          <i aria-hidden="true" className="ri-information-line" />
+          <span>Keep this list updated to ensure quick assistance in emergencies.</span>
+        </div>
+      </section>
+      {showCreate ? (
+        <div className="modalBackdrop" onMouseDown={() => setShowCreate(false)}>
+          <form className="panel staffContactModal" onMouseDown={(event) => event.stopPropagation()} onSubmit={createContact}>
+            <div className="modalHeader">
+              <div>
+                <h3>Add New Contact</h3>
+                <p>Add a reachable staff or emergency contact to the directory.</p>
+              </div>
+              <button aria-label="Close contact form" onClick={() => setShowCreate(false)} type="button">
+                <i aria-hidden="true" className="ri-close-line" />
+              </button>
+            </div>
+            <label><span>Name</span><input name="name" placeholder="Anita Warden" required /></label>
+            <label><span>Phone</span><input name="phone" placeholder="+91 99000 00002" required /></label>
+            <label>
+              <span>Role</span>
+              <select defaultValue="warden" name="roleType">
+                <option value="warden">Warden</option>
+                <option value="guard">Security Guard</option>
+                <option value="manager">Manager</option>
+                <option value="housekeeping">Housekeeping</option>
+                <option value="cook">Cook</option>
+                <option value="plumber">Plumber</option>
+                <option value="electrician">Electrician</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className="billingSwitch"><input name="isEmergency" type="checkbox" /><span>Mark as 24/7 emergency contact</span></label>
+            <button className="gradientButton fullButton" type="submit">Add contact</button>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -4997,39 +5507,19 @@ function dateForWeekDay(weekStart: string, offset: number) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
-function RoomsBoard({ accessToken, canManage, orgId, role, workspace }: { accessToken: string; canManage: boolean; orgId: string; role: string; workspace: string }) {
+function RoomsBoard({ accessToken, canManage, orgId, role, setActiveId, workspace }: { accessToken: string; canManage: boolean; orgId: string; role: string; setActiveId: (id: SectionId) => void; workspace: string }) {
   const [rooms, setRooms] = useState<RoomBoardRoom[]>([]);
   const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [floorFilter, setFloorFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [activeFloorKey, setActiveFloorKey] = useState("");
   const [selectedTenantUserId, setSelectedTenantUserId] = useState("");
   const [isLoadingBoard, setIsLoadingBoard] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
-  const stats = useMemo(() => {
-    const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
-    const occupiedSlots = rooms.reduce((sum, room) => sum + room.currentOccupancy, 0);
-    const fullRooms = rooms.filter((room) => getRoomState(room) === "full").length;
-    const partialRooms = rooms.filter((room) => getRoomState(room) === "partial").length;
-    const emptyRooms = rooms.filter((room) => getRoomState(room) === "empty").length;
-    return { totalCapacity, occupiedSlots, fullRooms, partialRooms, emptyRooms };
-  }, [rooms]);
-
   const floors = useMemo(() => {
-    const filtered = rooms.filter((room) => {
-      const matchesFloor = floorFilter === "all" || String(room.floorNumber) === floorFilter;
-      const matchesType = typeFilter === "all" || room.roomType === typeFilter;
-      const normalizedSearch = search.toLowerCase().trim();
-      const occupantMatch = room.occupants.some((occupant) => occupant.fullName.toLowerCase().includes(normalizedSearch));
-      const matchesSearch = !normalizedSearch || room.roomNumber.toLowerCase().includes(normalizedSearch) || occupantMatch;
-      return matchesFloor && matchesType && matchesSearch;
-    });
-
     return Array.from(
-      filtered.reduce((map, room) => {
+      rooms.reduce((map, room) => {
         const key = `${room.floorNumber}-${room.floorName}`;
         const existing = map.get(key) ?? [];
         existing.push(room);
@@ -5044,7 +5534,27 @@ function RoomsBoard({ accessToken, canManage, orgId, role, workspace }: { access
         rooms: floorRooms.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })),
       }))
       .sort((a, b) => b.floorNumber - a.floorNumber);
-  }, [floorFilter, rooms, search, typeFilter]);
+  }, [rooms]);
+
+  useEffect(() => {
+    if (!floors.length) {
+      if (activeFloorKey) setActiveFloorKey("");
+      return;
+    }
+    if (!floors.some((floor) => floor.key === activeFloorKey)) setActiveFloorKey(floors[0].key);
+  }, [activeFloorKey, floors]);
+
+  const activeFloor = floors.find((floor) => floor.key === activeFloorKey) ?? floors[0];
+  const activeRooms = useMemo(() => activeFloor?.rooms ?? [], [activeFloor]);
+  const floorStats = useMemo(() => {
+    const occupied = activeRooms.filter((room) => room.currentOccupancy > 0 && room.status !== "maintenance").length;
+    const vacant = activeRooms.filter((room) => getRoomState(room) === "empty").length;
+    const reserved = activeRooms.filter((room) => room.status === "reserved").length;
+    const maintenance = activeRooms.filter((room) => room.status === "maintenance").length;
+    const total = activeRooms.length;
+    const percent = (value: number) => (total ? `${Math.round((value / total) * 100)}%` : "0%");
+    return { total, occupied, vacant, reserved, maintenance, percent };
+  }, [activeRooms]);
 
   async function loadBoard() {
     setIsLoadingBoard(true);
@@ -5140,183 +5650,194 @@ function RoomsBoard({ accessToken, canManage, orgId, role, workspace }: { access
 
   return (
     <div className="roomsExperience">
-      {isLoadingBoard ? (
-        <RoomBoardSkeleton />
-      ) : (
-        <section className="roomStats">
-          <Metric label="Total Rooms" value={rooms.length} meta={`${floors.length} floors`} />
-          <Metric label="Occupied Slots" value={stats.occupiedSlots} meta={`${stats.totalCapacity} capacity`} />
-          <Metric label="Full Rooms" value={stats.fullRooms} meta="No beds free" />
-          <Metric label="Partially Filled" value={stats.partialRooms} meta="Can assign" />
-          <Metric label="Empty Rooms" value={stats.emptyRooms} meta="Open rooms" />
-        </section>
-      )}
+      <section className="panel roomsFloorTabs">
+        {isLoadingBoard ? (
+          <div className="roomsTabSkeleton">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <span key={index} />
+            ))}
+          </div>
+        ) : floors.length ? (
+          <div className="roomsTabList" role="tablist" aria-label="Floors">
+            {floors.map((floor) => (
+              <button aria-selected={activeFloor?.key === floor.key} className={activeFloor?.key === floor.key ? "active" : ""} key={floor.key} onClick={() => setActiveFloorKey(floor.key)} role="tab" type="button">
+                {floor.floorNumber === 0 ? "Ground Floor" : `Floor ${floor.floorNumber}`}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="roomsHeaderActions">
+          {canManage ? (
+            <button className="roomsOutlineAction" onClick={() => activeRooms[0] && setSelectedRoomId(activeRooms[0].id)} type="button">
+              <i aria-hidden="true" className="ri-settings-3-line" />
+              Manage Rooms
+            </button>
+          ) : null}
+          {role === "owner" ? (
+            <button className="roomsSolidAction" onClick={() => setActiveId("ownerBilling")} type="button">
+              <i aria-hidden="true" className="ri-bank-card-line" />
+              View Billing
+            </button>
+          ) : null}
+        </div>
+      </section>
 
       <section className="panel roomsPanel">
-        <div className="roomsToolbar">
-          <select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)} aria-label="Filter floor">
-            <option value="all">All floors</option>
-            {Array.from(new Set(rooms.map((room) => room.floorNumber)))
-              .sort((a, b) => b - a)
-              .map((floor) => (
-                <option key={floor} value={floor}>
-                  Floor {floor}
-                </option>
-              ))}
-          </select>
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filter room type">
-            <option value="all">All room types</option>
-            {Array.from(new Set(rooms.map((room) => room.roomType))).map((type) => (
-              <option key={type} value={type}>
-                {formatRoomType(type)}
-              </option>
-            ))}
-          </select>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search room or student..." />
-          <div className="roomLegend">
-            <span>
-              <i className="full" /> Full
-            </span>
-            <span>
-              <i className="partial" /> Partial
-            </span>
-            <span>
-              <i className="empty" /> Empty
-            </span>
-            <span>
-              <i className="maintenance" /> Maintenance
-            </span>
-          </div>
-        </div>
+        {isLoadingBoard ? (
+          <RoomGridSkeleton />
+        ) : rooms.length && activeFloor ? (
+          <>
+            <div className="roomsPanelHeader">
+              <div className="roomsFloorTitle">
+                <h3>{activeFloor.floorNumber === 0 ? "Ground Floor" : `Floor ${activeFloor.floorNumber}`}</h3>
+                <span>{activeRooms.length} Rooms</span>
+              </div>
+              <div className="roomLegend">
+                <span>
+                  <i className="occupied" /> Occupied
+                </span>
+                <span>
+                  <i className="vacant" /> Vacant
+                </span>
+                <span>
+                  <i className="maintenance" /> Maintenance
+                </span>
+                <span>
+                  <i className="reserved" /> Reserved
+                </span>
+                <span>
+                  <i className="locked" /> Locked
+                </span>
+              </div>
+              <div className="roomsViewActions">
+                <button type="button">
+                  <i aria-hidden="true" className="ri-information-line" />
+                  Legend
+                </button>
+                <button type="button">
+                  <i aria-hidden="true" className="ri-fullscreen-line" />
+                  Fit View
+                </button>
+              </div>
+            </div>
 
-        <div className="roomsBoardLayout">
-          {isLoadingBoard ? (
-            <RoomGridSkeleton />
-          ) : rooms.length ? (
-            <div className="floorBoard">
-              {floors.map((floor) => (
-                <div className="floorRow" key={floor.key}>
-                  <div className="floorLabel">
-                    <span>{floor.floorNumber === 0 ? "Ground" : `Floor ${floor.floorNumber}`}</span>
-                    <small>{floor.rooms.length} rooms</small>
+            <div className="roomsBoardLayout">
+              <aside className="roomStatsRail">
+                <RoomStatCard icon="ri-layout-grid-line" label="Total Rooms" value={floorStats.total} />
+                <RoomStatCard icon="ri-user-follow-line" label="Occupied" meta={floorStats.percent(floorStats.occupied)} tone="occupied" value={floorStats.occupied} />
+                <RoomStatCard icon="ri-checkbox-blank-circle-line" label="Vacant" meta={floorStats.percent(floorStats.vacant)} tone="vacant" value={floorStats.vacant} />
+                <RoomStatCard icon="ri-bookmark-line" label="Reserved" meta={floorStats.percent(floorStats.reserved)} tone="reserved" value={floorStats.reserved} />
+                <RoomStatCard icon="ri-tools-line" label="Maintenance" meta={floorStats.percent(floorStats.maintenance)} tone="maintenance" value={floorStats.maintenance} />
+              </aside>
+
+              <div className="floorPlanCanvas">
+                <div className="floorPlan">
+                  <div className="roomCells roomCellsTop">
+                    {activeRooms.slice(0, Math.ceil(activeRooms.length / 2)).map((room) => (
+                      <RoomCell isSelected={selectedRoom?.id === room.id} key={room.id} onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))} room={room} />
+                    ))}
                   </div>
-                  <div className="roomCells">
-                    {floor.rooms.map((room) => (
-                      <RoomCell isSelected={selectedRoom?.id === room.id} key={room.id} onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))} room={room} role={role} workspace={workspace} />
+                  <div className="floorCorridor" aria-hidden="true" />
+                  <div className="roomCells roomCellsBottom">
+                    {activeRooms.slice(Math.ceil(activeRooms.length / 2)).reverse().map((room) => (
+                      <RoomCell isSelected={selectedRoom?.id === room.id} key={room.id} onSelect={() => setSelectedRoomId((current) => (current === room.id ? "" : room.id))} room={room} />
                     ))}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          ) : (
+
+            <div className="roomsTip">
+              <i aria-hidden="true" className="ri-lightbulb-flash-line" />
+              Tip: Click on any room to view details, occupants, and actions.
+            </div>
+
+            <aside className={`roomDetailsPanel ${selectedRoom ? "isVisible" : "isIdle"}`}>
+              {selectedRoom ? (
+                <>
+                  <div className="roomDetailsHeader">
+                    <div>
+                      <h3>Room {selectedRoom.roomNumber}</h3>
+                      <p>
+                        {selectedRoom.floorName} · {selectedRoom.currentOccupancy}/{selectedRoom.capacity} occupied
+                      </p>
+                    </div>
+                    <span className={`statusPill ${getRoomState(selectedRoom)}`}>{getRoomState(selectedRoom)}</span>
+                  </div>
+
+                  <div className="occupantList">
+                    <div className="occupantTitle">
+                      <strong>Occupants</strong>
+                      <span>
+                        {selectedRoom.occupants.length}/{selectedRoom.capacity}
+                      </span>
+                    </div>
+                    {selectedRoom.occupants.length ? (
+                      selectedRoom.occupants.map((occupant) => (
+                        <div className="occupantRow" key={occupant.tenantProfileId}>
+                          <span>{getInitials(occupant.fullName)}</span>
+                          <div>
+                            <strong>{occupant.fullName}</strong>
+                            <a href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}>View profile</a>
+                          </div>
+                          {canManage ? (
+                            <button onClick={() => removeTenant(occupant.tenantProfileId)} type="button">
+                              Remove
+                            </button>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="emptyText">No students assigned.</p>
+                    )}
+                  </div>
+
+                  <div className="roomInfoGrid">
+                    <div>
+                      <span>Room type</span>
+                      <strong>{formatRoomType(selectedRoom.roomType)}</strong>
+                    </div>
+                    <div>
+                      <span>Capacity</span>
+                      <strong>{selectedRoom.capacity}</strong>
+                    </div>
+                    <div>
+                      <span>Monthly rent</span>
+                      <strong>₹{selectedRoom.monthlyRent}</strong>
+                    </div>
+                  </div>
+
+                  {canManage ? (
+                    <div className="assignBox">
+                      <label>
+                        <span>Add or move student</span>
+                        <select value={selectedTenantUserId} onChange={(event) => setSelectedTenantUserId(event.target.value)}>
+                          <option value="">Select tenant</option>
+                          {tenantOptions.map((tenant) => (
+                            <option key={tenant.userId} value={tenant.userId}>
+                              {tenant.fullName}
+                              {tenant.roomNumber ? ` · ${tenant.roomNumber}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="gradientButton fullButton" disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"} onClick={assignTenant} type="button">
+                        Assign to room
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </aside>
+          </>
+        ) : (
             <div className="roomEmptyState">
               <strong>{loadFailed ? "Rooms could not be loaded" : "No rooms created yet"}</strong>
               <p>{loadFailed ? "Check backend, login permissions, and seeded workspace data." : "Create floors and rooms during setup to generate this visual board."}</p>
             </div>
-          )}
-
-          <aside className={`roomDetailsPanel ${selectedRoom ? "isVisible" : "isIdle"}`}>
-            {selectedRoom ? (
-              <>
-                <div className="roomDetailsHeader">
-                  <div>
-                    <h3>Room {selectedRoom.roomNumber}</h3>
-                    <p>
-                      {selectedRoom.floorName} · {selectedRoom.currentOccupancy}/{selectedRoom.capacity} occupied
-                    </p>
-                  </div>
-                  <span className={`statusPill ${getRoomState(selectedRoom)}`}>{getRoomState(selectedRoom)}</span>
-                </div>
-
-                <div className="occupantList">
-                  <div className="occupantTitle">
-                    <strong>Occupants</strong>
-                    <span>
-                      {selectedRoom.occupants.length}/{selectedRoom.capacity}
-                    </span>
-                  </div>
-                  {selectedRoom.occupants.length ? (
-                    selectedRoom.occupants.map((occupant) => (
-                      <div className="occupantRow" key={occupant.tenantProfileId}>
-                        <span>{getInitials(occupant.fullName)}</span>
-                        <div>
-                          <strong>{occupant.fullName}</strong>
-                          <a href={`/${workspace}/${role}/tenants?student=${occupant.userId}`}>View profile</a>
-                        </div>
-                        {canManage ? (
-                          <button onClick={() => removeTenant(occupant.tenantProfileId)} type="button">
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="emptyText">No students assigned.</p>
-                  )}
-                </div>
-
-                <div className="roomInfoGrid">
-                  <div>
-                    <span>Room type</span>
-                    <strong>{formatRoomType(selectedRoom.roomType)}</strong>
-                  </div>
-                  <div>
-                    <span>Capacity</span>
-                    <strong>{selectedRoom.capacity}</strong>
-                  </div>
-                  <div>
-                    <span>Monthly rent</span>
-                    <strong>₹{selectedRoom.monthlyRent}</strong>
-                  </div>
-                </div>
-
-                {canManage ? (
-                  <div className="assignBox">
-                    <label>
-                      <span>Add or move student</span>
-                      <select value={selectedTenantUserId} onChange={(event) => setSelectedTenantUserId(event.target.value)}>
-                        <option value="">Select tenant</option>
-                        {tenantOptions.map((tenant) => (
-                          <option key={tenant.userId} value={tenant.userId}>
-                            {tenant.fullName}
-                            {tenant.roomNumber ? ` · ${tenant.roomNumber}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button className="gradientButton fullButton" disabled={!selectedTenantUserId || getRoomState(selectedRoom) === "full"} onClick={assignTenant} type="button">
-                      Assign to room
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="roomPanelPlaceholder">
-                <strong>Select a room</strong>
-                <p>Room actions will appear here without shifting the board layout.</p>
-              </div>
-            )}
-          </aside>
-        </div>
+        )}
       </section>
     </div>
-  );
-}
-
-function RoomBoardSkeleton() {
-  return (
-    <section className="roomStats">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div className="roomMetric skeletonMetric" key={index}>
-          <div>
-            <span className="skeletonLine label" />
-            <strong className="skeletonLine value" />
-            <small className="skeletonLine meta" />
-          </div>
-          <i className="skeletonIcon" />
-        </div>
-      ))}
-    </section>
   );
 }
 
@@ -5368,6 +5889,17 @@ function RoomGridSkeleton() {
   );
 }
 
+function RoomStatCard({ icon, label, meta, tone = "total", value }: { icon: string; label: string; meta?: string; tone?: string; value: number | string }) {
+  return (
+    <div className={`roomStatCard ${tone}`}>
+      <i aria-hidden="true" className={icon} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {meta ? <small>{meta}</small> : null}
+    </div>
+  );
+}
+
 function Metric({ label, value, meta }: { label: string; value: number | string; meta: string }) {
   return (
     <div className="roomMetric">
@@ -5378,30 +5910,23 @@ function Metric({ label, value, meta }: { label: string; value: number | string;
   );
 }
 
-function RoomCell({ isSelected, onSelect, room, role, workspace }: { isSelected: boolean; onSelect: () => void; room: RoomBoardRoom; role: string; workspace: string }) {
+function RoomCell({ isSelected, onSelect, room }: { isSelected: boolean; onSelect: () => void; room: RoomBoardRoom }) {
   const state = getRoomState(room);
-  const names = room.occupants.map((occupant) => occupant.fullName);
+  const primaryOccupant = room.occupants[0];
+  const occupantLabel = room.status === "maintenance" ? "Maintenance" : primaryOccupant?.fullName.split(" ").slice(0, 2).join(" ") || "Vacant";
+  const statusIcon = state === "empty" ? "ri-checkbox-blank-circle-line" : state === "maintenance" ? "ri-tools-line" : "ri-check-line";
 
   return (
-    <button className={`roomCell ${state} ${isSelected ? "selected" : ""}`} onClick={onSelect} type="button">
+    <button aria-label={`Room ${room.roomNumber}, ${occupantLabel}`} className={`roomCell ${state} ${isSelected ? "selected" : ""}`} onClick={onSelect} type="button">
       <strong>{room.roomNumber}</strong>
-      <div className="bedIcons" aria-label={`${room.currentOccupancy} of ${room.capacity} occupied`}>
-        {Array.from({ length: room.capacity }).map((_, index) => {
-          const occupant = room.occupants[index];
-          return occupant ? (
-            <a className="bedIcon filled" href={`/${workspace}/${role}/tenants?student=${occupant.userId}`} key={occupant.userId} onClick={(event) => event.stopPropagation()} title={occupant.fullName}>
-              {getInitials(occupant.fullName).slice(0, 1)}
-            </a>
-          ) : (
-            <span className="bedIcon" key={`empty-${index}`} />
-          );
-        })}
-      </div>
-      <small>{room.status === "maintenance" ? "Maintenance" : `${room.currentOccupancy}/${room.capacity}`}</small>
-      {names.length ? (
+      <small>{occupantLabel}</small>
+      <span className="roomPlanStatus" aria-hidden="true">
+        <i className={statusIcon} />
+      </span>
+      {room.occupants.length ? (
         <span className="roomTooltip">
-          {names.map((name) => (
-            <em key={name}>{name}</em>
+          {room.occupants.map((occupant) => (
+            <em key={occupant.tenantProfileId}>{occupant.fullName}</em>
           ))}
           <b>View room details</b>
         </span>
@@ -5565,8 +6090,7 @@ function fieldsFor(id: SectionId) {
     overview: ["Search", "Date"],
     rooms: ["Room number", "Floor", "Capacity", "Room type"],
     tenants: ["Full name", "Email", "Phone", "Temporary password"],
-    gate: ["Reason", "Destination", "Expected return", "Emergency contact"],
-    visitors: ["Visitor name", "Phone", "Tenant", "Purpose"],
+    gate: ["Pass type", "Tenant or visitor", "Expected time", "Purpose"],
     finance: ["Tenant", "Due type", "Amount", "Due date"],
     community: ["Title", "Message", "Type"],
     mess: ["Week start", "Meal", "Dish", "Notes"],
@@ -5584,8 +6108,7 @@ function workflowFor(id: SectionId) {
     overview: ["Review metrics", "Open priority queue", "Assign owners"],
     rooms: ["Create floor", "Create room", "Assign tenant", "Track history"],
     tenants: ["Create tenant account", "View profile", "Assign later from Rooms", "Collect documents"],
-    gate: ["Tenant requests", "Warden approves or rejects", "Guard scans out", "Guard scans in"],
-    visitors: ["Guard creates visitor", "Team views records", "Filter by date", "Check in/out"],
+    gate: ["Choose tenant or visitor", "Review request", "Approve or reject", "Track movement"],
     finance: ["Raise due", "Send reminder", "Record payment", "Close balance"],
     community: ["Choose feed", "Post or view", "React", "Comment"],
     mess: ["Create menu", "Publish week", "Collect feedback", "Review summary"],

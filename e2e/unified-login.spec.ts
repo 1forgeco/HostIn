@@ -78,8 +78,10 @@ test("tenant account routes directly to its private profile", async ({ page }) =
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await clickWorkspaceButton(page, "Community");
   await page.getByRole("button", { name: "Complaints", exact: true }).click();
-  await expect(page.getByLabel("Complaint category")).toBeVisible();
-  await expect(page.getByLabel("Complaint priority")).toBeVisible();
+  await page.getByRole("button", { name: "Create Complaint" }).click();
+  await expect(page.getByRole("dialog").getByLabel("Complaint category")).toBeVisible();
+  await expect(page.getByRole("dialog").getByLabel("Complaint priority")).toBeVisible();
+  await page.getByRole("button", { name: "Close create form" }).click();
   await page.getByRole("button", { name: "Profile menu" }).click();
   await page.getByRole("button", { name: "View profile" }).click();
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
@@ -98,14 +100,18 @@ test("warden account opens a minimal daily operations dashboard", async ({ page 
   await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible();
 
   const sidebar = await workspaceNavigation(page);
-  for (const item of ["Dashboard", "Rooms", "Tenants", "Complaints", "Gate Passes", "Visitors", "Announcements", "Staff Contacts", "Documents Vault"]) {
+  for (const item of ["Dashboard", "Rooms", "Tenants", "Community", "Gate Passes", "Announcements", "Staff Contacts", "Documents Vault"]) {
     await expect(sidebar.getByRole("button", { name: item, exact: true })).toBeVisible();
   }
-  for (const item of ["Billing & Plans", "Dues & Payments", "Mess", "Reports", "Settings", "Analytics"]) {
+  for (const item of ["Complaints", "Visitors", "Billing & Plans", "Dues & Payments", "Mess", "Reports", "Settings", "Analytics"]) {
     await expect(sidebar.getByRole("button", { name: item, exact: true })).toHaveCount(0);
   }
 
-  await sidebar.getByRole("button", { name: "Documents Vault", exact: true }).click();
+  await sidebar.getByRole("button", { name: "Gate Passes", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Tenant Passes" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Visitors" })).toBeVisible();
+
+  await clickWorkspaceButton(page, "Documents Vault");
   const filter = page.getByLabel("Filter documents by student name");
   await expect(filter).toBeVisible();
   await filter.fill("Aarav");
@@ -165,7 +171,7 @@ test("owner account opens the database-backed business dashboard", async ({ page
   await expect(page.locator(".ownerCredentialCards")).toBeVisible();
   await expect(page.locator(".ownerCredentialCard")).toHaveCount(7);
   await expect(page.getByText("owner@city-complex.hostin.local")).toBeVisible();
-  await page.getByRole("button", { name: "Add Team Member" }).click();
+  await page.getByRole("button", { name: "Add Team Member", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Add Team Member" })).toBeVisible();
   await expect(page.getByLabel("Request type")).toHaveValue("credential_creation");
   await page.getByRole("button", { name: "Close request form" }).click();
@@ -176,12 +182,12 @@ test("owner account opens the database-backed business dashboard", async ({ page
   await ownerDocumentFilter.fill("Aarav");
   await expect(page.getByText("Aarav Mehta", { exact: true })).toBeVisible();
 
-  await clickWorkspaceButton(page, "Requests");
-  await expect(page.getByRole("heading", { name: "Request history" })).toBeVisible();
-  await page.getByRole("button", { name: "New Request" }).click();
-  await expect(page.getByRole("heading", { name: "New Request" })).toBeVisible();
+  await clickWorkspaceButton(page, "Help & Support");
+  await expect(page.getByRole("heading", { name: "Help & Support" })).toBeVisible();
+  await page.getByRole("button", { name: "Raise a ticket" }).click();
+  await expect(page.getByRole("heading", { name: "Raise a Ticket" })).toBeVisible();
   await page.locator(".modalBackdrop").click({ position: { x: 10, y: 10 } });
-  await expect(page.getByRole("heading", { name: "New Request" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Raise a Ticket" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Profile menu" }).click();
   await page.getByRole("button", { name: "View profile" }).click();

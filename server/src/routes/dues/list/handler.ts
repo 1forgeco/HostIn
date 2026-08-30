@@ -36,7 +36,7 @@ export const handleListDues = async (req: AuthorizedRequest, res: Response) => {
       monthStart.setUTCHours(0, 0, 0, 0);
       const monthEnd = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
       await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`${orgId}:${monthStart.toISOString()}:rent`}))`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`${orgId}:${monthStart.toISOString()}:rent`}))::text`;
         const [profiles, existingRentDues] = await Promise.all([
           tx.tenantProfile.findMany({ where: { org_id: orgId, is_active: true }, select: { user_id: true, room: { select: { monthly_rent: true } } } }),
           tx.due.findMany({ where: { org_id: orgId, due_type: "rent", billing_month: { gte: monthStart, lt: monthEnd } }, select: { tenant_id: true } }),
